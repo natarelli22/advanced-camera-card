@@ -1,13 +1,20 @@
 name: 'Sync Upstream & Release for HACS'
 
 on:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.gitignore'
   schedule:
     # Executa toda segunda-feira às 04:00 UTC (01:00 horário de Brasília)
     - cron: '0 4 * * 1'
   workflow_dispatch:
     inputs:
       force_release:
-        description: 'Forçar geração de release mesmo sem novos commits do upstream (útil no 1º deploy)'
+        description: 'Forçar geração de release mesmo sem novos commits do upstream'
         required: false
         type: boolean
         default: false
@@ -33,11 +40,13 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Add Upstream Remote
+        if: github.event_name != 'push'
         run: |
           git remote add upstream https://github.com/dermotduffy/advanced-camera-card.git
           git fetch upstream main
 
       - name: Check for Upstream Changes
+        if: github.event_name != 'push'
         id: check_changes
         run: |
           UPSTREAM_HEAD=$(git rev-parse upstream/main)
@@ -51,7 +60,7 @@ jobs:
           fi
 
       - name: Merge Upstream Changes
-        if: steps.check_changes.outputs.already_up_to_date == 'false'
+        if: github.event_name != 'push' && steps.check_changes.outputs.already_up_to_date == 'false'
         id: merge_upstream
         run: |
           if git merge upstream/main --no-edit -m "chore(sync): merge upstream/main into fork"; then
@@ -74,47 +83,64 @@ jobs:
               body: "O GitHub Actions tentou aplicar as novidades da versão oficial (upstream), mas encontrou um conflito de código com as alterações locais.\n\nPor favor, sincronize manualmente no seu computador para resolver os arquivos em conflito."
             });
 
+      - name: Decide Whether to Build and Release
+        id: should_run
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Triggered by push to main. Proceeding with release."
+          elif [ "${{ steps.check_changes.outputs.already_up_to_date }}" = "false" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "New upstream changes detected. Proceeding with release."
+          elif [ "${{ inputs.force_release }}" = "true" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            echo "Force release requested. Proceeding with release."
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "No changes to release."
+          fi
+
       - name: Setup Node and Volta
-        if: steps.check_changes.outputs.already_up_to_date == 'false' || inputs.force_release == true
+        if: steps.should_run.outputs.run == 'true'
         uses: volta-cli/action@v5
 
       - name: Install dependencies
-        if: steps.check_changes.outputs.already_up_to_date == 'false' || inputs.force_release == true
+        if: steps.should_run.outputs.run == 'true'
         run: yarn install --no-immutable
 
       - name: Run Tests
-        if: steps.check_changes.outputs.already_up_to_date == 'false' || inputs.force_release == true
+        if: steps.should_run.outputs.run == 'true'
         run: yarn test
 
       - name: Build Card
-        if: steps.check_changes.outputs.already_up_to_date == 'false' || inputs.force_release == true
+        if: steps.should_run.outputs.run == 'true'
         run: yarn run build
 
       - name: Package Zip for HACS
-        if: steps.check_changes.outputs.already_up_to_date == 'false' || inputs.force_release == true
+        if: steps.should_run.outputs.run == 'true'
         run: |
           cd dist
           zip -r ../advanced-camera-card.zip ./*
           cd ..
 
       - name: Push Merged Changes
-        if: steps.check_changes.outputs.already_up_to_date == 'false'
+        if: github.event_name != 'push' && steps.check_changes.outputs.already_up_to_date == 'false'
         run: git push origin main
 
       - name: Determine New Tag Version
-        if: steps.check_changes.outputs.already_up_to_date == 'false' || inputs.force_release == true
+        if: steps.should_run.outputs.run == 'true'
         id: get_tag
         run: |
           DATE_TAG="v$(date +'%Y.%m.%d-%H%M')"
           echo "tag=$DATE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release for HACS
-        if: steps.check_changes.outputs.already_up_to_date == 'false' || inputs.force_release == true
+        if: steps.should_run.outputs.run == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
           name: ${{ steps.get_tag.outputs.tag }}
-          body: "Release do Advanced Camera Card com suporte ao motor TP-Link/Tapo e linha do tempo interativa."
+          body: "Release do Advanced Camera Card com suporte a cameras TP-Link Tapo e timeline sob demanda."
           files: |
             advanced-camera-card.zip
             dist/*.js
