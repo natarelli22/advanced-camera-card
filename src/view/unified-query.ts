@@ -120,6 +120,10 @@ export class UnifiedQuery {
   public isSupersetOf(that: UnifiedQuery): boolean {
     const nodeCovers = (thisNode: QueryNode, thatNode: QueryNode): boolean => {
       if (this._isMediaQuery(thatNode) && this._isMediaQuery(thisNode)) {
+        if (thisNode.limit !== undefined && !isEqual(thisNode, thatNode)) {
+          return false;
+        }
+
         const stripTimeRange = (query: MediaQuery) => omit(query, ['start', 'end']);
         return (
           isEqual(stripTimeRange(thisNode), stripTimeRange(thatNode)) &&

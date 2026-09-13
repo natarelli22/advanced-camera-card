@@ -10,7 +10,10 @@ import type {
   ViewManagerInterface,
 } from '../../../src/card-controller/view/types';
 import { TimelineController } from '../../../src/components-lib/timeline/controller';
-import type { AdvancedCameraCardTimelineItem } from '../../../src/components-lib/timeline/source';
+import type {
+  AdvancedCameraCardTimelineItem,
+  TimelineDataSource,
+} from '../../../src/components-lib/timeline/source';
 import type {
   ExtendedTimeline,
   TimelineRangeChange,
@@ -219,6 +222,75 @@ describe('TimelineController', () => {
     harness.controller.setTimelineElement(document.createElement('div'));
     await harness.controller.setView(epoch, true);
     expect(harness.timeline.getWindow).toHaveBeenCalled();
+  });
+
+  it('should strip limits from query shape in setOptions', async () => {
+    stubMatchMedia().mockReturnValue({ matches: true });
+    const queryWithLimit = new UnifiedQuery();
+    queryWithLimit.addNode(createReviewQuery(CAMERA_ID, { limit: 50 }));
+
+    const cameraManager = createCameraManager(createStore([{ cameraID: CAMERA_ID }]));
+    const controller = new TimelineController(new TimelineControllerTestHost());
+    controller.setHass(createHASS());
+    controller.setOptions({
+      cameraManager,
+      foldersManager: mock<FoldersManager>(),
+      conditionStateManager: mock<ConditionStateManagerReadonlyInterface>(),
+      timelineConfig: createTimelineConfig('pan'),
+      mini: true,
+      query: queryWithLimit,
+    });
+
+    const source = controller['_source'] as TimelineDataSource | null;
+    expect(source).not.toBeNull();
+    const node = source?.shape.getNodes()[0];
+    expect(node).toBeDefined();
+    expect(node).not.toHaveProperty('limit');
+  });
+
+  it('should request media without limits when user drags timeline', async () => {
+    const queryWithLimit = new UnifiedQuery();
+    queryWithLimit.addNode(createReviewQuery(CAMERA_ID, { limit: 50 }));
+
+    const harness = await createHarness();
+    const manager = mock<ViewManagerInterface>();
+    manager.getView.mockReturnValue(
+      createView({
+        view: 'live',
+        camera: CAMERA_ID,
+        query: queryWithLimit,
+        queryResults: new QueryResults({
+          results: [],
+        }),
+      }),
+    );
+    await harness.controller.setView(mock<ViewManagerEpoch>({ manager }));
+
+    const dragWindow = {
+      start: new Date('2025-01-01T10:00:00Z'),
+      end: new Date('2025-01-01T11:00:00Z'),
+      byUser: true,
+      event: new Event('rangechange') as Event & { additionalEvent: string },
+    };
+
+    harness.trigger('rangechanged', dragWindow);
+
+    await vi.waitFor(() => {
+      expect(manager.setViewByParametersWithExistingQuery).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: expect.objectContaining({
+            query: expect.any(UnifiedQuery),
+          }),
+        }),
+      );
+    });
+
+    const calledQuery = vi.mocked(manager.setViewByParametersWithExistingQuery).mock
+      .calls[0][0]?.params?.query as UnifiedQuery;
+    const node = calledQuery.getNodes()[0];
+    expect(node).not.toHaveProperty('limit');
+    expect(node).toHaveProperty('start');
+    expect(node).toHaveProperty('end');
   });
 
   describe('should decide what can be clustered', () => {

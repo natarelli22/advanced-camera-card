@@ -59,6 +59,39 @@ describe('UnifiedQueryTransformer', () => {
     });
   });
 
+  describe('stripLimits', () => {
+    it('should remove limit from camera queries', () => {
+      const { cameraManager, foldersManager } = createMocks();
+      const builder = new UnifiedQueryBuilder(cameraManager, foldersManager);
+      const query = builder.buildClipsQuery(new Set(['camera.office']), {
+        start: new Date('2024-01-01'),
+        end: new Date('2024-01-02'),
+        limit: 10,
+      });
+      assert(query);
+
+      const stripped = UnifiedQueryTransformer.stripLimits(query);
+      const node = stripped.getNodes()[0];
+      assert(isEventQuery(node));
+
+      expect(node).not.toHaveProperty('limit');
+      expect(node.start).toEqual(new Date('2024-01-01'));
+      expect(node.end).toEqual(new Date('2024-01-02'));
+    });
+
+    it('should not affect folder queries', () => {
+      const { cameraManager, foldersManager } = createMocks();
+      const builder = new UnifiedQueryBuilder(cameraManager, foldersManager);
+      const folder = createFolder({ id: 'f1', title: 'Test' });
+      const query = builder.buildFolderQueryWithPath(folder, [{ ha: { id: 'Root' } }]);
+
+      const stripped = UnifiedQueryTransformer.stripLimits(query);
+      const node = stripped.getNodes()[0];
+      assert(isFolderQuery(node));
+      expect(node.folder.id).toBe('f1');
+    });
+  });
+
   describe('rebuildQuery', () => {
     it('should apply new options to camera queries', () => {
       const { cameraManager, foldersManager } = createMocks();

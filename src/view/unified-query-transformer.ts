@@ -26,6 +26,18 @@ export class UnifiedQueryTransformer {
     return new UnifiedQuery(nodes);
   }
 
+  static stripLimits(query: UnifiedQuery): UnifiedQuery {
+    const nodes = query.getNodes().map((node) => {
+      if (node.source !== QuerySource.Camera) {
+        return node;
+      }
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { limit, ...rest } = node;
+      return rest;
+    });
+    return new UnifiedQuery(nodes);
+  }
+
   static rebuildQuery(query: UnifiedQuery, options: RebuildOptions): UnifiedQuery {
     const commonOptions = {
       ...(options?.start && { start: options.start }),

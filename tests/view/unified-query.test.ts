@@ -361,5 +361,37 @@ describe('UnifiedQuery', () => {
       nonSubset.addNode(createFolderQuery('f2'));
       expect(superset.isSupersetOf(nonSubset)).toBe(false);
     });
+
+    it('should handle queries with limits correctly', () => {
+      const queryWithLimit1 = new UnifiedQuery();
+      queryWithLimit1.addNode(createEventQuery('front', { limit: 50 }));
+
+      const queryWithLimit2 = new UnifiedQuery();
+      queryWithLimit2.addNode(createEventQuery('front', { limit: 50 }));
+
+      // Identical queries with limit cover each other
+      expect(queryWithLimit1.isSupersetOf(queryWithLimit2)).toBe(true);
+
+      // Query with limit does not cover query with different limit
+      const queryWithDifferentLimit = new UnifiedQuery();
+      queryWithDifferentLimit.addNode(createEventQuery('front', { limit: 100 }));
+      expect(queryWithLimit1.isSupersetOf(queryWithDifferentLimit)).toBe(false);
+
+      // Query with limit does not cover query without limit
+      const queryWithoutLimit = new UnifiedQuery();
+      queryWithoutLimit.addNode(createEventQuery('front'));
+      expect(queryWithLimit1.isSupersetOf(queryWithoutLimit)).toBe(false);
+
+      // Unbounded query with limit does not cover bounded query with limit
+      const boundedQueryWithLimit = new UnifiedQuery();
+      boundedQueryWithLimit.addNode(
+        createEventQuery('front', {
+          limit: 50,
+          start: new Date('2024-01-01'),
+          end: new Date('2024-01-02'),
+        }),
+      );
+      expect(queryWithLimit1.isSupersetOf(boundedQueryWithLimit)).toBe(false);
+    });
   });
 });

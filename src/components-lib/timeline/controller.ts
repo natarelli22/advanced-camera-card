@@ -142,7 +142,9 @@ export class TimelineController {
    * Shape determines timeline structure (groups).
    */
   private _getQueryShape(query: UnifiedQuery): UnifiedQuery {
-    return UnifiedQueryTransformer.stripTimeRange(query);
+    return UnifiedQueryTransformer.stripLimits(
+      UnifiedQueryTransformer.stripTimeRange(query),
+    );
   }
 
   private _hasSameShape(a?: UnifiedQuery | null, b?: UnifiedQuery | null): boolean {
@@ -729,10 +731,13 @@ export class TimelineController {
   ): UnifiedQuery {
     const prefetchWindow = this._getPrefetchWindow(window);
     const cacheFriendlyWindow = convertRangeToCacheFriendlyTimes(prefetchWindow);
-    return UnifiedQueryTransformer.rebuildQuery(query, {
-      start: cacheFriendlyWindow.start,
-      end: cacheFriendlyWindow.end,
-    });
+    return UnifiedQueryTransformer.rebuildQuery(
+      UnifiedQueryTransformer.stripLimits(query),
+      {
+        start: cacheFriendlyWindow.start,
+        end: cacheFriendlyWindow.end,
+      },
+    );
   }
 
   private _timelineRangeChangedHandler = async (properties: {
