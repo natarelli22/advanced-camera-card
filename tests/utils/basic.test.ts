@@ -19,7 +19,9 @@ import {
   getChildrenFromElement,
   getDurationString,
   getErrorDescription,
+  getLocaleDateFormat,
   ignoreFunctionIdentity,
+  isDMYLocale,
   isHoverableDevice,
   isHTMLElement,
   isSuperset,
@@ -174,6 +176,89 @@ describe('isHoverableDevice', () => {
   it('should return not hoverable', () => {
     stubMatchMedia().mockReturnValue(<MediaQueryList>{ matches: false });
     expect(isHoverableDevice()).toBeFalsy();
+  });
+});
+
+describe('isDMYLocale', () => {
+  it('should return false for falsy or empty hass', () => {
+    expect(isDMYLocale()).toBe(false);
+    expect(isDMYLocale(null)).toBe(false);
+    expect(isDMYLocale({} as unknown as HomeAssistant)).toBe(false);
+  });
+
+  it('should return true when date_format is DMY', () => {
+    expect(
+      isDMYLocale({ locale: { date_format: 'DMY' } } as unknown as HomeAssistant),
+    ).toBe(true);
+  });
+
+  it('should return false when date_format is MDY or YMD', () => {
+    expect(
+      isDMYLocale({
+        locale: { date_format: 'MDY', language: 'pt-BR' },
+      } as unknown as HomeAssistant),
+    ).toBe(false);
+    expect(
+      isDMYLocale({
+        locale: { date_format: 'YMD', language: 'pt-BR' },
+      } as unknown as HomeAssistant),
+    ).toBe(false);
+  });
+
+  it('should recognize languages starting with DMY language codes', () => {
+    for (const lang of [
+      'pt-BR',
+      'fr-FR',
+      'de-DE',
+      'it-IT',
+      'es-ES',
+      'ca',
+      'sk',
+      'pl',
+      'en_gb',
+    ]) {
+      expect(
+        isDMYLocale({ locale: { language: lang } } as unknown as HomeAssistant),
+      ).toBe(true);
+    }
+  });
+
+  it('should check hass.language and hass.selectedLanguage', () => {
+    expect(isDMYLocale({ language: 'pt' } as unknown as HomeAssistant)).toBe(true);
+    expect(isDMYLocale({ selectedLanguage: 'pt' } as unknown as HomeAssistant)).toBe(
+      true,
+    );
+    expect(isDMYLocale({ selectedLanguage: 123 } as unknown as HomeAssistant)).toBe(
+      false,
+    );
+  });
+
+  it('should return false for non-DMY languages', () => {
+    expect(
+      isDMYLocale({ locale: { language: 'en-US' } } as unknown as HomeAssistant),
+    ).toBe(false);
+    expect(isDMYLocale({ locale: { language: 'ja' } } as unknown as HomeAssistant)).toBe(
+      false,
+    );
+  });
+});
+
+describe('getLocaleDateFormat', () => {
+  it('should return dd-MM-yyyy for DMY locales', () => {
+    expect(
+      getLocaleDateFormat({
+        locale: { language: 'pt-BR' },
+      } as unknown as HomeAssistant),
+    ).toBe('dd-MM-yyyy');
+  });
+
+  it('should return yyyy-MM-dd for non-DMY locales', () => {
+    expect(getLocaleDateFormat()).toBe('yyyy-MM-dd');
+    expect(
+      getLocaleDateFormat({
+        locale: { language: 'en-US' },
+      } as unknown as HomeAssistant),
+    ).toBe('yyyy-MM-dd');
   });
 });
 

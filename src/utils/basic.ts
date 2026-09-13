@@ -129,6 +129,8 @@ export function errorToConsole(e: unknown, func: CallableFunction = console.warn
 export const isHoverableDevice = (): boolean =>
   window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
+const DMY_LANGUAGES = ['pt', 'fr', 'de', 'it', 'es', 'ca', 'sk', 'pl', 'en_gb'];
+
 /**
  * Check if the locale formats dates as day-month-year.
  */
@@ -146,20 +148,9 @@ export const isDMYLocale = (hass?: HomeAssistant | null): boolean => {
   const lang = (
     hass.language ??
     hass.locale?.language ??
-    (typeof hass.selectedLanguage === 'string' ? hass.selectedLanguage : null) ??
-    ''
+    (typeof hass.selectedLanguage === 'string' ? hass.selectedLanguage : '')
   ).toLowerCase();
-  return (
-    lang.startsWith('pt') ||
-    lang.startsWith('fr') ||
-    lang.startsWith('de') ||
-    lang.startsWith('it') ||
-    lang.startsWith('es') ||
-    lang.startsWith('ca') ||
-    lang.startsWith('sk') ||
-    lang.startsWith('pl') ||
-    lang.startsWith('en_gb')
-  );
+  return DMY_LANGUAGES.some((prefix) => lang.startsWith(prefix));
 };
 
 /**

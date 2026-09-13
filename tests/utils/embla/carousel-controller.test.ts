@@ -126,6 +126,28 @@ describe('CarouselController', () => {
     expect(getEmblaApi()?.scrollTo).toHaveBeenCalledWith(4, false);
   });
 
+  it('should select given slide with jump', () => {
+    const children = createTestSlideNodes();
+    const parent = createParent({ children: children });
+
+    const carousel = new CarouselController(createRoot(), parent);
+
+    carousel.selectSlide(4, true);
+
+    expect(getEmblaApi()?.scrollTo).toHaveBeenCalledWith(4, true);
+  });
+
+  it('should call reInit on embla api', () => {
+    const children = createTestSlideNodes();
+    const parent = createParent({ children: children });
+
+    const carousel = new CarouselController(createRoot(), parent);
+
+    carousel.reInit();
+
+    expect(getEmblaApi()?.reInit).toHaveBeenCalled();
+  });
+
   it('should not select non-existent slide', () => {
     const children = createTestSlideNodes({ n: 10 });
     const parent = createParent({ children: children });
