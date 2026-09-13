@@ -13,7 +13,7 @@
     "lovelace"
   ],
   "type": "module",
-  "repository": "github:dermotduffy/advanced-camera-card",
+  "repository": "github:natarelli22/advanced-camera-card",
   "author": "Dermot Duffy <dermot.duffy@gmail.com>",
   "license": "MIT",
   "dependencies": {
@@ -168,9 +168,9 @@
             "ci"
           ],
           "assignees": [
-            "dermotduffy"
+            "natarelli22"
           ],
-          "successComment": ":tada: This issue has been resolved in version ${nextRelease.version} :tada:\n\nSee: [GitHub release](https://github.com/dermotduffy/advanced-camera-card/releases/tag/${nextRelease.gitTag})",
+          "successComment": ":tada: This issue has been resolved in version ${nextRelease.version} :tada:\n\nSee: [GitHub release](https://github.com/natarelli22/advanced-camera-card/releases/tag/${nextRelease.gitTag})",
           "releaseNameTemplate": "v${nextRelease.version}"
         }
       ]
