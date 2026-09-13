@@ -689,9 +689,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const getEventsForCamera = async (cameraID: string): Promise<void> => {
       const perCameraQuery = { ...query, cameraIDs: new Set([cameraID]) };
       const cachedResult =
-        (engineOptions?.useCache ?? true)
-          ? this._requestCache.get(perCameraQuery)
-          : null;
+        engineOptions?.useCache ?? true ? this._requestCache.get(perCameraQuery) : null;
       if (cachedResult) {
         output.set(perCameraQuery, cachedResult as EventQueryResults);
         return;
@@ -767,9 +765,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const getRecordingsForCamera = async (cameraID: string): Promise<void> => {
       const perCameraQuery = { ...query, cameraIDs: new Set([cameraID]) };
       const cachedResult =
-        (engineOptions?.useCache ?? true)
-          ? this._requestCache.get(perCameraQuery)
-          : null;
+        engineOptions?.useCache ?? true ? this._requestCache.get(perCameraQuery) : null;
       if (cachedResult) {
         output.set(perCameraQuery, cachedResult as TPLinkRecordingQueryResults);
         return;
@@ -877,7 +873,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
   ): Promise<MediaMetadataQueryResultsMap | null> {
     const output: MediaMetadataQueryResultsMap = new Map();
     const cachedResult =
-      (engineOptions?.useCache ?? true) ? this._requestCache.get(query) : null;
+      engineOptions?.useCache ?? true ? this._requestCache.get(query) : null;
 
     if (cachedResult) {
       output.set(query, cachedResult as MediaMetadataQueryResults);

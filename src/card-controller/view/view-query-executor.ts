@@ -135,7 +135,7 @@ export class ViewQueryExecutor {
       return null;
     }
 
-    const cameraForQuery = view.isGrid() ? undefined : (view.camera ?? undefined);
+    const cameraForQuery = view.isGrid() ? undefined : view.camera ?? undefined;
 
     const getDefaultQueryModifiers = async (selectedIndex?: number | null) => {
       const query = builder.buildDefaultCameraQuery(cameraForQuery, {
@@ -251,8 +251,8 @@ export class ViewQueryExecutor {
       const windowSeconds =
         liveConfig.controls.timeline.mode !== 'none'
           ? liveConfig.controls.timeline.window_seconds
-          : (viewerConfig?.controls.timeline.window_seconds ??
-            liveConfig.controls.timeline.window_seconds);
+          : viewerConfig?.controls.timeline.window_seconds ??
+            liveConfig.controls.timeline.window_seconds;
 
       return [
         new MergeContextViewModifier({
