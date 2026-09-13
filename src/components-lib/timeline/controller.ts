@@ -14,7 +14,6 @@ import {
 } from 'vis-timeline';
 
 import type { CameraManager } from '../../camera-manager/manager';
-import { rangesOverlap } from '../../camera-manager/range';
 import { convertRangeToCacheFriendlyTimes } from '../../camera-manager/utils/range-to-cache-friendly';
 import type { FoldersManager } from '../../card-controller/folders/manager';
 import type { ViewItemManager } from '../../card-controller/view/item-manager';
@@ -591,13 +590,42 @@ export class TimelineController {
     items.sort((a, b) => Number(a.start) - Number(b.start));
 
     const currentSelection = this._timeline?.getSelection() ?? [];
-    const currentId = currentSelection.length ? String(currentSelection[0]) : null;
+    const currentId =
+      (currentSelection.length ? String(currentSelection[0]) : null) ??
+      (view.isViewerView()
+        ? view.queryResults?.getSelectedResult()?.getID() ?? null
+        : null);
 
     if (!currentId) {
       return;
     }
 
-    const currentIndex = items.findIndex((it) => String(it.id) === currentId);
+    let currentIndex = items.findIndex((it) => String(it.id) === currentId);
+    if (currentIndex === -1) {
+      const currentMedia = view.queryResults?.getSelectedResult();
+      const currentTime =
+        currentMedia && ViewItemClassifier.isMedia(currentMedia)
+          ? currentMedia.getStartTime()?.getTime()
+          : null;
+      if (currentTime !== null && currentTime !== undefined) {
+        if (direction === 'previous') {
+          for (let i = items.length - 1; i >= 0; i--) {
+            if (Number(items[i].start) < currentTime) {
+              currentIndex = i + 1;
+              break;
+            }
+          }
+        } else {
+          for (let i = 0; i < items.length; i++) {
+            if (Number(items[i].start) > currentTime) {
+              currentIndex = i - 1;
+              break;
+            }
+          }
+        }
+      }
+    }
+
     if (currentIndex === -1) {
       return;
     }
@@ -770,7 +798,7 @@ export class TimelineController {
 
     await this._source?.refresh(this._getPrefetchWindow(properties));
 
-    if (!view.query) {
+    if (view.isViewerView() || !view.query) {
       return;
     }
     const query = this._applyWindowToQuery(view.query, properties);
@@ -846,7 +874,7 @@ export class TimelineController {
 
     if (context && context.window) {
       desiredWindow = context.window;
-    } else if (mediaWindow && !rangesOverlap(mediaWindow, timelineWindow)) {
+    } else if (mediaWindow) {
       const perfectMediaWindow = this._getPerfectWindowFromMediaStartAndEndTime(
         mediaIsEvent,
         mediaStartTime,
@@ -918,7 +946,7 @@ export class TimelineController {
     //
     // Also don't generate thumbnails in mini-timelines (they will already have
     // been generated).
-    if (!view.query) {
+    if (view.isViewerView() || !view.query) {
       return;
     }
 

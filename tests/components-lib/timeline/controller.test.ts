@@ -728,6 +728,114 @@ describe('TimelineController', () => {
       expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-1');
       expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime1);
     });
+
+    it('should navigate using view queryResults when timeline selection is empty in viewer view', async () => {
+      const startTime1 = add(WINDOW.start, { minutes: 10 });
+      const startTime2 = add(WINDOW.start, { minutes: 20 });
+      const media1 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-1',
+        startTime: startTime1,
+      });
+      const media2 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-2',
+        startTime: startTime2,
+      });
+      const harness = await createHarness({ media: [media1, media2] });
+
+      vi.mocked(harness.timeline.getSelection).mockReturnValue([]);
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          camera: CAMERA_ID,
+          queryResults: new QueryResults({
+            results: [media1, media2],
+            selectedIndex: 0,
+          }),
+        }),
+      );
+
+      harness.controller.navigateMedia('next');
+      expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-2');
+      expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime2);
+    });
+
+    it('should find next and previous by timestamp when current ID is not in items list', async () => {
+      const startTime1 = add(WINDOW.start, { minutes: 10 });
+      const startTime2 = add(WINDOW.start, { minutes: 30 });
+      const media1 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-1',
+        startTime: startTime1,
+      });
+      const media2 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-2',
+        startTime: startTime2,
+      });
+      // Dataset only contains clip-1 and clip-2
+      const harness = await createHarness({ media: [media1, media2] });
+
+      // View has an unlisted clip between startTime1 and startTime2
+      const mediaBetween = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-between',
+        startTime: add(WINDOW.start, { minutes: 20 }),
+      });
+
+      vi.mocked(harness.timeline.getSelection).mockReturnValue([]);
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          camera: CAMERA_ID,
+          queryResults: new QueryResults({
+            results: [mediaBetween],
+            selectedIndex: 0,
+          }),
+        }),
+      );
+
+      harness.controller.navigateMedia('next');
+      expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-2');
+      expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime2);
+
+      vi.mocked(harness.timeline.setSelection).mockClear();
+      vi.mocked(harness.timeline.moveTo).mockClear();
+
+      harness.controller.navigateMedia('previous');
+      expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-1');
+      expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime1);
+    });
+  });
+
+  describe('timelineRangeChanged', () => {
+    it('should not re-query view when in viewer view', async () => {
+      const harness = await createHarness();
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          camera: CAMERA_ID,
+          query: new UnifiedQuery(),
+        }),
+      );
+
+      harness.trigger('rangechanged', {
+        start: add(WINDOW.start, { hours: 10 }),
+        end: add(WINDOW.end, { hours: 10 }),
+        byUser: true,
+        event: new Event('rangechanged'),
+      });
+
+      expect(
+        harness.manager.setViewByParametersWithExistingQuery,
+      ).not.toHaveBeenCalled();
+    });
   });
 });
 

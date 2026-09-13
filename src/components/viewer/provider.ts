@@ -276,6 +276,8 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
       this._resolvedMediaController.getValue()?.mime_type,
     );
     const builtinControls = resolveBuiltinControls(this.viewerConfig?.controls?.builtin);
+    const shouldAutoPlay =
+      this.forceSelected && (this.viewerConfig?.auto_play?.includes('selected') ?? true);
 
     return this._renderContainer(html`
       ${isVideo
@@ -284,7 +286,7 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
               ${ref(this._refProvider)}
               allow-exoplayer
               aria-label="${this.media.getTitle() ?? ''}"
-              ?autoplay=${false}
+              ?autoplay=${shouldAutoPlay}
               controls
               muted
               playsinline
@@ -300,6 +302,7 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
               <advanced-camera-card-video-player
                 ${ref(this._refProvider)}
                 url=${url}
+                ?autoplay=${shouldAutoPlay}
                 aria-label="${this.media.getTitle() ?? ''}"
                 title="${this.media.getTitle() ?? ''}"
                 .targetID=${mediaID}

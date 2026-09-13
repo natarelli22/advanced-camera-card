@@ -36,6 +36,9 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
   public targetID?: string;
 
   @property({ type: Boolean })
+  public autoplay = false;
+
+  @property({ type: Boolean })
   public controls = false;
 
   @property({ attribute: false })
@@ -63,7 +66,7 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
         muted
         playsinline
         crossorigin="anonymous"
-        ?autoplay=${false}
+        ?autoplay=${this.autoplay}
         ?controls=${this.controls}
         controlsList=${ifDefined(
           this.controlsOptions?.fullscreen === false ? 'nofullscreen' : undefined,

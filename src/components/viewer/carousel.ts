@@ -13,6 +13,7 @@ import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
 import type { CameraManager } from '../../camera-manager/manager.js';
 import { RemoveContextPropertyViewModifier } from '../../card-controller/view/modifiers/remove-context-property.js';
+import { RemoveContextViewModifier } from '../../card-controller/view/modifiers/remove-context.js';
 import type { ViewManagerEpoch } from '../../card-controller/view/types.js';
 import { resolveAutoHideState } from '../../components-lib/auto-hide.js';
 import { MediaActionsController } from '../../components-lib/media-actions-controller.js';
@@ -200,7 +201,10 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
         // Always change the camera to the owner of the selected media.
         ...(cameraID && { camera: cameraID }),
       },
-      modifiers: [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')],
+      modifiers: [
+        new RemoveContextPropertyViewModifier('mediaViewer', 'seek'),
+        new RemoveContextViewModifier(['timeline']),
+      ],
     });
   }
 
@@ -468,6 +472,9 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
     const seek = requestedSeek ?? selectedMedia.getPlaybackStartTime();
 
     if (!seek) {
+      if (mediaPlayerController.playback?.isPaused()) {
+        void mediaPlayerController.playback?.play();
+      }
       return;
     }
 
@@ -476,21 +483,22 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
     // considered falling outside the media.
     const seekTimeInMedia = !requestedSeek || selectedMedia.includesTime(requestedSeek);
     this.toggleAttribute('unseekable', !seekTimeInMedia);
-    if (!seekTimeInMedia && !mediaPlayerController.playback?.isPaused()) {
-      void mediaPlayerController.playback?.pause();
-    } else if (seekTimeInMedia && mediaPlayerController.playback?.isPaused()) {
+
+    const targetSeek = seekTimeInMedia
+      ? seek
+      : selectedMedia.getPlaybackStartTime() ?? selectedMedia.getStartTime();
+
+    if (targetSeek) {
+      const seekTime =
+        (await this.cameraManager?.getMediaSeekTime(selectedMedia, targetSeek)) ?? null;
+
+      if (seekTime !== null) {
+        await mediaPlayerController.seek?.(seekTime);
+      }
+    }
+
+    if (mediaPlayerController.playback?.isPaused()) {
       void mediaPlayerController.playback?.play();
-    }
-
-    if (!seekTimeInMedia) {
-      return;
-    }
-
-    const seekTime =
-      (await this.cameraManager?.getMediaSeekTime(selectedMedia, seek)) ?? null;
-
-    if (seekTime !== null) {
-      void mediaPlayerController.seek?.(seekTime);
     }
   }
 
