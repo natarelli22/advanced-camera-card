@@ -548,5 +548,28 @@ describe('MediaNotificationController', () => {
       )._getControls({});
       expect(controls).toEqual([]);
     });
+
+    it('should update metadata when context has hass', () => {
+      const item = new TestViewMedia({
+        startTime: new Date('2026-09-12T23:59:08'),
+      });
+      const hass = {
+        locale: { language: 'pt-BR' },
+      } as unknown as HomeAssistant;
+
+      const controller = new MediaNotificationController();
+      controller.calculate(null, item);
+
+      const notification = controller.getNotification({ hass });
+      expect(notification.metadata?.[0]?.text).toContain('12-09-2026');
+
+      // Calling again with the exact same hass instance should not recalculate
+      const notificationSame = controller.getNotification({ hass });
+      expect(notificationSame.metadata?.[0]?.text).toContain('12-09-2026');
+
+      // Calling without hass should not trigger recalculate
+      const notificationNoHass = controller.getNotification({});
+      expect(notificationNoHass.metadata?.[0]?.text).toContain('12-09-2026');
+    });
   });
 });

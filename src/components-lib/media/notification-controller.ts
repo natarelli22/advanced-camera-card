@@ -38,6 +38,8 @@ export class MediaNotificationController {
   private _metadata: NotificationDetail[] = [];
   private _heading: NotificationDetail | null = null;
   private _item: ViewItem | null = null;
+  private _cameraMetadata: CameraManagerCameraMetadata | null = null;
+  private _seek?: Date;
   private _hass: HomeAssistant | null = null;
 
   public calculate(
@@ -48,13 +50,14 @@ export class MediaNotificationController {
   ): void {
     this._item = item ?? null;
     this._hass = hass ?? null;
+    this._seek = seek;
     const cameraID = ViewItemClassifier.isMedia(item) ? item.getCameraID() : null;
-    const cameraMetadata = cameraID
+    this._cameraMetadata = cameraID
       ? cameraManager?.getCameraMetadata(cameraID) ?? null
       : null;
 
-    this._calculateHeading(cameraMetadata, item);
-    this._calculateMetadata(cameraMetadata, item, seek);
+    this._calculateHeading(this._cameraMetadata, item);
+    this._calculateMetadata(this._cameraMetadata, item, seek);
   }
 
   private _calculateHeading(
@@ -105,7 +108,7 @@ export class MediaNotificationController {
 
   private _calculateMetadata(
     cameraMetadata: CameraManagerCameraMetadata | null,
-    item?: ViewItem,
+    item?: ViewItem | null,
     seek?: Date,
   ): void {
     const itemTitle = item?.getTitle() ?? null;
@@ -213,6 +216,11 @@ export class MediaNotificationController {
   }
 
   public getNotification(context?: NotificationControlsContext): Notification {
+    if (context?.hass && this._hass !== context.hass) {
+      this._hass = context.hass;
+      this._calculateMetadata(this._cameraMetadata, this._item, this._seek);
+    }
+
     const description = ViewItemClassifier.isMedia(this._item)
       ? this._item.getDescription()
       : null;

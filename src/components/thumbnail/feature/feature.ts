@@ -218,7 +218,12 @@ export class AdvancedCameraCardThumbnailFeature extends LitElement {
             @click=${(ev: Event) => {
               stopEventFromActivatingCardWideActions(ev);
               const notificationController = new MediaNotificationController();
-              notificationController.calculate(this.cameraManager, this.item);
+              notificationController.calculate(
+                this.cameraManager,
+                this.item,
+                undefined,
+                this.hass,
+              );
               dispatchActionExecutionRequest(this, {
                 actions: [
                   createNotificationAction(

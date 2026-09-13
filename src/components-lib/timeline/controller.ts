@@ -358,7 +358,7 @@ export class TimelineController {
         markerProportion < 0.25 ? 'right' : markerProportion > 0.75 ? 'left' : 'center',
       );
       this._timeline?.setCustomTimeMarker?.(
-        formatDateAndTime(targetTime, true),
+        formatDateAndTime(targetTime, true, this._hass),
         TIMELINE_TARGET_BAR_ID,
       );
     } else {

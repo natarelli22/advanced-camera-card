@@ -138,18 +138,26 @@ export const isDMYLocale = (hass?: HomeAssistant | null): boolean => {
   if (!hass) {
     return false;
   }
-  const dateFormat = (hass.locale as { date_format?: string } | undefined)?.date_format;
+  const dateFormat =
+    typeof (hass.locale as { date_format?: unknown } | undefined)?.date_format ===
+    'string'
+      ? (hass.locale as { date_format: string }).date_format
+      : undefined;
   if (dateFormat === 'DMY') {
     return true;
   }
   if (dateFormat === 'MDY' || dateFormat === 'YMD') {
     return false;
   }
-  const lang = (
-    hass.language ??
-    hass.locale?.language ??
-    (typeof hass.selectedLanguage === 'string' ? hass.selectedLanguage : '')
-  ).toLowerCase();
+  const rawLang =
+    typeof hass.language === 'string'
+      ? hass.language
+      : typeof hass.locale?.language === 'string'
+        ? hass.locale.language
+        : typeof hass.selectedLanguage === 'string'
+          ? hass.selectedLanguage
+          : '';
+  const lang = rawLang.toLowerCase();
   return DMY_LANGUAGES.some((prefix) => lang.startsWith(prefix));
 };
 
