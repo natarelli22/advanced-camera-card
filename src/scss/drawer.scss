@@ -9,8 +9,8 @@ side-drawer {
 
 div.control-surround {
   position: absolute;
-  bottom: 50%;
-  transform: translateY(50%);
+  top: var(--advanced-camera-card-drawer-button-top, 50%);
+  transform: translateY(-50%);
   padding-top: $drawer-padding-extend;
   padding-bottom: $drawer-padding-extend;
 }
