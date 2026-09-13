@@ -93,14 +93,18 @@ export class MediaHeightController {
     const fsElement =
       (screenfull.isEnabled ? screenfull.element : null) ??
       document.fullscreenElement ??
-      (document as Document & {
-        webkitFullscreenElement?: Element;
-        webkitCurrentFullScreenElement?: Element;
-      }).webkitFullscreenElement ??
-      (document as Document & {
-        webkitFullscreenElement?: Element;
-        webkitCurrentFullScreenElement?: Element;
-      }).webkitCurrentFullScreenElement;
+      (
+        document as Document & {
+          webkitFullscreenElement?: Element;
+          webkitCurrentFullScreenElement?: Element;
+        }
+      ).webkitFullscreenElement ??
+      (
+        document as Document & {
+          webkitFullscreenElement?: Element;
+          webkitCurrentFullScreenElement?: Element;
+        }
+      ).webkitCurrentFullScreenElement;
 
     if (!fsElement) {
       return false;

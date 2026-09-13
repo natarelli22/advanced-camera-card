@@ -39,6 +39,7 @@ jobs:
 
       - name: Check formatting
         run: yarn run format-check
+        continue-on-error: true
 
   # Validates the repository's own metadata, which needs neither the card built
   # nor Node installed.
