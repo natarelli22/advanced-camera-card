@@ -269,9 +269,10 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
       ${template}
     </advanced-camera-card-media-dimensions-container>`;
 
-    return html` ${this.liveConfig?.zoomable
-      ? html` <advanced-camera-card-zoomer
-          .defaultSettings=${guard([config?.dimensions?.layout], () =>
+    return html` ${
+      this.liveConfig?.zoomable
+        ? html` <advanced-camera-card-zoomer
+            .defaultSettings=${guard([config?.dimensions?.layout], () =>
             config?.dimensions?.layout
               ? {
                   pan: config.dimensions.layout.pan,
@@ -279,14 +280,15 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
                 }
               : undefined,
           )}
-          .settings=${this.zoomSettings}
-          .zoom=${this.zoom}
-          @advanced-camera-card:zoom:zoomed=${() => (this._zoomed = true)}
-          @advanced-camera-card:zoom:unzoomed=${() => (this._zoomed = false)}
-        >
-          ${intermediateTemplate}
-        </advanced-camera-card-zoomer>`
-      : intermediateTemplate}`;
+            .settings=${this.zoomSettings}
+            .zoom=${this.zoom}
+            @advanced-camera-card:zoom:zoomed=${() => (this._zoomed = true)}
+            @advanced-camera-card:zoom:unzoomed=${() => (this._zoomed = false)}
+          >
+            ${intermediateTemplate}
+          </advanced-camera-card-zoomer>`
+        : intermediateTemplate
+    }`;
   }
 
   private _getNotification(failure: StreamFailure | null): TemplateResult | null {
@@ -382,20 +384,21 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
     const effectiveBuiltinControls = this._getEffectiveBuiltinControls();
 
     return html`${this._renderContainer(html`
-      ${shouldShowImageDuringLoading || provider === 'image'
-        ? html` <advanced-camera-card-live-image
-            ${ref(this._refProvider)}
-            .hass=${this.hass}
-            .camera=${this.camera}
-            .targetID=${this.targetID}
-            .cameraTitle=${this.cameraTitle}
-            class=${classMap({
+      ${
+        shouldShowImageDuringLoading || provider === 'image'
+          ? html` <advanced-camera-card-live-image
+              ${ref(this._refProvider)}
+              .hass=${this.hass}
+              .camera=${this.camera}
+              .targetID=${this.targetID}
+              .cameraTitle=${this.cameraTitle}
+              class=${classMap({
               ...classes,
               // The image provider is providing the temporary loading image,
               // so it should not be hidden.
               hidden: false,
             })}
-            @advanced-camera-card:media:loaded=${(
+              @advanced-camera-card:media:loaded=${(
               ev: CustomEvent<MediaLoadedInfoEventDetail>,
             ) => {
               // When the image is rendered as a placeholder behind another
@@ -411,48 +414,39 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
                 ev.stopPropagation();
               }
             }}
-          >
-          </advanced-camera-card-live-image>`
-        : html``}
-      ${provider === 'ha'
-        ? html` <advanced-camera-card-live-ha
-            ${ref(this._refProvider)}
-            class=${classMap(classes)}
-            .hass=${this.hass}
-            .camera=${this.camera}
-            .targetID=${this.targetID}
-            .preferAudioStream=${this.forceSelected &&
-            isAudioIntendedOnLoad(this.liveConfig?.auto_unmute ?? [])}
-            ?controls=${!!effectiveBuiltinControls}
-            .controlsOptions=${effectiveBuiltinControls}
-          >
-          </advanced-camera-card-live-ha>`
-        : provider === 'go2rtc'
-          ? html`<advanced-camera-card-live-go2rtc
+            >
+            </advanced-camera-card-live-image>`
+          : html``
+      }
+      ${
+        provider === 'ha'
+          ? html` <advanced-camera-card-live-ha
               ${ref(this._refProvider)}
               class=${classMap(classes)}
               .hass=${this.hass}
               .camera=${this.camera}
               .targetID=${this.targetID}
-              .cameraTitle=${this.cameraTitle}
+              .preferAudioStream=${
+              this.forceSelected &&
+              isAudioIntendedOnLoad(this.liveConfig?.auto_unmute ?? [])
+            }
               ?controls=${!!effectiveBuiltinControls}
+              .controlsOptions=${effectiveBuiltinControls}
             >
-            </advanced-camera-card-live-go2rtc>`
-          : provider === 'go2rtc-experimental'
-            ? html`<advanced-camera-card-live-go2rtc-experimental
+            </advanced-camera-card-live-ha>`
+          : provider === 'go2rtc'
+            ? html`<advanced-camera-card-live-go2rtc
                 ${ref(this._refProvider)}
                 class=${classMap(classes)}
                 .hass=${this.hass}
                 .camera=${this.camera}
                 .targetID=${this.targetID}
                 .cameraTitle=${this.cameraTitle}
-                .cardWideConfig=${this.cardWideConfig}
                 ?controls=${!!effectiveBuiltinControls}
-                .controlsOptions=${effectiveBuiltinControls}
               >
-              </advanced-camera-card-live-go2rtc-experimental>`
-            : provider === 'webrtc-card'
-              ? html`<advanced-camera-card-live-webrtc-card
+              </advanced-camera-card-live-go2rtc>`
+            : provider === 'go2rtc-experimental'
+              ? html`<advanced-camera-card-live-go2rtc-experimental
                   ${ref(this._refProvider)}
                   class=${classMap(classes)}
                   .hass=${this.hass}
@@ -461,10 +455,11 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
                   .cameraTitle=${this.cameraTitle}
                   .cardWideConfig=${this.cardWideConfig}
                   ?controls=${!!effectiveBuiltinControls}
+                  .controlsOptions=${effectiveBuiltinControls}
                 >
-                </advanced-camera-card-live-webrtc-card>`
-              : provider === 'jsmpeg'
-                ? html` <advanced-camera-card-live-jsmpeg
+                </advanced-camera-card-live-go2rtc-experimental>`
+              : provider === 'webrtc-card'
+                ? html`<advanced-camera-card-live-webrtc-card
                     ${ref(this._refProvider)}
                     class=${classMap(classes)}
                     .hass=${this.hass}
@@ -472,13 +467,28 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
                     .targetID=${this.targetID}
                     .cameraTitle=${this.cameraTitle}
                     .cardWideConfig=${this.cardWideConfig}
+                    ?controls=${!!effectiveBuiltinControls}
                   >
-                  </advanced-camera-card-live-jsmpeg>`
-                : html``}
+                  </advanced-camera-card-live-webrtc-card>`
+                : provider === 'jsmpeg'
+                  ? html` <advanced-camera-card-live-jsmpeg
+                      ${ref(this._refProvider)}
+                      class=${classMap(classes)}
+                      .hass=${this.hass}
+                      .camera=${this.camera}
+                      .targetID=${this.targetID}
+                      .cameraTitle=${this.cameraTitle}
+                      .cardWideConfig=${this.cardWideConfig}
+                    >
+                    </advanced-camera-card-live-jsmpeg>`
+                  : html``
+      }
     `)}
-    ${failure || mediaLoaded
-      ? ''
-      : this._renderLoadingOverlay(shouldShowImageDuringLoading)}`;
+    ${
+      failure || mediaLoaded
+        ? ''
+        : this._renderLoadingOverlay(shouldShowImageDuringLoading)
+    }`;
   }
 
   // The loading status drawn on top of the mounted provider while its media has

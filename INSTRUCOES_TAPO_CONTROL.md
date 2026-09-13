@@ -7,10 +7,12 @@ Este documento contém as orientações e trechos de código exatos para copiar 
 ## 1. Resumo do Ajuste Necessário
 
 O `advanced-camera-card` agora obtém o caminho de armazenamento das gravações diretamente dos atributos fornecidos pela integração `HomeAssistant-Tapo-Control` no Home Assistant:
+
 - Se o Cold Storage Path estiver em `/media` (ex: `/media/tapo/Sala_02`, `/media/Sala_02`, etc.), o card consulta diretamente a mídia local (`media-source://media_source/local/...`), eliminando completamente as chamadas lentas para `media-source://tapo_control`.
 - Se o Cold Storage Path estiver no padrão da integração (`/config/.storage/tapo_control/{entry_id}`), o card consulta a integração.
 
 Para garantir que o `advanced-camera-card` descubra o caminho de qualquer câmera imediatamente ao iniciar:
+
 1. **No `switch.py`**: O switch `Media Sync` (`switch.<camera>_media_sync`) deve definir o atributo `storage_path` logo na inicialização (`__init__`), além do `updateTapo`.
 2. **No `camera.py`**: A entidade da câmera (`camera.<camera>_hd_stream`) deve expor o atributo `storage_path` em `_attr_extra_state_attributes`.
 3. **No `media_source.py`**: A busca de gravações deve usar `getColdDirPathForEntry(self.hass, entry_id)` como padrão quando o usuário não configurar um caminho personalizado no options flow.
@@ -78,10 +80,12 @@ Dessa forma, qualquer cliente (inclusive o `advanced-camera-card`) pode inspecio
 ## 4. Alteração 3: `custom_components/tapo_control/media_source.py`
 
 No método `_get_cameras()` de `custom_components/tapo_control/media_source.py`, garantir que:
+
 1. `getColdDirPathForEntry(self.hass, entry_id)` seja usado como fallback quando `conf_entry.data.get(MEDIA_SYNC_COLD_STORAGE_PATH)` for vazio.
 2. `Path("/config/.storage/tapo_control")` seja incluído em `base_candidates`.
 
 Trecho no `_get_cameras()`:
+
 ```python
         for entry_id, entry_data in ha_entries.items():
             name = entry_data.get("name")

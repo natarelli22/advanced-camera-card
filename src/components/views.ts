@@ -163,9 +163,7 @@ export class AdvancedCameraCardViews extends LitElement {
     let miniTimelineConfig = undefined;
     if (view?.is('live')) {
       const candidateConfig =
-        liveTimelineConfig.mode !== 'none'
-          ? liveTimelineConfig
-          : viewerTimelineConfig;
+        liveTimelineConfig.mode !== 'none' ? liveTimelineConfig : viewerTimelineConfig;
       if (candidateConfig.mode !== 'none') {
         const isConfigHidden =
           liveTimelineConfig.mode === 'none' || !!liveTimelineConfig.hidden_by_default;
@@ -191,7 +189,7 @@ export class AdvancedCameraCardViews extends LitElement {
     }
 
     const cameraConfig = view?.camera
-      ? this.cameraManager?.getStore().getCameraConfig(view.camera) ?? null
+      ? (this.cameraManager?.getStore().getCameraConfig(view.camera) ?? null)
       : null;
 
     return html` <advanced-camera-card-surround
@@ -207,66 +205,76 @@ export class AdvancedCameraCardViews extends LitElement {
       .cardWideConfig=${this.cardWideConfig}
       .locked=${this.locked}
     >
-      ${!this.hide && view?.is('image')
-        ? html` <advanced-camera-card-image
-            .imageConfig=${this.config.image}
-            .viewManagerEpoch=${this.viewManagerEpoch}
-            .hass=${this.hass}
-            .cameraConfig=${cameraConfig}
-            .cameraManager=${this.cameraManager}
-          >
-          </advanced-camera-card-image>`
-        : ``}
-      ${!this.hide && view?.isGalleryView()
-        ? html` <advanced-camera-card-gallery
-            .hass=${this.hass}
-            .viewManagerEpoch=${this.viewManagerEpoch}
-            .galleryConfig=${this.config.media_gallery}
-            .cameraManager=${this.cameraManager}
-            .foldersManager=${this.foldersManager}
-            .viewItemManager=${this.viewItemManager}
-            .cardWideConfig=${this.cardWideConfig}
-            .conditionStateManager=${this.conditionStateManager}
-          >
-          </advanced-camera-card-gallery>`
-        : ``}
-      ${!this.hide && view?.isViewerView()
-        ? html`
-            <advanced-camera-card-viewer
+      ${
+        !this.hide && view?.is('image')
+          ? html` <advanced-camera-card-image
+              .imageConfig=${this.config.image}
+              .viewManagerEpoch=${this.viewManagerEpoch}
+              .hass=${this.hass}
+              .cameraConfig=${cameraConfig}
+              .cameraManager=${this.cameraManager}
+            >
+            </advanced-camera-card-image>`
+          : ``
+      }
+      ${
+        !this.hide && view?.isGalleryView()
+          ? html` <advanced-camera-card-gallery
               .hass=${this.hass}
               .viewManagerEpoch=${this.viewManagerEpoch}
-              .viewerConfig=${this.config.media_viewer}
-              .resolvedMediaCache=${this.resolvedMediaCache}
+              .galleryConfig=${this.config.media_gallery}
               .cameraManager=${this.cameraManager}
-              .cardWideConfig=${this.cardWideConfig}
+              .foldersManager=${this.foldersManager}
               .viewItemManager=${this.viewItemManager}
+              .cardWideConfig=${this.cardWideConfig}
+              .conditionStateManager=${this.conditionStateManager}
             >
-            </advanced-camera-card-viewer>
-          `
-        : ``}
-      ${!this.hide && view?.is('timeline')
-        ? html` <advanced-camera-card-timeline
-            .hass=${this.hass}
-            .viewManagerEpoch=${this.viewManagerEpoch}
-            .timelineConfig=${this.config.timeline}
-            .cameraManager=${this.cameraManager}
-            .conditionStateManager=${this.conditionStateManager}
-            .foldersManager=${this.foldersManager}
-            .viewItemManager=${this.viewItemManager}
-            .cardWideConfig=${this.cardWideConfig}
-          >
-          </advanced-camera-card-timeline>`
-        : ``}
-      ${!this.hide && view?.is('diagnostics')
-        ? html` <advanced-camera-card-diagnostics
-            .hass=${this.hass}
-            .rawConfig=${this.rawConfig}
-            .deviceRegistryManager=${this.deviceRegistryManager}
-            .issues=${this.issues}
-            .microphoneDiagnostics=${this.microphoneManager?.getDiagnostics()}
-          >
-          </advanced-camera-card-diagnostics>`
-        : ``}
+            </advanced-camera-card-gallery>`
+          : ``
+      }
+      ${
+        !this.hide && view?.isViewerView()
+          ? html`
+              <advanced-camera-card-viewer
+                .hass=${this.hass}
+                .viewManagerEpoch=${this.viewManagerEpoch}
+                .viewerConfig=${this.config.media_viewer}
+                .resolvedMediaCache=${this.resolvedMediaCache}
+                .cameraManager=${this.cameraManager}
+                .cardWideConfig=${this.cardWideConfig}
+                .viewItemManager=${this.viewItemManager}
+              >
+              </advanced-camera-card-viewer>
+            `
+          : ``
+      }
+      ${
+        !this.hide && view?.is('timeline')
+          ? html` <advanced-camera-card-timeline
+              .hass=${this.hass}
+              .viewManagerEpoch=${this.viewManagerEpoch}
+              .timelineConfig=${this.config.timeline}
+              .cameraManager=${this.cameraManager}
+              .conditionStateManager=${this.conditionStateManager}
+              .foldersManager=${this.foldersManager}
+              .viewItemManager=${this.viewItemManager}
+              .cardWideConfig=${this.cardWideConfig}
+            >
+            </advanced-camera-card-timeline>`
+          : ``
+      }
+      ${
+        !this.hide && view?.is('diagnostics')
+          ? html` <advanced-camera-card-diagnostics
+              .hass=${this.hass}
+              .rawConfig=${this.rawConfig}
+              .deviceRegistryManager=${this.deviceRegistryManager}
+              .issues=${this.issues}
+              .microphoneDiagnostics=${this.microphoneManager?.getDiagnostics()}
+            >
+            </advanced-camera-card-diagnostics>`
+          : ``
+      }
       ${
         // Note: Subtle difference in condition below vs the other views in
         // order to always render the live view for live.preload mode.

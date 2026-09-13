@@ -1,3 +1,4 @@
+import screenfull from 'screenfull';
 import {
   afterAll,
   afterEach,
@@ -9,7 +10,6 @@ import {
   vi,
 } from 'vitest';
 
-import screenfull from 'screenfull';
 import {
   MediaHeightController,
   SET_HEIGHT_DEBOUNCE_SECONDS,

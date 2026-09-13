@@ -93,10 +93,7 @@ div.timeline {
   );
 }
 .vis-item.vis-selected {
-  --advanced-camera-card-timeline-item-selected-color: var(
-    --error-color,
-    #d32f2f
-  );
+  --advanced-camera-card-timeline-item-selected-color: var(--error-color, #d32f2f);
 
   border-color: var(--advanced-camera-card-timeline-item-selected-color) !important;
   background-color: var(--advanced-camera-card-timeline-item-selected-color) !important;

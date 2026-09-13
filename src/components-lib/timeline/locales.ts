@@ -1,4 +1,5 @@
 import moment from 'moment';
+
 import 'moment/locale/ca.js';
 import 'moment/locale/de.js';
 import 'moment/locale/fr.js';
@@ -37,4 +38,3 @@ export const getTimelineLocale = (lang?: string | null): string => {
 export const setMomentLocale = (locale: string): void => {
   moment.locale(locale);
 };
-

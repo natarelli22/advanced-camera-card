@@ -49,8 +49,7 @@ export class ViewQueryExecutor {
     const queryResults = this._applyResultSelection(
       new QueryResults({
         results: items,
-        ...(isLive &&
-          !queryExecutorOptions?.selectResult && { selectedIndex: null }),
+        ...(isLive && !queryExecutorOptions?.selectResult && { selectedIndex: null }),
       }),
       queryExecutorOptions,
     );
@@ -136,7 +135,7 @@ export class ViewQueryExecutor {
       return null;
     }
 
-    const cameraForQuery = view.isGrid() ? undefined : view.camera ?? undefined;
+    const cameraForQuery = view.isGrid() ? undefined : (view.camera ?? undefined);
 
     const getDefaultQueryModifiers = async (selectedIndex?: number | null) => {
       const query = builder.buildDefaultCameraQuery(cameraForQuery, {

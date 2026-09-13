@@ -16,13 +16,17 @@ export class MiniTimelineAction extends AdvancedCameraCardAction<MiniTimelineAct
     const liveTimelineConfig = config?.live.controls.timeline;
     const viewerTimelineConfig = config?.media_viewer.controls.timeline;
     const isConfigHidden = isLive
-      ? (liveTimelineConfig?.mode === 'none' || !!liveTimelineConfig?.hidden_by_default)
+      ? liveTimelineConfig?.mode === 'none' || !!liveTimelineConfig?.hidden_by_default
       : !!viewerTimelineConfig?.hidden_by_default;
 
     const isOn = currentEnabled !== undefined ? currentEnabled : !isConfigHidden;
     const enabled = action.enabled ?? !isOn;
 
-    if (enabled && isLive && typeof view?.queryResults?.resetSelectedResult === 'function') {
+    if (
+      enabled &&
+      isLive &&
+      typeof view?.queryResults?.resetSelectedResult === 'function'
+    ) {
       view.queryResults.resetSelectedResult();
       for (const cameraID of view.queryResults.getCameraIDs?.() ?? []) {
         view.queryResults.resetSelectedResult(cameraID);
@@ -40,4 +44,3 @@ export class MiniTimelineAction extends AdvancedCameraCardAction<MiniTimelineAct
     }
   }
 }
-

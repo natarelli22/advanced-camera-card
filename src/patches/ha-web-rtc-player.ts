@@ -18,11 +18,11 @@ import { property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 
-import type { BuiltinControlsOptions } from '../config/schema/common/controls/builtin.js';
 import { dispatchLiveErrorEvent } from '../components-lib/live/utils/dispatch-live-error.js';
 import { MediaLoadedInfoSourceController } from '../components-lib/media-loaded-info-source-controller.js';
 import { VideoMediaPlayerController } from '../components-lib/media-player/video.js';
 import { renderMediaNotification } from '../components/notification/media.js';
+import type { BuiltinControlsOptions } from '../config/schema/common/controls/builtin.js';
 import { localize } from '../localize/localize.js';
 import liveHAComponentsStyle from '../scss/live-ha-components.scss?inline';
 import type { MediaPlayer, MediaPlayerController } from '../types.js';
