@@ -21,6 +21,7 @@ import {
   getChildrenFromElement,
   isHoverableDevice,
 } from '../utils/basic.js';
+import { fireAdvancedCameraCardEvent } from '../utils/fire-advanced-camera-card-event.js';
 
 import './icon.js';
 
@@ -78,6 +79,15 @@ export class AdvancedCameraCardDrawer extends LitElement {
   protected willUpdate(): void {
     if (this.locked && this.open) {
       this.open = false;
+    }
+  }
+
+  protected updated(changedProps: PropertyValues): void {
+    super.updated(changedProps);
+    if (changedProps.has('open')) {
+      fireAdvancedCameraCardEvent(this, this.open ? 'drawer:opened' : 'drawer:closed', {
+        drawer: this.location,
+      });
     }
   }
 

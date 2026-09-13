@@ -176,6 +176,7 @@ interface FrontendLocaleData {
   language: string;
   number_format: NumberFormat;
   time_format: TimeFormat;
+  date_format?: string;
 }
 
 export interface LovelaceCardConfig {

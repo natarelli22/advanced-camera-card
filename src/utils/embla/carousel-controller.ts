@@ -102,11 +102,15 @@ export class CarouselController {
     return this._carousel.selectedScrollSnap();
   }
 
-  public selectSlide(index: number): void {
+  public selectSlide(index: number, jump?: boolean): void {
     if (index < 0 || index >= this._carousel.slideNodes().length) {
       return;
     }
-    this._carousel.scrollTo(index, this._transitionEffect === 'none');
+    this._carousel.scrollTo(index, jump ?? this._transitionEffect === 'none');
+  }
+
+  public reInit(): void {
+    this._carousel.reInit();
   }
 
   // Toggle drag handling live, without rebuilding Embla (e.g. to avoid visual

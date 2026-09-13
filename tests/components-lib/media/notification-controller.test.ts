@@ -182,6 +182,25 @@ describe('MediaNotificationController', () => {
       });
     });
 
+    it('should have localized start time in details with pt-BR hass', () => {
+      const startTime = new Date('2025-05-18T17:03:00Z');
+      const item = new TestViewMedia({
+        startTime,
+      });
+      const hass = {
+        locale: { language: 'pt-BR' },
+      } as unknown as HomeAssistant;
+
+      const controller = new MediaNotificationController();
+      controller.calculate(null, item, undefined, hass);
+
+      expect(controller.getMetadata()).toContainEqual({
+        text: formatDateAndTime(startTime, true, hass),
+        tooltip: 'Start',
+        icon: 'mdi:calendar-clock-outline',
+      });
+    });
+
     describe('should have duration in details', () => {
       it('should have duration in details', () => {
         const item = new TestViewMedia({

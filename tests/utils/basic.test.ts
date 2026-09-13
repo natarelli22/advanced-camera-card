@@ -185,6 +185,20 @@ describe('formatDateAndTime', () => {
     const date = new Date(2023, 3, 14, 13, 35, 1);
     expect(formatDateAndTime(date, true)).toBe('2023-04-14 13:35:01');
   });
+  it('should format date and time localized for pt-BR', () => {
+    const date = new Date(2023, 3, 14, 13, 35, 1);
+    const hass = {
+      locale: { language: 'pt-BR' },
+    } as unknown as HomeAssistant;
+    expect(formatDateAndTime(date, true, hass)).toBe('14-04-2023 13:35:01');
+  });
+  it('should format date and time localized when date_format is DMY', () => {
+    const date = new Date(2023, 3, 14, 13, 35, 1);
+    const hass = {
+      locale: { date_format: 'DMY' },
+    } as unknown as HomeAssistant;
+    expect(formatDateAndTime(date, true, hass)).toBe('14-04-2023 13:35:01');
+  });
 });
 
 describe('formatDate', () => {

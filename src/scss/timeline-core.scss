@@ -105,6 +105,21 @@ div.timeline {
     --advanced-camera-card-box-shadow-override,
     0px 0px 5px 1px var(--advanced-camera-card-timeline-item-current-color)
   );
+  z-index: 10 !important;
+}
+.vis-item.vis-selected:not([data-severity]) {
+  --advanced-camera-card-timeline-item-current-color: var(
+    --advanced-camera-card-timeline-item-selected-color,
+    var(--error-color, #d32f2f)
+  );
+}
+
+:host([ribbon]:not([groups])) .vis-item.vis-selected:not(.vis-background) {
+  margin-top: 6px !important;
+}
+
+:host([ribbon]) .vis-item.vis-selected:not(.vis-background) {
+  height: 8px !important;
 }
 .vis-item.vis-background {
   background-color: var(--advanced-camera-card-timeline-background-item-color);

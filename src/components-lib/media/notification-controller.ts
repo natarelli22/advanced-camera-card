@@ -12,7 +12,7 @@ import type {
 import type { HomeAssistant } from '../../ha/types';
 import { localize } from '../../localize/localize';
 import { createInternalCallbackAction } from '../../utils/action';
-import { getDurationString, prettifyTitle } from '../../utils/basic';
+import { formatDateAndTime, getDurationString, prettifyTitle } from '../../utils/basic';
 import {
   downloadMedia,
   navigateToTimeline,
@@ -38,13 +38,16 @@ export class MediaNotificationController {
   private _metadata: NotificationDetail[] = [];
   private _heading: NotificationDetail | null = null;
   private _item: ViewItem | null = null;
+  private _hass: HomeAssistant | null = null;
 
   public calculate(
     cameraManager?: CameraManager | null,
     item?: ViewItem,
     seek?: Date,
+    hass?: HomeAssistant | null,
   ): void {
     this._item = item ?? null;
+    this._hass = hass ?? null;
     const cameraID = ViewItemClassifier.isMedia(item) ? item.getCameraID() : null;
     const cameraMetadata = cameraID
       ? cameraManager?.getCameraMetadata(cameraID) ?? null
@@ -129,7 +132,7 @@ export class MediaNotificationController {
             {
               tooltip: localize('thumbnail.start'),
               icon: 'mdi:calendar-clock-outline',
-              text: format(startTime, 'yyyy-MM-dd HH:mm:ss'),
+              text: formatDateAndTime(startTime, true, this._hass),
             },
           ]
         : []),

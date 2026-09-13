@@ -7,6 +7,8 @@ import {
 import type { StyleInfo } from 'lit/directives/style-map.js';
 import { isEqualWith, mergeWith, round, uniq } from 'lodash-es';
 
+import type { HomeAssistant } from '../ha/types';
+import { getLanguage } from '../localize/localize.js';
 import { AdvancedCameraCardError } from '../types';
 
 /**
@@ -129,12 +131,59 @@ export const isHoverableDevice = (): boolean =>
   window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 /**
- * Format a date object to RFC3339.
- * @param date A Date object.
- * @returns A date and time.
+ * Check if the locale formats dates as day-month-year.
  */
-export const formatDateAndTime = (date: Date, includeSeconds?: boolean): string => {
-  return format(date, `yyyy-MM-dd HH:mm${includeSeconds ? ':ss' : ''}`);
+export const isDMYLocale = (hass?: HomeAssistant | null): boolean => {
+  if (!hass) {
+    return false;
+  }
+  const dateFormat = (hass.locale as { date_format?: string } | undefined)?.date_format;
+  if (dateFormat === 'DMY') {
+    return true;
+  }
+  if (dateFormat === 'MDY' || dateFormat === 'YMD') {
+    return false;
+  }
+  const lang = (
+    hass.language ??
+    hass.locale?.language ??
+    (typeof hass.selectedLanguage === 'string' ? hass.selectedLanguage : null) ??
+    ''
+  ).toLowerCase();
+  return (
+    lang.startsWith('pt') ||
+    lang.startsWith('fr') ||
+    lang.startsWith('de') ||
+    lang.startsWith('it') ||
+    lang.startsWith('es') ||
+    lang.startsWith('ca') ||
+    lang.startsWith('sk') ||
+    lang.startsWith('pl') ||
+    lang.startsWith('en_gb')
+  );
+};
+
+/**
+ * Get the date format pattern based on locale.
+ */
+export const getLocaleDateFormat = (hass?: HomeAssistant | null): string => {
+  return isDMYLocale(hass) ? 'dd-MM-yyyy' : 'yyyy-MM-dd';
+};
+
+/**
+ * Format a date object to RFC3339 or localized format.
+ * @param date A Date object.
+ * @param includeSeconds Whether to include seconds.
+ * @param hass Optional HomeAssistant instance.
+ * @returns A formatted date and time.
+ */
+export const formatDateAndTime = (
+  date: Date,
+  includeSeconds?: boolean,
+  hass?: HomeAssistant | null,
+): string => {
+  const dateFormat = getLocaleDateFormat(hass);
+  return format(date, `${dateFormat} HH:mm${includeSeconds ? ':ss' : ''}`);
 };
 
 /**

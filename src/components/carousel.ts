@@ -137,6 +137,7 @@ export class AdvancedCameraCardCarousel extends LitElement {
       // - Content change (item removed): count changed → preserve position
       const contentChanged =
         this._previousSlideCount !== null &&
+        this._previousSlideCount > 0 &&
         this._previousSlideCount !== currentSlideCount;
 
       if (!contentChanged && this.selected !== this._carousel.getSelectedIndex()) {
@@ -144,6 +145,16 @@ export class AdvancedCameraCardCarousel extends LitElement {
       }
     }
     this._previousSlideCount = currentSlideCount;
+  }
+
+  public scrollToSelected(jump = false): void {
+    if (!this._carousel) {
+      return;
+    }
+    this._carousel.reInit();
+    if (this.selected !== null && this.selected !== undefined && this.selected >= 0) {
+      this._carousel.selectSlide(this.selected, jump);
+    }
   }
 
   static get styles(): CSSResultGroup {

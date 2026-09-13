@@ -197,6 +197,11 @@ export class AdvancedCameraCardTimelineCore extends LitElement {
             ? 'mdi:play-box-lock'
             : 'mdi:camera-lock';
 
+    const showPanControl =
+      this.timelineConfig?.show_pan_control !== false &&
+      this._controller.shouldSupportSeeking();
+    const showNextPrevious = this.timelineConfig?.show_next_previous !== false;
+
     return html` <div
       @advanced-camera-card:timeline:thumbnail-data-request=${this._controller
         .handleThumbnailDataRequest}
@@ -204,7 +209,7 @@ export class AdvancedCameraCardTimelineCore extends LitElement {
       ${ref(this._refTimeline)}
     >
       <div class="timeline-tools">
-        ${this._controller.shouldSupportSeeking()
+        ${showPanControl
           ? html` <advanced-camera-card-icon
               .icon=${{ icon: panIcon }}
               @click=${() => this._controller.cyclePanMode()}
@@ -212,6 +217,31 @@ export class AdvancedCameraCardTimelineCore extends LitElement {
               title="${panTitle}"
             >
             </advanced-camera-card-icon>`
+          : ''}
+        ${showNextPrevious
+          ? html`
+              <advanced-camera-card-icon
+                .icon=${{ icon: 'mdi:skip-previous' }}
+                @click=${() => this._controller.navigateMedia('previous')}
+                aria-label="${localize(
+                  'config.common.controls.next_previous.styles.previous',
+                ) || 'Previous'}"
+                title="${localize(
+                  'config.common.controls.next_previous.styles.previous',
+                ) || 'Previous'}"
+              >
+              </advanced-camera-card-icon>
+              <advanced-camera-card-icon
+                .icon=${{ icon: 'mdi:skip-next' }}
+                @click=${() => this._controller.navigateMedia('next')}
+                aria-label="${localize(
+                  'config.common.controls.next_previous.styles.next',
+                ) || 'Next'}"
+                title="${localize('config.common.controls.next_previous.styles.next') ||
+                'Next'}"
+              >
+              </advanced-camera-card-icon>
+            `
           : ''}
         <advanced-camera-card-date-picker
           ${ref(this._refDatePicker)}

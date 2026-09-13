@@ -36,8 +36,17 @@ export class AdvancedCameraCardThumbnailDetails extends LitElement {
   private _notificationController = new MediaNotificationController();
 
   protected willUpdate(changedProperties: PropertyValues): void {
-    if (['item', 'seek', 'cameraManager'].some((prop) => changedProperties.has(prop))) {
-      this._notificationController.calculate(this.cameraManager, this.item, this.seek);
+    if (
+      ['item', 'seek', 'cameraManager', 'hass'].some((prop) =>
+        changedProperties.has(prop),
+      )
+    ) {
+      this._notificationController.calculate(
+        this.cameraManager,
+        this.item,
+        this.seek,
+        this.hass,
+      );
     }
   }
 

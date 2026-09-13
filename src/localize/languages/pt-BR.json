@@ -137,7 +137,9 @@
             "above": "Acima",
             "below": "Abaixo",
             "none": "Nenhum"
-          }
+          },
+          "show_next_previous": "Mostrar botões de próximo/anterior",
+          "show_pan_control": "Mostrar controle de movimento (pan)"
         }
       },
       "events_media_types": {

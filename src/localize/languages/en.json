@@ -322,7 +322,9 @@
             "seek": "Pan seeks across all media",
             "seek-in-camera": "Pan seeks within selected camera only",
             "seek-in-media": "Pan seeks within selected media item only"
-          }
+          },
+          "show_next_previous": "Show next/previous buttons",
+          "show_pan_control": "Show pan control"
         },
         "wheel": "Scroll wheel scrolls media carousel"
       },

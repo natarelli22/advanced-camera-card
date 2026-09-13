@@ -550,68 +550,7 @@ export class TimelineController {
         });
       }
     } else if (item && properties.what === 'item') {
-      const cameraID = String(properties.group);
-
-      const criteria = {
-        main: true,
-        ...(cameraID && view.isGrid() && { cameraID: cameraID }),
-      };
-      let newResults = view.queryResults
-        ?.clone()
-        .resetSelectedResult()
-        .selectResultIfFound((media) => media.getID() === id, criteria);
-
-      let isBuiltFromItem = false;
-      if (!newResults || !newResults.hasSelectedResult()) {
-        const queryResults = this._buildQueryResultsFromExistingItem(item);
-        if (item && item.query && queryResults) {
-          newResults = queryResults;
-          isBuiltFromItem = true;
-        }
-      }
-
-      const selectedItem = newResults?.getSelectedResult();
-      let seekTime: Date | null = null;
-      if (canMediaBeShownAsTimelineItem(selectedItem)) {
-        const start = selectedItem.getStartTime();
-        const end = selectedItem.getEndTime() ?? selectedItem.getUsableEndTime();
-        if (start && end && end > start && properties.time) {
-          if (properties.time < start || properties.time > end) {
-            seekTime = start;
-          } else {
-            seekTime = properties.time;
-          }
-        }
-      }
-      const context: ViewContext = mergeViewContext(this._getTimelineContext(), {
-        ...(seekTime && { mediaViewer: { seek: seekTime } }),
-      });
-      const modifiers = [
-        ...(!seekTime
-          ? [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]
-          : []),
-        new MergeContextViewModifier(context),
-      ];
-
-      if (isBuiltFromItem && item && item.query && newResults) {
-        this._viewManagerEpoch?.manager.setViewByParameters({
-          params: {
-            view: 'media',
-            query: item.query,
-            queryResults: newResults,
-          },
-          modifiers,
-        });
-      } else if (newResults?.hasSelectedResult()) {
-        this._viewManagerEpoch.manager.setViewByParameters({
-          params: {
-            queryResults: newResults,
-            view: this._itemClickAction === 'play' ? 'media' : view.view,
-          },
-          modifiers,
-        });
-      }
-
+      await this._selectItem(item, properties.time, String(properties.group));
       if (this._itemClickAction === 'select') {
         drawerAction = 'open';
       }
@@ -620,6 +559,131 @@ export class TimelineController {
     fireAdvancedCameraCardEvent(this._host, `thumbnails:${drawerAction}`);
 
     this._ignoreClick = false;
+  }
+
+  public navigateMedia(direction: 'previous' | 'next'): void {
+    const view = this._viewManagerEpoch?.manager.getView();
+    if (!view || !this._source) {
+      return;
+    }
+
+    const items = this._source.dataset.get({
+      filter: (it: AdvancedCameraCardTimelineItem) =>
+        !it.className?.includes('vis-background') && !!it.media,
+    });
+
+    if (!items.length) {
+      return;
+    }
+
+    items.sort((a, b) => Number(a.start) - Number(b.start));
+
+    const currentSelection = this._timeline?.getSelection() ?? [];
+    const currentId = currentSelection.length ? String(currentSelection[0]) : null;
+
+    let targetIndex = -1;
+    if (currentId) {
+      const currentIndex = items.findIndex((it) => String(it.id) === currentId);
+      if (currentIndex !== -1) {
+        targetIndex = direction === 'previous' ? currentIndex - 1 : currentIndex + 1;
+      }
+    }
+
+    if (targetIndex < 0 || targetIndex >= items.length) {
+      if (direction === 'previous') {
+        targetIndex = targetIndex < 0 && currentId ? 0 : items.length - 1;
+      } else {
+        targetIndex = targetIndex >= items.length ? items.length - 1 : 0;
+      }
+    }
+
+    const targetItem = items[targetIndex];
+    if (!targetItem) {
+      return;
+    }
+
+    const targetStart = new Date(targetItem.start);
+    this._timeline?.moveTo(targetStart);
+    this._timeline?.setSelection(targetItem.id);
+
+    void this._selectItem(targetItem, targetStart, String(targetItem.group));
+
+    if (this._itemClickAction === 'select') {
+      fireAdvancedCameraCardEvent(this._host, 'thumbnails:open');
+    }
+  }
+
+  private async _selectItem(
+    item: AdvancedCameraCardTimelineItem,
+    clickTime?: Date | null,
+    group?: string,
+  ): Promise<void> {
+    const view = this._viewManagerEpoch?.manager.getView();
+    if (!view || !this._viewManagerEpoch) {
+      return;
+    }
+
+    const id = String(item.id);
+    const cameraID = group || (item.group ? String(item.group) : '');
+    const criteria = {
+      main: true,
+      ...(cameraID && view.isGrid() && { cameraID: cameraID }),
+    };
+    let newResults = view.queryResults
+      ?.clone()
+      .resetSelectedResult()
+      .selectResultIfFound((media) => media.getID() === id, criteria);
+
+    let isBuiltFromItem = false;
+    if (!newResults || !newResults.hasSelectedResult()) {
+      const queryResults = this._buildQueryResultsFromExistingItem(item);
+      if (item && item.query && queryResults) {
+        newResults = queryResults;
+        isBuiltFromItem = true;
+      }
+    }
+
+    const selectedItem = newResults?.getSelectedResult();
+    let seekTime: Date | null = null;
+    if (canMediaBeShownAsTimelineItem(selectedItem)) {
+      const start = selectedItem.getStartTime();
+      const end = selectedItem.getEndTime() ?? selectedItem.getUsableEndTime();
+      if (start && end && end > start && clickTime) {
+        if (clickTime < start || clickTime > end) {
+          seekTime = start;
+        } else {
+          seekTime = clickTime;
+        }
+      }
+    }
+    const context: ViewContext = mergeViewContext(this._getTimelineContext(), {
+      ...(seekTime && { mediaViewer: { seek: seekTime } }),
+    });
+    const modifiers = [
+      ...(!seekTime
+        ? [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]
+        : []),
+      new MergeContextViewModifier(context),
+    ];
+
+    if (isBuiltFromItem && item && item.query && newResults) {
+      this._viewManagerEpoch.manager.setViewByParameters({
+        params: {
+          view: 'media',
+          query: item.query,
+          queryResults: newResults,
+        },
+        modifiers,
+      });
+    } else if (newResults?.hasSelectedResult()) {
+      this._viewManagerEpoch.manager.setViewByParameters({
+        params: {
+          queryResults: newResults,
+          view: this._itemClickAction === 'play' ? 'media' : view.view,
+        },
+        modifiers,
+      });
+    }
   }
 
   private _buildQueryResultsFromExistingItem(

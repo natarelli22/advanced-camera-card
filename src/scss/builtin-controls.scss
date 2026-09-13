@@ -3,9 +3,47 @@
     display: none !important;
   }
 
-  &.no-volume::-webkit-media-controls-mute-button,
+  &.no-volume::-webkit-media-controls-volume-control-container {
+    display: none !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
+
+  &.no-volume::-webkit-media-controls-volume-control-hover-background {
+    display: none !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    background: none !important;
+    box-shadow: none !important;
+  }
+
+  &.no-volume::-webkit-media-controls-volume-slider-container {
+    display: none !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+  }
+
+  &.no-volume::-webkit-media-controls-mute-button {
+    display: none !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
+  }
+
   &.no-volume::-webkit-media-controls-volume-slider {
     display: none !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    height: 0 !important;
+    opacity: 0 !important;
   }
 
   &.no-play-pause::-webkit-media-controls-play-button {

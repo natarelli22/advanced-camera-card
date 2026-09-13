@@ -8,6 +8,7 @@ import {
 } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
+import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
 import type { CameraManager } from '../camera-manager/manager.js';
 import type { FoldersManager } from '../card-controller/folders/manager.js';
@@ -32,6 +33,7 @@ import { ViewItemClassifier } from '../view/item-classifier.js';
 import type { ViewItem, ViewMedia } from '../view/item.js';
 import { UnifiedQueryBuilder } from '../view/unified-query-builder.js';
 import { getReviewedQueryFilterFromQuery } from '../view/utils/query-filter.js';
+import type { AdvancedCameraCardCarousel } from './carousel.js';
 
 import './carousel.js';
 import './thumbnail/thumbnail.js';
@@ -69,8 +71,44 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
   @property({ type: Boolean, reflect: true })
   public locked?: boolean;
 
+  private _refCarousel: Ref<AdvancedCameraCardCarousel> = createRef();
+  private _boundDrawerOpened = this._onDrawerOpened.bind(this);
   private _thumbnails: TemplateResult[] = [];
   private _builder: UnifiedQueryBuilder | null = null;
+
+  public connectedCallback(): void {
+    super.connectedCallback();
+    window.addEventListener(
+      'advanced-camera-card:drawer:opened',
+      this._boundDrawerOpened,
+    );
+    window.addEventListener('advanced-camera-card:drawer:open', this._boundDrawerOpened);
+  }
+
+  public disconnectedCallback(): void {
+    window.removeEventListener(
+      'advanced-camera-card:drawer:opened',
+      this._boundDrawerOpened,
+    );
+    window.removeEventListener(
+      'advanced-camera-card:drawer:open',
+      this._boundDrawerOpened,
+    );
+    super.disconnectedCallback();
+  }
+
+  private _onDrawerOpened(ev: Event): void {
+    const detail = (ev as CustomEvent<{ drawer?: string }>).detail;
+    if (detail?.drawer && detail.drawer !== this.config?.mode) {
+      return;
+    }
+    const targetSlide = this._getScrollSlide();
+    if (targetSlide !== null && this._refCarousel.value) {
+      requestAnimationFrame(() => {
+        this._refCarousel.value?.scrollToSelected(true);
+      });
+    }
+  }
 
   private _getFolderNavOptions(): FolderNavigationParamaters | undefined {
     return this._builder && this.viewManagerEpoch
@@ -230,15 +268,33 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     return null;
   }
 
+  private _getScrollSlide(): number | null {
+    const selectedSlide = this._getSelectedSlide();
+    if (selectedSlide !== null) {
+      return selectedSlide;
+    }
+    const view = this.viewManagerEpoch?.manager.getView();
+    const resultsCount = view?.queryResults?.getResultsCount() ?? 0;
+    const hasUpFolder = !!getUpFolderItem(view?.query);
+    if (resultsCount > 0) {
+      return hasUpFolder ? resultsCount : resultsCount - 1;
+    }
+    if (hasUpFolder) {
+      return 0;
+    }
+    return null;
+  }
+
   protected render(): TemplateResult | void {
     if (!this._thumbnails.length || !this.config?.mode || this.config.mode === 'none') {
       return;
     }
 
     return html`<advanced-camera-card-carousel
+      ${ref(this._refCarousel)}
       class="${classMap({ fade: this.fadeThumbnails })}"
       direction=${this._getDirection() ?? 'horizontal'}
-      .selected=${this._getSelectedSlide()}
+      .selected=${this._getScrollSlide() ?? 0}
       .dragFree=${true}
     >
       ${this._thumbnails}

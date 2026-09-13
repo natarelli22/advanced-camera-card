@@ -63,6 +63,16 @@ export const getTimelineCoreSchema = (options?: {
       selector: { boolean: {} },
     },
     {
+      name: 'show_pan_control',
+      label: localize('config.common.controls.timeline.show_pan_control'),
+      selector: { boolean: {} },
+    },
+    {
+      name: 'show_next_previous',
+      label: localize('config.common.controls.timeline.show_next_previous'),
+      selector: { boolean: {} },
+    },
+    {
       name: 'format',
       type: 'expandable',
       title: localize('config.common.controls.timeline.format.editor_label'),

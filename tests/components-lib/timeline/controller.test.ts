@@ -56,6 +56,8 @@ const createTimelineConfig = (
   clustering_threshold: 3,
   window_seconds: 60 * 60,
   show_recordings: false,
+  show_pan_control: true,
+  show_next_previous: true,
   style,
   format: { '24h': true },
   pan_mode: panMode,

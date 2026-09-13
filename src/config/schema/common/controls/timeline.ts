@@ -8,6 +8,8 @@ export const timelineCoreConfigDefault = {
   format: {
     '24h': true,
   },
+  show_pan_control: true,
+  show_next_previous: true,
 };
 
 const timelinePanModeSchema = z.enum(['pan', 'seek', 'seek-in-media', 'seek-in-camera']);
@@ -33,6 +35,14 @@ export const timelineCoreConfigSchema = z.object({
     .boolean()
     .optional()
     .default(timelineCoreConfigDefault.show_recordings),
+  show_pan_control: z
+    .boolean()
+    .optional()
+    .default(timelineCoreConfigDefault.show_pan_control),
+  show_next_previous: z
+    .boolean()
+    .optional()
+    .default(timelineCoreConfigDefault.show_next_previous),
   style: z.enum(['stack', 'ribbon']).optional().default(timelineCoreConfigDefault.style),
   format: timelineFormatSchema.optional().default(timelineCoreConfigDefault.format),
 });
