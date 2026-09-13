@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import '../../src/components/surround-basic';
+
 import type { AdvancedCameraCardSurroundBasic } from '../../src/components/surround-basic';
 import {
   callResizeHandler,
@@ -206,4 +207,3 @@ describe('AdvancedCameraCardSurroundBasic', () => {
     expect(observer?.disconnect).toHaveBeenCalled();
   });
 });
-
