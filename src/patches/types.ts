@@ -1,6 +1,7 @@
 import type { HassEntity } from 'home-assistant-js-websocket';
 import type { CSSResultGroup, LitElement, nothing, TemplateResult } from 'lit';
 
+import type { BuiltinControlsOptions } from '../config/schema/common/controls/builtin.js';
 import type { HomeAssistant } from '../ha/types.js';
 import type { MediaPlayer } from '../types.js';
 
@@ -119,8 +120,21 @@ export type ConstructableHaCameraStream = typeof HaCameraStreamElement;
 // own additions. `hass` is set by the card rather than declared by the Home
 // Assistant element, which takes its connection from a context instead.
 export type AdvancedCameraCardHaHlsPlayerElement = HaHlsPlayerElement &
-  MediaPlayer & { hass?: HomeAssistant; targetID?: string };
+  MediaPlayer & {
+    hass?: HomeAssistant;
+    targetID?: string;
+    controlsOptions?: BuiltinControlsOptions | null;
+  };
 export type AdvancedCameraCardHaWebRtcPlayerElement = HaWebRtcPlayerElement &
-  MediaPlayer & { hass?: HomeAssistant; targetID?: string };
+  MediaPlayer & {
+    hass?: HomeAssistant;
+    targetID?: string;
+    controlsOptions?: BuiltinControlsOptions | null;
+  };
 export type AdvancedCameraCardHaCameraStreamElement = HaCameraStreamElement &
-  MediaPlayer & { hass?: HomeAssistant; targetID?: string; outputMute: boolean };
+  MediaPlayer & {
+    hass?: HomeAssistant;
+    targetID?: string;
+    outputMute: boolean;
+    controlsOptions?: BuiltinControlsOptions | null;
+  };

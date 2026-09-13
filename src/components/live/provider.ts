@@ -23,6 +23,10 @@ import {
 import { MediaLoadWatchdogController } from '../../components-lib/media-load-watchdog-controller.js';
 import { MediaLoadedInfoSinkController } from '../../components-lib/media-loaded-info-sink-controller.js';
 import type { PartialZoomSettings } from '../../components-lib/zoom/types.js';
+import {
+  resolveBuiltinControls,
+  type BuiltinControlsOptions,
+} from '../../config/schema/common/controls/builtin.js';
 import type { LiveConfig } from '../../config/schema/live.js';
 import type { CardWideConfig } from '../../config/schema/types.js';
 import type { HomeAssistant } from '../../ha/types.js';
@@ -250,10 +254,11 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
   // - !_zoomed: the user has not actually digital zoomed in (when zoomed, we
   //   want to hide the controls).
   // - !locked: the UI lock is not active.
-  private _getEffectiveBuiltinControls(): boolean {
-    return (
-      !!this.liveConfig?.controls.builtin && this.zoom && !this._zoomed && !this.locked
-    );
+  private _getEffectiveBuiltinControls(): BuiltinControlsOptions | null {
+    if (!this.zoom || this._zoomed || this.locked) {
+      return null;
+    }
+    return resolveBuiltinControls(this.liveConfig?.controls.builtin);
   }
 
   private _renderContainer(template: TemplateResult): TemplateResult {
@@ -374,6 +379,8 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
       hidden: shouldShowImageDuringLoading,
     };
 
+    const effectiveBuiltinControls = this._getEffectiveBuiltinControls();
+
     return html`${this._renderContainer(html`
       ${shouldShowImageDuringLoading || provider === 'image'
         ? html` <advanced-camera-card-live-image
@@ -416,7 +423,8 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
             .targetID=${this.targetID}
             .preferAudioStream=${this.forceSelected &&
             isAudioIntendedOnLoad(this.liveConfig?.auto_unmute ?? [])}
-            ?controls=${this._getEffectiveBuiltinControls()}
+            ?controls=${!!effectiveBuiltinControls}
+            .controlsOptions=${effectiveBuiltinControls}
           >
           </advanced-camera-card-live-ha>`
         : provider === 'go2rtc'
@@ -427,7 +435,7 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
               .camera=${this.camera}
               .targetID=${this.targetID}
               .cameraTitle=${this.cameraTitle}
-              ?controls=${this._getEffectiveBuiltinControls()}
+              ?controls=${!!effectiveBuiltinControls}
             >
             </advanced-camera-card-live-go2rtc>`
           : provider === 'go2rtc-experimental'
@@ -439,7 +447,8 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
                 .targetID=${this.targetID}
                 .cameraTitle=${this.cameraTitle}
                 .cardWideConfig=${this.cardWideConfig}
-                ?controls=${this._getEffectiveBuiltinControls()}
+                ?controls=${!!effectiveBuiltinControls}
+                .controlsOptions=${effectiveBuiltinControls}
               >
               </advanced-camera-card-live-go2rtc-experimental>`
             : provider === 'webrtc-card'
@@ -451,7 +460,7 @@ export class AdvancedCameraCardLiveProvider extends LitElement implements MediaP
                   .targetID=${this.targetID}
                   .cameraTitle=${this.cameraTitle}
                   .cardWideConfig=${this.cardWideConfig}
-                  ?controls=${this._getEffectiveBuiltinControls()}
+                  ?controls=${!!effectiveBuiltinControls}
                 >
                 </advanced-camera-card-live-webrtc-card>`
               : provider === 'jsmpeg'

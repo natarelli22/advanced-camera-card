@@ -7,6 +7,8 @@ import {
   type TemplateResult,
 } from 'lit';
 import { customElement, property, state } from 'lit/decorators.js';
+import { classMap } from 'lit/directives/class-map.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
 import type { Camera } from '../../../../camera-manager/camera.js';
@@ -29,6 +31,7 @@ import {
   getSignedURLErrorText,
   SignedURLController,
 } from '../../../../components-lib/signed-url-controller.js';
+import type { BuiltinControlsOptions } from '../../../../config/schema/common/controls/builtin.js';
 import type { CardWideConfig } from '../../../../config/schema/types.js';
 import type { HomeAssistant } from '../../../../ha/types.js';
 import { localize } from '../../../../localize/localize.js';
@@ -65,6 +68,9 @@ export class AdvancedCameraCardGo2RTCExperimental
 
   @property({ attribute: true, type: Boolean })
   public controls = false;
+
+  @property({ attribute: false })
+  public controlsOptions?: BuiltinControlsOptions | null;
 
   private _hasLiveError = false;
 
@@ -277,6 +283,15 @@ export class AdvancedCameraCardGo2RTCExperimental
         ?hidden=${this._activeSurface !== 'video'}
         playsinline
         preload="auto"
+        controlsList=${ifDefined(
+          this.controlsOptions?.fullscreen === false ? 'nofullscreen' : undefined,
+        )}
+        class=${classMap({
+          'no-fullscreen': this.controlsOptions?.fullscreen === false,
+          'no-volume': this.controlsOptions?.volume === false,
+          'no-play-pause': this.controlsOptions?.play_pause === false,
+          'no-progress': this.controlsOptions?.progress === false,
+        })}
         @play=${() => dispatchMediaPlayEvent(this)}
         @pause=${() => dispatchMediaPauseEvent(this)}
         @volumechange=${() => dispatchMediaVolumeChangeEvent(this)}

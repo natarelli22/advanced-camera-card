@@ -1,3 +1,4 @@
+@use 'builtin-controls.scss';
 @use 'media-layout.scss';
 
 :host {
@@ -19,6 +20,10 @@ img {
   &[hidden] {
     display: none;
   }
+}
+
+video {
+  @include builtin-controls.builtin-controls();
 }
 
 // Hide the native seek bar (and its time readouts) on the live video: the

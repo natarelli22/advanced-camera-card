@@ -1,0 +1,21 @@
+@mixin builtin-controls() {
+  &.no-fullscreen::-webkit-media-controls-fullscreen-button {
+    display: none !important;
+  }
+
+  &.no-volume::-webkit-media-controls-mute-button,
+  &.no-volume::-webkit-media-controls-volume-slider {
+    display: none !important;
+  }
+
+  &.no-play-pause::-webkit-media-controls-play-button {
+    display: none !important;
+  }
+
+  &.no-progress::-webkit-media-controls-timeline,
+  &.no-progress::-webkit-media-controls-current-time-display,
+  &.no-progress::-webkit-media-controls-time-remaining-display {
+    display: none !important;
+  }
+}
+

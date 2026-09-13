@@ -10,6 +10,7 @@ import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
 import type { Camera } from '../../../camera-manager/camera.js';
 import { HAStreamMuteController } from '../../../components-lib/live/ha-stream-mute-controller.js';
+import type { BuiltinControlsOptions } from '../../../config/schema/common/controls/builtin.js';
 import type { HomeAssistant } from '../../../ha/types';
 
 import '../../../patches/ha-camera-stream';
@@ -37,6 +38,9 @@ export class AdvancedCameraCardLiveHA extends LitElement implements MediaPlayer 
 
   @property({ attribute: true, type: Boolean })
   public controls = false;
+
+  @property({ attribute: false })
+  public controlsOptions?: BuiltinControlsOptions | null;
 
   @property({ attribute: false })
   public preferAudioStream = false;
@@ -68,6 +72,7 @@ export class AdvancedCameraCardLiveHA extends LitElement implements MediaPlayer 
       .hass=${this.hass}
       .stateObj=${cameraEntity ? this.hass.states[cameraEntity] : undefined}
       .controls=${this.controls}
+      .controlsOptions=${this.controlsOptions}
       .targetID=${this.targetID}
       .muted=${this._muteController.getIntendedMute()}
       .outputMute=${this._muteController.getOutputMute()}

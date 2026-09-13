@@ -26,6 +26,7 @@ import { MediaLoadedInfoSourceController } from '../components-lib/media-loaded-
 
 import '../components/image-player.js';
 
+import type { BuiltinControlsOptions } from '../config/schema/common/controls/builtin.js';
 import type { HomeAssistant } from '../ha/types.js';
 import liveHAComponentsStyle from '../scss/live-ha-components.scss?inline';
 import type {
@@ -125,6 +126,9 @@ void customElements.whenDefined('ha-camera-stream').then(() => {
     // The visible player's output mute.
     @property({ attribute: false })
     public outputMute = true;
+
+    @property({ attribute: false })
+    public controlsOptions?: BuiltinControlsOptions | null;
 
     // Report the visible player's real mute upward on any volume change (native
     // or menu control) so the controller can react.
@@ -230,6 +234,7 @@ void customElements.whenDefined('ha-camera-stream').then(() => {
           .allowExoPlayer=${this.allowExoPlayer}
           .muted=${this.outputMute}
           .controls=${this.controls}
+          .controlsOptions=${this.controlsOptions}
           .hass=${this.hass}
           .entityid=${this.stateObj.entity_id}
           .posterUrl=${this._posterUrl}
@@ -250,6 +255,7 @@ void customElements.whenDefined('ha-camera-stream').then(() => {
           playsinline
           .muted=${this.outputMute}
           .controls=${this.controls}
+          .controlsOptions=${this.controlsOptions}
           .hass=${this.hass}
           .entityid=${this.stateObj.entity_id}
           .posterUrl=${this._posterUrl}

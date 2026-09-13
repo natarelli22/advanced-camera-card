@@ -2,6 +2,7 @@ import { z } from 'zod';
 
 import { actionsSchema } from './actions/types';
 import { BUTTON_SIZE_MIN } from './common/const';
+import { builtinControlsSchema } from './common/controls/builtin';
 import { nextPreviousControlConfigSchema } from './common/controls/next-previous';
 import { ptzControlsConfigSchema, ptzControlsDefaults } from './common/controls/ptz';
 import {
@@ -163,7 +164,7 @@ export const liveConfigSchema = z
       .default(liveConfigDefault.auto_unmute),
     controls: z
       .object({
-        builtin: z.boolean().default(liveConfigDefault.controls.builtin),
+        builtin: builtinControlsSchema.default(liveConfigDefault.controls.builtin),
         call: callConfigSchema.default(liveConfigDefault.controls.call),
         next_previous: nextPreviousControlConfigSchema
           .extend({

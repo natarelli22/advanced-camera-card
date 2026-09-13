@@ -16,7 +16,10 @@ import {
 } from 'lit';
 import { property } from 'lit/decorators.js';
 import { query } from 'lit/decorators/query.js';
+import { classMap } from 'lit/directives/class-map.js';
+import { ifDefined } from 'lit/directives/if-defined.js';
 
+import type { BuiltinControlsOptions } from '../config/schema/common/controls/builtin.js';
 import { dispatchLiveErrorEvent } from '../components-lib/live/utils/dispatch-live-error.js';
 import { MediaLoadedInfoSourceController } from '../components-lib/media-loaded-info-source-controller.js';
 import { VideoMediaPlayerController } from '../components-lib/media-player/video.js';
@@ -52,6 +55,9 @@ void customElements.whenDefined('ha-hls-player').then(() => {
 
     @property({ attribute: false })
     public targetID?: string;
+
+    @property({ attribute: false })
+    public controlsOptions?: BuiltinControlsOptions | null;
 
     private _mediaPlayerController = new VideoMediaPlayerController(
       this,
@@ -96,6 +102,15 @@ void customElements.whenDefined('ha-hls-player').then(() => {
           .muted=${this.muted}
           ?playsinline=${this.playsInline}
           ?controls=${this.controls}
+          controlsList=${ifDefined(
+            this.controlsOptions?.fullscreen === false ? 'nofullscreen' : undefined,
+          )}
+          class=${classMap({
+            'no-fullscreen': this.controlsOptions?.fullscreen === false,
+            'no-volume': this.controlsOptions?.volume === false,
+            'no-play-pause': this.controlsOptions?.play_pause === false,
+            'no-progress': this.controlsOptions?.progress === false,
+          })}
           @loadedmetadata=${() => {
             if (this.controls && this._video) {
               hideMediaControlsTemporarily(

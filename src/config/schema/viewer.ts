@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { actionsSchema } from './actions/types';
+import { builtinControlsSchema } from './common/controls/builtin';
 import { nextPreviousControlConfigSchema } from './common/controls/next-previous';
 import { ptzControlsConfigSchema, ptzControlsDefaults } from './common/controls/ptz';
 import {
@@ -95,7 +96,7 @@ export const viewerConfigSchema = z
     display: viewDisplaySchema,
     controls: z
       .object({
-        builtin: z.boolean().default(viewerConfigDefault.controls.builtin),
+        builtin: builtinControlsSchema.default(viewerConfigDefault.controls.builtin),
         next_previous: viewerNextPreviousControlConfigSchema.default(
           viewerConfigDefault.controls.next_previous,
         ),

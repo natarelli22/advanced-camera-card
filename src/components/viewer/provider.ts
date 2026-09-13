@@ -23,6 +23,7 @@ import {
 import type { ZoomSettingsObserved } from '../../components-lib/zoom/types.js';
 import { handleZoomSettingsObservedEvent } from '../../components-lib/zoom/zoom-view-context.js';
 import type { CameraConfig } from '../../config/schema/cameras.js';
+import { resolveBuiltinControls } from '../../config/schema/common/controls/builtin.js';
 import type { CardWideConfig } from '../../config/schema/types.js';
 import type { ViewerConfig } from '../../config/schema/viewer.js';
 import { canonicalizeHAURL } from '../../ha/canonical-url.js';
@@ -258,6 +259,7 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
     const { isHLS, isVideo } = classifyMimeType(
       this._resolvedMediaController.getValue()?.mime_type,
     );
+    const builtinControls = resolveBuiltinControls(this.viewerConfig?.controls?.builtin);
 
     return this._renderContainer(html`
       ${isVideo
@@ -274,7 +276,8 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
               url=${url}
               .hass=${this.hass}
               .targetID=${mediaID}
-              ?controls=${this.viewerConfig.controls.builtin}
+              ?controls=${!!builtinControls}
+              .controlsOptions=${builtinControls}
             >
             </advanced-camera-card-ha-hls-player>`
           : html`
@@ -284,7 +287,8 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
                 aria-label="${this.media.getTitle() ?? ''}"
                 title="${this.media.getTitle() ?? ''}"
                 .targetID=${mediaID}
-                ?controls=${this.viewerConfig.controls.builtin}
+                ?controls=${!!builtinControls}
+                .controlsOptions=${builtinControls}
               >
               </advanced-camera-card-video-player>
             `

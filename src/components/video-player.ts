@@ -6,11 +6,13 @@ import {
   type TemplateResult,
 } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
+import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
+import type { BuiltinControlsOptions } from '../config/schema/common/controls/builtin.js';
 import { MediaLoadedInfoSourceController } from '../components-lib/media-loaded-info-source-controller.js';
-import { VideoMediaPlayerController } from '../components-lib/media-player/video';
+import { VideoMediaPlayerController } from '../components-lib/media-player/video.js';
 import videoPlayerStyle from '../scss/video-player.scss?inline';
 import type { MediaPlayer, MediaPlayerController, MediaPlayerElement } from '../types';
 import { mayHaveAudio } from '../utils/audio';
@@ -36,6 +38,9 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
   @property({ type: Boolean })
   public controls = false;
 
+  @property({ attribute: false })
+  public controlsOptions?: BuiltinControlsOptions | null;
+
   private _refVideo: Ref<MediaPlayerElement<HTMLVideoElement>> = createRef();
   private _mediaPlayerController = new VideoMediaPlayerController(
     this,
@@ -60,6 +65,15 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
         crossorigin="anonymous"
         ?autoplay=${false}
         ?controls=${this.controls}
+        controlsList=${ifDefined(
+          this.controlsOptions?.fullscreen === false ? 'nofullscreen' : undefined,
+        )}
+        class=${classMap({
+          'no-fullscreen': this.controlsOptions?.fullscreen === false,
+          'no-volume': this.controlsOptions?.volume === false,
+          'no-play-pause': this.controlsOptions?.play_pause === false,
+          'no-progress': this.controlsOptions?.progress === false,
+        })}
         @loadedmetadata=${(ev: Event) => {
           if (ev.target && this.controls) {
             hideMediaControlsTemporarily(

@@ -1,4 +1,5 @@
 @use 'basic-block.scss';
+@use 'builtin-controls.scss';
 @use 'media-layout.scss';
 
 video {
@@ -7,4 +8,5 @@ video {
   display: block;
 
   @include media-layout.media-layout();
+  @include builtin-controls.builtin-controls();
 }

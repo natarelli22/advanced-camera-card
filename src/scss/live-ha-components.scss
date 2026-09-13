@@ -1,6 +1,11 @@
+@use 'builtin-controls.scss';
 @use 'media-layout.scss';
 
 img,
 video {
   @include media-layout.media-layout();
+}
+
+video {
+  @include builtin-controls.builtin-controls();
 }
