@@ -23,6 +23,7 @@ export const viewerConfigDefault = {
   auto_pause: [...MEDIA_ACTION_NEGATIVE_CONDITIONS],
   auto_mute: [...MEDIA_ACTION_NEGATIVE_CONDITIONS],
   auto_unmute: [],
+  auto_seek: true,
   lazy_load: true,
   draggable: true,
   zoomable: true,
@@ -81,6 +82,7 @@ export const viewerConfigSchema = z
       .enum(MEDIA_ACTION_POSITIVE_CONDITIONS)
       .array()
       .default(viewerConfigDefault.auto_unmute),
+    auto_seek: z.boolean().default(viewerConfigDefault.auto_seek),
     lazy_load: z.boolean().default(viewerConfigDefault.lazy_load),
     draggable: z.boolean().default(viewerConfigDefault.draggable),
     zoomable: z.boolean().default(viewerConfigDefault.zoomable),

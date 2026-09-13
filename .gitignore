@@ -2,6 +2,7 @@
 /.rpt2_cache/
 package-lock.json
 /dist
+*.zip
 
 .env
 .envrc

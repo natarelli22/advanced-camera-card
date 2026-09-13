@@ -418,6 +418,74 @@ describe('TimelineController', () => {
 
       expect(view.context?.mediaViewer?.seek).toEqual(clickTime);
     });
+
+    it('should clamp to start when clicked time is before the start time', async () => {
+      const review = createReviewMedia();
+      const harness = await createHarness({ media: [review] });
+      const clickTimeBefore = add(WINDOW.start, { minutes: 28 });
+
+      harness.trigger('click', {
+        what: 'item',
+        item: 'review-1',
+        group: CAMERA_ID,
+        time: clickTimeBefore,
+        event: new Event('click'),
+      });
+
+      const parameters = vi.mocked(harness.manager.setViewByParameters).mock
+        .calls[0]?.[0];
+      const view = createView();
+      parameters?.modifiers?.forEach((modifier) => modifier.modify(view));
+
+      expect(view.context?.mediaViewer?.seek).toEqual(review.getStartTime());
+    });
+
+    it('should clamp to start when clicked time is after the end time', async () => {
+      const review = createReviewMedia();
+      const harness = await createHarness({ media: [review] });
+      const clickTimeAfter = add(WINDOW.start, { minutes: 32 });
+
+      harness.trigger('click', {
+        what: 'item',
+        item: 'review-1',
+        group: CAMERA_ID,
+        time: clickTimeAfter,
+        event: new Event('click'),
+      });
+
+      const parameters = vi.mocked(harness.manager.setViewByParameters).mock
+        .calls[0]?.[0];
+      const view = createView();
+      parameters?.modifiers?.forEach((modifier) => modifier.modify(view));
+
+      expect(view.context?.mediaViewer?.seek).toEqual(review.getStartTime());
+    });
+
+    it('should not set seek if media has zero or negative duration', async () => {
+      const pointMedia = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'point-1',
+        startTime: add(WINDOW.start, { minutes: 30 }),
+        endTime: add(WINDOW.start, { minutes: 30 }),
+      });
+      const harness = await createHarness({ media: [pointMedia] });
+
+      harness.trigger('click', {
+        what: 'item',
+        item: 'point-1',
+        group: CAMERA_ID,
+        time: add(WINDOW.start, { minutes: 30 }),
+        event: new Event('click'),
+      });
+
+      const parameters = vi.mocked(harness.manager.setViewByParameters).mock
+        .calls[0]?.[0];
+      const view = createView();
+      parameters?.modifiers?.forEach((modifier) => modifier.modify(view));
+
+      expect(view.context?.mediaViewer?.seek).toBeUndefined();
+    });
   });
 });
 

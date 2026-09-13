@@ -309,6 +309,7 @@
             "24h": "Use 24-hour clock",
             "editor_label": "Time & date format"
           },
+          "hidden_by_default": "Hidden by default (toggled via timeline button)",
           "mode": "Mode",
           "modes": {
             "above": "Above",
@@ -518,6 +519,7 @@
       "auto_mute": "Automatically mute media",
       "auto_pause": "Automatically pause media",
       "auto_play": "Automatically play media",
+      "auto_seek": "Automatically seek media",
       "auto_unmute": "Automatically unmute media",
       "controls": {
         "editor_label": "Media Viewer Controls"

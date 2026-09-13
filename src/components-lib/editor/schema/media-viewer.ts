@@ -69,6 +69,10 @@ export const getMediaViewerSectionForms = (): EditorForm[] => [
           multiple: true,
         }),
       },
+      {
+        name: 'auto_seek',
+        selector: { boolean: {} },
+      },
       createGrid([
         { name: 'draggable', selector: { boolean: {} } },
         { name: 'zoomable', selector: { boolean: {} } },

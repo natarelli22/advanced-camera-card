@@ -131,6 +131,7 @@
         },
         "timeline": {
           "editor_label": "Controles da linha do tempo",
+          "hidden_by_default": "Oculto por padrão (alternado pelo botão de linha do tempo)",
           "mode": "Modo",
           "modes": {
             "above": "Acima",
@@ -197,6 +198,7 @@
       "auto_mute": "Silenciar mídia automaticamente",
       "auto_pause": "Pausar mídia automaticamente",
       "auto_play": "Reproduzir mídia automaticamente",
+      "auto_seek": "Buscar/avançar mídia automaticamente",
       "auto_unmute": "Ativar mídia automaticamente",
       "controls": {
         "editor_label": "Controles do visualizador de mídia"

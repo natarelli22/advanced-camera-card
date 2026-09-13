@@ -10,7 +10,7 @@ A "Camera Engine" defines what "type" of camera is being configured (e.g. `friga
 | `generic`   | :white_check_mark: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x:    | :white_check_mark:               | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x:                     | :heavy_multiplication_x: |
 | `motioneye` | :white_check_mark: | :white_check_mark:       | :white_check_mark:       | :heavy_multiplication_x: | :white_check_mark:       | :heavy_multiplication_x:    | :white_check_mark:               | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :white_check_mark:                           | :white_check_mark:       |
 | `reolink`   | :white_check_mark: | :white_check_mark:       | :heavy_multiplication_x: | :heavy_multiplication_x: | :white_check_mark:       | :eight_spoked_asterisk:     | :white_check_mark:               | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :white_check_mark:                           | :heavy_multiplication_x: |
-| `tplink`    | :white_check_mark: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :eight_spoked_asterisk:     | :white_check_mark:               | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x:                     | :heavy_multiplication_x: |
+| `tplink`    | :white_check_mark: | :white_check_mark:       | :heavy_multiplication_x: | :heavy_multiplication_x: | :white_check_mark:       | :eight_spoked_asterisk:     | :white_check_mark:               | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :heavy_multiplication_x: | :white_check_mark:                           | :eight_spoked_asterisk:  |
 
 ### Live providers supported per Engine
 
@@ -120,9 +120,19 @@ The `tplink` engine provides support for TPLink/Tapo cameras.
 ```yaml
 cameras:
   - camera_entity: camera.tapo_xxx_live_view
+    tplink:
+      # [...]
 ```
 
-### PTZ Support
+| Option | Default | Description                                                                                                         |
+| ------ | ------- | ------------------------------------------------------------------------------------------------------------------- |
+| `url`  |         | The URL of the TP-Link/Tapo camera UI. If set, this value will be (exclusively) used for a `Camera UI` menu button. |
+
+### Media Support (Clips & Timeline)
+
+Clips and timeline support is available when using the [tapo_control](https://github.com/JurajNyiri/HomeAssistant-Tapo-Control) integration, which exposes recordings stored on the camera's SD card through the Home Assistant media browser (`media-source://tapo_control`).
+
+### PTZ Support (TP-Link)
 
 Zero-configuration PTZ support is available for TPLink/Tapo cameras that have pan/tilt capabilities.
 
@@ -157,4 +167,7 @@ cameras:
     reolink:
       url: http://my.reolink.local
       media_resolution: low
+  - camera_entity: camera.office_tplink
+    tplink:
+      url: http://my.tplink.local
 ```

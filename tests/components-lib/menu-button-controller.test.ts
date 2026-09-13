@@ -1051,6 +1051,95 @@ describe('MenuButtonController', () => {
       });
     });
 
+    it('should toggle mini-timeline when mini-timeline is configured and hidden by default', () => {
+      const viewManager = mock<ViewManager>();
+      vi.mocked(isViewSupported).mockReturnValue(true);
+      const buttons = calculateButtons(controller, {
+        config: createConfig({
+          live: {
+            controls: {
+              timeline: {
+                mode: 'below',
+                hidden_by_default: true,
+              },
+            },
+          },
+        }),
+        view: createView({ view: 'live' }),
+        viewManager: viewManager,
+      });
+
+      expect(buttons).toContainEqual({
+        alignment: 'matching',
+        state_color: true,
+        permanent: false,
+        icon: 'mdi:chart-gantt',
+        enabled: true,
+        priority: 50,
+        type: 'custom:advanced-camera-card-menu-icon',
+        title: 'Timeline view',
+        style: {},
+        tap_action: {
+          action: 'fire-dom-event',
+          advanced_camera_card_action: 'mini_timeline',
+          enabled: true,
+        },
+        hold_action: {
+          action: 'fire-dom-event',
+          advanced_camera_card_action: 'timeline',
+        },
+      });
+    });
+
+    it('should emphasize timeline button and toggle off when mini-timeline is enabled in context', () => {
+      const viewManager = mock<ViewManager>();
+      vi.mocked(isViewSupported).mockReturnValue(true);
+      const buttons = calculateButtons(controller, {
+        config: createConfig({
+          live: {
+            controls: {
+              timeline: {
+                mode: 'below',
+                hidden_by_default: true,
+              },
+            },
+          },
+        }),
+        view: createView({
+          view: 'live',
+          context: {
+            miniTimeline: {
+              enabled: true,
+            },
+          },
+        }),
+        viewManager: viewManager,
+      });
+
+      expect(buttons).toContainEqual({
+        alignment: 'matching',
+        state_color: true,
+        permanent: false,
+        icon: 'mdi:chart-gantt',
+        enabled: true,
+        priority: 50,
+        type: 'custom:advanced-camera-card-menu-icon',
+        title: 'Timeline view',
+        style: {
+          color: 'var(--advanced-camera-card-menu-button-active-color)',
+        },
+        tap_action: {
+          action: 'fire-dom-event',
+          advanced_camera_card_action: 'mini_timeline',
+          enabled: false,
+        },
+        hold_action: {
+          action: 'fire-dom-event',
+          advanced_camera_card_action: 'timeline',
+        },
+      });
+    });
+
     it('should not have a timeline button when the view is not supported', () => {
       const viewManager = mock<ViewManager>();
       vi.mocked(isViewSupported).mockReturnValue(false);

@@ -57,6 +57,7 @@ describe('config defaults', () => {
         reolink: {
           media_resolution: 'low',
         },
+        tplink: {},
         triggers: {
           doorbell: false,
           entities: [],
@@ -134,6 +135,7 @@ describe('config defaults', () => {
             format: {
               '24h': true,
             },
+            hidden_by_default: false,
             mode: 'none',
             pan_mode: 'pan',
             show_recordings: true,
@@ -181,6 +183,7 @@ describe('config defaults', () => {
         auto_mute: ['unselected', 'hidden'],
         auto_pause: ['unselected', 'hidden'],
         auto_play: ['selected', 'visible'],
+        auto_seek: true,
         auto_unmute: [],
         controls: {
           builtin: true,
@@ -214,6 +217,7 @@ describe('config defaults', () => {
             format: {
               '24h': true,
             },
+            hidden_by_default: false,
             mode: 'none',
             pan_mode: 'pan',
             show_recordings: true,
@@ -1903,6 +1907,16 @@ it('media viewer should not support microphone based conditions', () => {
       },
     }),
   ).toThrow();
+});
+
+it('should parse media_viewer.auto_seek', () => {
+  const config = createConfig({
+    cameras: [{}],
+    media_viewer: {
+      auto_seek: false,
+    },
+  });
+  expect(config.media_viewer.auto_seek).toBe(false);
 });
 
 describe('automations should require actions', () => {

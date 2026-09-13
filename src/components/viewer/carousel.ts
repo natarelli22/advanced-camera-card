@@ -228,6 +228,9 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
 
   protected willUpdate(changedProps: PropertyValues): void {
     if (changedProps.has('viewerConfig')) {
+      if (this.viewerConfig?.auto_seek === false) {
+        this.toggleAttribute('unseekable', false);
+      }
       this._mediaActionsController.setOptions({
         playerSelector: ADVANCED_CAMERA_CARD_VIEWER_PROVIDER,
         ...(this.viewerConfig?.auto_play && {
@@ -248,7 +251,10 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
     if (changedProps.has('viewManagerEpoch')) {
       const newView = this.viewManagerEpoch?.manager.getView();
 
-      if (!newView?.context?.mediaViewer?.seek) {
+      if (
+        !newView?.context?.mediaViewer?.seek ||
+        this.viewerConfig?.auto_seek === false
+      ) {
         this.toggleAttribute('unseekable', false);
       }
 
@@ -399,10 +405,11 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
       // on media load, since the media may or may not have been loaded at
       // this point).
       if (
+        this.viewerConfig?.auto_seek !== false &&
         this.viewManagerEpoch?.manager
           .getView()
           ?.context?.mediaViewer?.seek?.getTime() !==
-        this.viewManagerEpoch?.oldView?.context?.mediaViewer?.seek?.getTime()
+          this.viewManagerEpoch?.oldView?.context?.mediaViewer?.seek?.getTime()
       ) {
         void this._seekHandler();
       }
@@ -441,6 +448,14 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
     }
     const selectedMedia = this._media[this._selected];
     if (!selectedMedia) {
+      return;
+    }
+
+    if (this.viewerConfig?.auto_seek === false) {
+      this.toggleAttribute('unseekable', false);
+      if (mediaPlayerController.playback?.isPaused()) {
+        void mediaPlayerController.playback?.play();
+      }
       return;
     }
 

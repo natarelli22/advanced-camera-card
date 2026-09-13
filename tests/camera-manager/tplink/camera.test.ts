@@ -6,7 +6,12 @@ import { TPLinkCamera } from '../../../src/camera-manager/tplink/camera';
 import type { ActionsExecutor } from '../../../src/card-controller/actions/types';
 import { createCameraConfig } from '../../config/test-utils';
 import { EntityRegistryManagerMock } from '../../ha/registry/entity/mock';
-import { createHASSManager, createRegistryEntity } from '../../test-utils';
+import {
+  createHASS,
+  createHASSManager,
+  createRegistryEntity,
+  createStateEntity,
+} from '../../test-utils';
 
 describe('TPLinkCamera', () => {
   // Entity patterns from: https://github.com/dermotduffy/advanced-camera-card/issues/2183
@@ -442,6 +447,179 @@ describe('TPLinkCamera', () => {
         await camera.executePTZAction(executor, 'right', { phase: 'start' }),
       ).toBeFalsy();
       expect(executor.executeActions).toHaveBeenCalledTimes(1); // Still only 1 call
+    });
+  });
+
+  it('should have clips and recordings capabilities', async () => {
+    const camera = await new TPLinkCamera(
+      createCameraConfig({
+        camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+      }),
+      mock<CameraManagerEngine>(),
+    ).initialize({
+      hassManager: createHASSManager(),
+      entityRegistryManager: ptzPopulatedEntityRegistryManager,
+    });
+
+    expect(camera.getCapabilities()?.has('clips')).toBe(true);
+    expect(camera.getCapabilities()?.has('recordings')).toBe(true);
+  });
+
+  describe('getProxyConfig', () => {
+    it('should default media proxy to true when auto', async () => {
+      const camera = await new TPLinkCamera(
+        createCameraConfig({
+          camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+        }),
+        mock<CameraManagerEngine>(),
+      ).initialize({
+        hassManager: createHASSManager(),
+        entityRegistryManager: ptzPopulatedEntityRegistryManager,
+      });
+
+      expect(camera.getProxyConfig().media).toBe(true);
+    });
+
+    it('should respect configured media proxy false', async () => {
+      const camera = await new TPLinkCamera(
+        createCameraConfig({
+          camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+          proxy: { media: false },
+        }),
+        mock<CameraManagerEngine>(),
+      ).initialize({
+        hassManager: createHASSManager(),
+        entityRegistryManager: ptzPopulatedEntityRegistryManager,
+      });
+
+      expect(camera.getProxyConfig().media).toBe(false);
+    });
+  });
+
+  describe('getEndpoints', () => {
+    it('should return UI endpoint when url configured', async () => {
+      const camera = await new TPLinkCamera(
+        createCameraConfig({
+          camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+          tplink: { url: 'https://camera.local' },
+        }),
+        mock<CameraManagerEngine>(),
+      ).initialize({
+        hassManager: createHASSManager(),
+        entityRegistryManager: ptzPopulatedEntityRegistryManager,
+      });
+
+      expect(camera.getEndpoints()?.ui).toEqual({ endpoint: 'https://camera.local' });
+    });
+
+    it('should return undefined UI endpoint when no url configured', async () => {
+      const camera = await new TPLinkCamera(
+        createCameraConfig({
+          camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+        }),
+        mock<CameraManagerEngine>(),
+      ).initialize({
+        hassManager: createHASSManager(),
+        entityRegistryManager: ptzPopulatedEntityRegistryManager,
+      });
+
+      expect(camera.getEndpoints()?.ui).toBeUndefined();
+    });
+  });
+
+  describe('getStoragePath', () => {
+    it('should return null when hass is not provided', async () => {
+      const camera = await new TPLinkCamera(
+        createCameraConfig({
+          camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+        }),
+        mock<CameraManagerEngine>(),
+      ).initialize({
+        hassManager: createHASSManager(),
+        entityRegistryManager: ptzPopulatedEntityRegistryManager,
+      });
+
+      expect(camera.getStoragePath()).toBeNull();
+    });
+
+    it('should return storage_path from camera entity attributes', async () => {
+      const camera = await new TPLinkCamera(
+        createCameraConfig({
+          camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+        }),
+        mock<CameraManagerEngine>(),
+      ).initialize({
+        hassManager: createHASSManager(),
+        entityRegistryManager: ptzPopulatedEntityRegistryManager,
+      });
+
+      const hass = createHASS({
+        'camera.tapo_c520ws_39d3_live_view': createStateEntity({
+          entity_id: 'camera.tapo_c520ws_39d3_live_view',
+          state: 'idle',
+          attributes: {
+            storage_path: '/media/tapo/Sala_02',
+          },
+        }),
+      });
+
+      expect(camera.getStoragePath(hass)).toBe('/media/tapo/Sala_02');
+    });
+
+    it('should return storage_path from media_sync switch on same device', async () => {
+      const syncEntity = createRegistryEntity({
+        entity_id: 'switch.tapo_c520ws_39d3_media_sync',
+        unique_id: '80115E1CF270233D6FC2FCD4028181A7206CDB30-media_sync',
+        platform: 'tplink',
+        config_entry_id: 'tplink_config_entry_1',
+        device_id: 'tplink_device_1',
+      });
+
+      const registry = new EntityRegistryManagerMock([cameraEntity, syncEntity]);
+
+      const camera = await new TPLinkCamera(
+        createCameraConfig({
+          camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+        }),
+        mock<CameraManagerEngine>(),
+      ).initialize({
+        hassManager: createHASSManager(),
+        entityRegistryManager: registry,
+      });
+
+      const hass = createHASS({
+        'switch.tapo_c520ws_39d3_media_sync': createStateEntity({
+          entity_id: 'switch.tapo_c520ws_39d3_media_sync',
+          state: 'on',
+          attributes: {
+            storage_path: '/media/tapo/Sala_02',
+          },
+        }),
+      });
+
+      expect(camera.getStoragePath(hass)).toBe('/media/tapo/Sala_02');
+    });
+
+    it('should return null when no storage_path attribute is present', async () => {
+      const camera = await new TPLinkCamera(
+        createCameraConfig({
+          camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+        }),
+        mock<CameraManagerEngine>(),
+      ).initialize({
+        hassManager: createHASSManager(),
+        entityRegistryManager: ptzPopulatedEntityRegistryManager,
+      });
+
+      const hass = createHASS({
+        'camera.tapo_c520ws_39d3_live_view': createStateEntity({
+          entity_id: 'camera.tapo_c520ws_39d3_live_view',
+          state: 'idle',
+          attributes: {},
+        }),
+      });
+
+      expect(camera.getStoragePath(hass)).toBeNull();
     });
   });
 });

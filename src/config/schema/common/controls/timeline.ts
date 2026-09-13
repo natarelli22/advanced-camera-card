@@ -47,12 +47,19 @@ export const miniTimelineConfigDefault = {
 
   // Mini-timeline defaults to ribbon style.
   style: 'ribbon' as const,
+
+  // Whether the mini-timeline starts hidden until toggled by timeline button
+  hidden_by_default: false,
 };
 
 export const miniTimelineConfigSchema = timelineCoreConfigSchema.extend({
   mode: z.enum(['none', 'above', 'below']).default(miniTimelineConfigDefault.mode),
   pan_mode: timelinePanModeSchema.optional().default(miniTimelineConfigDefault.pan_mode),
   style: timelineCoreConfigSchema.shape.style.default(miniTimelineConfigDefault.style),
+  hidden_by_default: z
+    .boolean()
+    .optional()
+    .default(miniTimelineConfigDefault.hidden_by_default),
 });
 export type MiniTimelineControlConfig = z.infer<typeof miniTimelineConfigSchema>;
 

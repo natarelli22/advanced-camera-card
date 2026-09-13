@@ -56,9 +56,8 @@ export class CameraManagerEngineFactory {
         );
         break;
       case Engine.MotionEye:
-        const { MotionEyeCameraManagerEngine } = await import(
-          './motioneye/engine-motioneye'
-        );
+        const { MotionEyeCameraManagerEngine } =
+          await import('./motioneye/engine-motioneye');
         cameraManagerEngine = new MotionEyeCameraManagerEngine(
           this._entityRegistryManager,
           options.hassManager,
@@ -85,6 +84,9 @@ export class CameraManagerEngineFactory {
         cameraManagerEngine = new TPLinkCameraManagerEngine(
           this._entityRegistryManager,
           options.hassManager,
+          new BrowseMediaWalker(),
+          options.resolvedMediaCache,
+          new CameraManagerRequestCache(),
           options.eventCallback,
         );
         break;
@@ -133,6 +135,7 @@ export class CameraManagerEngineFactory {
             engine = Engine.Reolink;
             break;
           case 'tplink':
+          case 'tapo_control':
             engine = Engine.TPLink;
             break;
           default:

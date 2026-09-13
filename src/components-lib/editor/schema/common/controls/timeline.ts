@@ -106,6 +106,11 @@ export const getMiniTimelineSchema = (): HAFormExpandableSchema => ({
         },
       ]),
     },
+    {
+      name: 'hidden_by_default',
+      label: localize('config.common.controls.timeline.hidden_by_default'),
+      selector: { boolean: {} },
+    },
     ...getTimelineCoreSchema({ includePanMode: true }),
   ],
 });

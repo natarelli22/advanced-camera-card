@@ -130,6 +130,19 @@ describe('getEngineForCamera()', () => {
         }).getEngineForCamera(createHASS(), config),
       ).toBe(Engine.TPLink);
     });
+
+    it('from tapo_control auto detection', async () => {
+      const config = createCameraConfig({ engine: 'auto', camera_entity: 'camera.foo' });
+      const entityRegistryManager = new EntityRegistryManagerMock([
+        createRegistryEntity({ entity_id: 'camera.foo', platform: 'tapo_control' }),
+      ]);
+
+      expect(
+        await createFactory({
+          entityRegistryManager: entityRegistryManager,
+        }).getEngineForCamera(createHASS(), config),
+      ).toBe(Engine.TPLink);
+    });
   });
 
   describe('should get a generic camera', () => {

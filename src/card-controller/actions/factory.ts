@@ -27,6 +27,7 @@ import { InfoAction } from './actions/info';
 import { InternalCallbackAction } from './actions/internal-callback';
 import { LogAction } from './actions/log';
 import { MediaPlayerAction } from './actions/media-player';
+import { MiniTimelineAction } from './actions/mini-timeline';
 import { MenuToggleAction } from './actions/menu-toggle';
 import { MicrophoneMuteAction } from './actions/microphone-mute';
 import { MicrophoneUnmuteAction } from './actions/microphone-unmute';
@@ -183,6 +184,8 @@ export class ActionFactory {
         return new PTZMultiAction(context, action, options?.config);
       case 'ptz_controls':
         return new PTZControlsAction(context, action, options?.config);
+      case 'mini_timeline':
+        return new MiniTimelineAction(context, action, options?.config);
       case 'log':
         return new LogAction(context, action, options?.config);
       case 'notification':

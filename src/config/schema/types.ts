@@ -63,7 +63,7 @@ export const advancedCameraCardConfigSchema = z.object({
   overrides: overridesSchema,
 
   // Support for card_mod (https://github.com/thomasloven/lovelace-card-mod).
-  card_mod: z.unknown(),
+  card_mod: z.unknown().optional(),
 
   // Card ID (used for query string commands). Restrict contents to only values
   // that be easily used in a URL.

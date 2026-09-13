@@ -19,6 +19,7 @@ import { convertRangeToCacheFriendlyTimes } from '../../camera-manager/utils/ran
 import type { FoldersManager } from '../../card-controller/folders/manager';
 import type { ViewItemManager } from '../../card-controller/view/item-manager';
 import { MergeContextViewModifier } from '../../card-controller/view/modifiers/merge-context';
+import { RemoveContextPropertyViewModifier } from '../../card-controller/view/modifiers/remove-context-property';
 import type { ViewManagerEpoch } from '../../card-controller/view/types';
 import type { ConditionStateManagerReadonlyInterface } from '../../condition-trigger/conditions/types';
 import type { CameraConfig } from '../../config/schema/cameras';
@@ -553,48 +554,57 @@ export class TimelineController {
         main: true,
         ...(cameraID && view.isGrid() && { cameraID: cameraID }),
       };
-      const newResults = view.queryResults
+      let newResults = view.queryResults
         ?.clone()
         .resetSelectedResult()
         .selectResultIfFound((media) => media.getID() === id, criteria);
-      const selectedItem = newResults?.getSelectedResult();
-      const context: ViewContext = mergeViewContext(this._getTimelineContext(), {
-        ...(canMediaBeShownAsTimelineItem(selectedItem) &&
-          // Only attempt to seek if the media has a real end time, otherwise
-          // the viewer cannot actually seek there and shows the unseekable
-          // message.
-          selectedItem.getEndTime() && { mediaViewer: { seek: properties.time } }),
-      });
 
+      let isBuiltFromItem = false;
       if (!newResults || !newResults.hasSelectedResult()) {
-        // This can happen in a few situations:
-        // - If this is a recording query (with recorded hours) and an event is
-        //   clicked on the timeline
-        // - If the current thumbnails/results is a filtered view from the media
-        //   gallery (i.e. any case where the thumbnails may not be match the
-        //   events on the timeline, e.g. in the snapshots viewer but
-        //   mini-timeline showing all media).
-        // - If a folder media was loaded into the timeline from a prior folder
-        //   query other than the one stored in the view (e.g. user navigated to
-        //   a different folder in the thumbnails carousel).
         const queryResults = this._buildQueryResultsFromExistingItem(item);
         if (item && item.query && queryResults) {
-          this._viewManagerEpoch?.manager.setViewByParameters({
-            params: {
-              view: 'media',
-              query: item.query,
-              queryResults,
-            },
-            modifiers: [new MergeContextViewModifier(context)],
-          });
+          newResults = queryResults;
+          isBuiltFromItem = true;
         }
-      } else {
+      }
+
+      const selectedItem = newResults?.getSelectedResult();
+      let seekTime: Date | null = null;
+      if (canMediaBeShownAsTimelineItem(selectedItem)) {
+        const start = selectedItem.getStartTime();
+        const end = selectedItem.getEndTime() ?? selectedItem.getUsableEndTime();
+        if (start && end && end > start && properties.time) {
+          if (properties.time < start || properties.time > end) {
+            seekTime = start;
+          } else {
+            seekTime = properties.time;
+          }
+        }
+      }
+      const context: ViewContext = mergeViewContext(this._getTimelineContext(), {
+        ...(seekTime && { mediaViewer: { seek: seekTime } }),
+      });
+      const modifiers = [
+        ...(!seekTime ? [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')] : []),
+        new MergeContextViewModifier(context),
+      ];
+
+      if (isBuiltFromItem && item && item.query && newResults) {
+        this._viewManagerEpoch?.manager.setViewByParameters({
+          params: {
+            view: 'media',
+            query: item.query,
+            queryResults: newResults,
+          },
+          modifiers,
+        });
+      } else if (newResults?.hasSelectedResult()) {
         this._viewManagerEpoch.manager.setViewByParameters({
           params: {
             queryResults: newResults,
             view: this._itemClickAction === 'play' ? 'media' : view.view,
           },
-          modifiers: [new MergeContextViewModifier(context)],
+          modifiers,
         });
       }
 
@@ -778,9 +788,9 @@ export class TimelineController {
     const currentSelection = this._timeline.getSelection();
     const mediaIDsToSelect = this._getAllSelectedMediaIDsFromView();
 
-    const needToSelect = mediaIDsToSelect.some(
-      (mediaID) => !currentSelection.includes(mediaID),
-    );
+    const needToSelect =
+      currentSelection.length !== mediaIDsToSelect.length ||
+      mediaIDsToSelect.some((mediaID) => !currentSelection.includes(mediaID));
 
     if (needToSelect) {
       if (this._isClustering()) {

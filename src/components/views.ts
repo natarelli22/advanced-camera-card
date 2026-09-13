@@ -157,11 +157,38 @@ export class AdvancedCameraCardViews extends LitElement {
           ? this.config.timeline.controls.thumbnails
           : undefined;
 
-    const miniTimelineConfig = view?.is('live')
-      ? this.config.live.controls.timeline
-      : view?.isViewerView()
-        ? this.config.media_viewer.controls.timeline
-        : undefined;
+    const liveTimelineConfig = this.config.live.controls.timeline;
+    const viewerTimelineConfig = this.config.media_viewer.controls.timeline;
+
+    let miniTimelineConfig = undefined;
+    if (view?.is('live')) {
+      const candidateConfig =
+        liveTimelineConfig.mode !== 'none'
+          ? liveTimelineConfig
+          : viewerTimelineConfig;
+      if (candidateConfig.mode !== 'none') {
+        const isConfigHidden =
+          liveTimelineConfig.mode === 'none' || !!liveTimelineConfig.hidden_by_default;
+        const isTimelineVisible =
+          view.context?.miniTimeline?.enabled !== undefined
+            ? view.context.miniTimeline.enabled
+            : !isConfigHidden;
+        if (isTimelineVisible) {
+          miniTimelineConfig = candidateConfig;
+        }
+      }
+    } else if (view?.isViewerView()) {
+      if (viewerTimelineConfig.mode !== 'none') {
+        const isConfigHidden = !!viewerTimelineConfig.hidden_by_default;
+        const isTimelineVisible =
+          view.context?.miniTimeline?.enabled !== undefined
+            ? view.context.miniTimeline.enabled
+            : !isConfigHidden;
+        if (isTimelineVisible) {
+          miniTimelineConfig = viewerTimelineConfig;
+        }
+      }
+    }
 
     const cameraConfig = view?.camera
       ? this.cameraManager?.getStore().getCameraConfig(view.camera) ?? null

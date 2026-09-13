@@ -27,6 +27,7 @@ import {
   createDisplayModeAction,
   createGeneralAction,
   createMediaPlayerAction,
+  createMiniTimelineAction,
   createPTZControlsAction,
   createPTZMultiAction,
   createSetReviewAction,
@@ -427,19 +428,60 @@ export class MenuButtonController {
     foldersManager: FoldersManager,
     view?: View | null,
   ): MenuItem | null {
-    return isViewSupported('timeline', cameraManager, foldersManager, view?.camera)
-      ? {
-          icon: 'mdi:chart-gantt',
-          ...config.menu.buttons.timeline,
-          type: 'custom:advanced-camera-card-menu-icon',
-          title: localize('config.view.views.timeline'),
-          style: this._getStyle(
-            config.menu.buttons.timeline,
-            view?.is('timeline') ? this._getEmphasizedStyle() : undefined,
-          ),
-          tap_action: createViewAction('timeline'),
-        }
-      : null;
+    if (!isViewSupported('timeline', cameraManager, foldersManager, view?.camera)) {
+      return null;
+    }
+
+    const isLive = view?.is('live');
+    const isViewer = view?.isViewerView();
+
+    const liveTimelineConfig = config.live.controls.timeline;
+    const viewerTimelineConfig = config.media_viewer.controls.timeline;
+    const miniTimelineConfig = isLive
+      ? liveTimelineConfig.mode !== 'none'
+        ? liveTimelineConfig
+        : viewerTimelineConfig
+      : isViewer
+        ? viewerTimelineConfig
+        : null;
+
+    const hasMiniTimeline = miniTimelineConfig && miniTimelineConfig.mode !== 'none';
+
+    if (hasMiniTimeline && (isLive || isViewer)) {
+      const isConfigHidden = isLive
+        ? (liveTimelineConfig.mode === 'none' || !!liveTimelineConfig.hidden_by_default)
+        : !!viewerTimelineConfig.hidden_by_default;
+
+      const isOn =
+        view?.context?.miniTimeline?.enabled !== undefined
+          ? view.context.miniTimeline.enabled
+          : !isConfigHidden;
+
+      return {
+        icon: 'mdi:chart-gantt',
+        ...config.menu.buttons.timeline,
+        type: 'custom:advanced-camera-card-menu-icon',
+        title: localize('config.view.views.timeline'),
+        style: this._getStyle(
+          config.menu.buttons.timeline,
+          isOn ? this._getEmphasizedStyle() : undefined,
+        ),
+        tap_action: createMiniTimelineAction({ enabled: !isOn }),
+        hold_action: createViewAction('timeline'),
+      };
+    }
+
+    return {
+      icon: 'mdi:chart-gantt',
+      ...config.menu.buttons.timeline,
+      type: 'custom:advanced-camera-card-menu-icon',
+      title: localize('config.view.views.timeline'),
+      style: this._getStyle(
+        config.menu.buttons.timeline,
+        view?.is('timeline') ? this._getEmphasizedStyle() : undefined,
+      ),
+      tap_action: createViewAction('timeline'),
+    };
   }
 
   private _getDownloadButton(

@@ -44,8 +44,14 @@ export class ViewQueryExecutor {
       useCache: queryExecutorOptions?.useCache,
     });
 
+    const isLive = view.view === 'live';
+
     const queryResults = this._applyResultSelection(
-      new QueryResults({ results: items }),
+      new QueryResults({
+        results: items,
+        ...(isLive &&
+          !queryExecutorOptions?.selectResult && { selectedIndex: null }),
+      }),
       queryExecutorOptions,
     );
 
@@ -88,7 +94,10 @@ export class ViewQueryExecutor {
       this._api.getConditionStateManager(),
     );
 
-    const executeQuery = async (query: UnifiedQuery | null): Promise<ViewModifier[]> => {
+    const executeQuery = async (
+      query: UnifiedQuery | null,
+      selectedIndex?: number | null,
+    ): Promise<ViewModifier[]> => {
       if (!query) {
         return [];
       }
@@ -100,7 +109,10 @@ export class ViewQueryExecutor {
       return [
         new SetQueryViewModifier({
           query,
-          queryResults: new QueryResults({ results: items }),
+          queryResults: new QueryResults({
+            results: items,
+            ...(selectedIndex !== undefined && { selectedIndex }),
+          }),
         }),
       ];
     };
@@ -126,17 +138,22 @@ export class ViewQueryExecutor {
 
     const cameraForQuery = view.isGrid() ? undefined : view.camera ?? undefined;
 
-    const getDefaultQueryModifiers = async () => {
+    const getDefaultQueryModifiers = async (selectedIndex?: number | null) => {
       const query = builder.buildDefaultCameraQuery(cameraForQuery, {
         limit: this._getLimit(),
       });
-      return await executeQuery(query);
+      return await executeQuery(query, selectedIndex);
     };
 
     switch (view.view) {
       case 'live':
-        if (config.live.controls.thumbnails.mode !== 'none') {
-          viewModifiers.push(...(await getDefaultQueryModifiers()));
+        if (
+          config.live.controls.thumbnails.mode !== 'none' ||
+          config.live.controls.timeline.mode !== 'none' ||
+          config.media_viewer.controls.timeline.mode !== 'none' ||
+          view.context?.miniTimeline?.enabled
+        ) {
+          viewModifiers.push(...(await getDefaultQueryModifiers(null)));
         }
         break;
       case 'timeline':
@@ -224,12 +241,19 @@ export class ViewQueryExecutor {
       // presence or not of events.
       const now = new Date();
       const liveConfig = this._api.getConfigManager().getConfig()?.live;
+      const viewerConfig = this._api.getConfigManager().getConfig()?.media_viewer;
 
       /* v8 ignore if: this if branch cannot be reached as if the config is
          empty this function is never called -- @preserve */
       if (!liveConfig) {
         return [];
       }
+
+      const windowSeconds =
+        liveConfig.controls.timeline.mode !== 'none'
+          ? liveConfig.controls.timeline.window_seconds
+          : (viewerConfig?.controls.timeline.window_seconds ??
+            liveConfig.controls.timeline.window_seconds);
 
       return [
         new MergeContextViewModifier({
@@ -239,7 +263,7 @@ export class ViewQueryExecutor {
           timeline: {
             window: {
               start: sub(now, {
-                seconds: liveConfig.controls.timeline.window_seconds,
+                seconds: windowSeconds,
               }),
               end: now,
             },

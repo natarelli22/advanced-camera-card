@@ -151,6 +151,7 @@ export const cameraConfigDefault = {
   reolink: {
     media_resolution: 'low' as const,
   },
+  tplink: {},
   ptz: ptzCameraConfigDefaults,
   triggers: {
     motion: false,
@@ -325,6 +326,11 @@ export const cameraConfigSchema = z
           .default(cameraConfigDefault.reolink.media_resolution),
       })
       .default(cameraConfigDefault.reolink),
+    tplink: z
+      .object({
+        url: z.string().optional(),
+      })
+      .default(cameraConfigDefault.tplink),
 
     // Live provider options.
     live_provider: z.enum(LIVE_PROVIDERS).default(cameraConfigDefault.live_provider),

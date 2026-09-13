@@ -132,6 +132,16 @@ describe('dispatchViewContextChangeEvent', () => {
       selectedIndex: 42,
     });
     expect(results.getSelectedIndex()).toBe(42);
+
+    const nullResults = new QueryResults({
+      results: generateViewMediaArray(),
+      selectedIndex: null,
+    });
+    expect(nullResults.getSelectedIndex()).toBeNull();
+    expect(nullResults.getSelectedResult()).toBeNull();
+    for (const cameraID of nullResults.getCameraIDs()) {
+      expect(nullResults.getSelectedIndex(cameraID)).toBeNull();
+    }
   });
 
   it('should correctly clone a slice', () => {

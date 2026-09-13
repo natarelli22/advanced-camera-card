@@ -19,6 +19,7 @@ import { generatedActionConfigSchema } from './custom/generated-action';
 import { internalCallbackActionConfigSchema } from './custom/internal';
 import { logActionConfigSchema } from './custom/log';
 import { mediaPlayerActionConfigSchema } from './custom/media-player';
+import { miniTimelineActionConfigSchema } from './custom/mini-timeline';
 import { ptzActionConfigSchema } from './custom/ptz';
 import { ptzControlsActionConfigSchema } from './custom/ptz-controls';
 import { ptzDigitalActionConfigSchema } from './custom/ptz-digital';
@@ -85,6 +86,7 @@ const advancedCameraCardCustomActionSchema = z.union([
   internalCallbackActionConfigSchema,
   logActionConfigSchema,
   mediaPlayerActionConfigSchema,
+  miniTimelineActionConfigSchema,
   notificationActionConfigSchema,
   ptzActionConfigSchema,
   ptzControlsActionConfigSchema,

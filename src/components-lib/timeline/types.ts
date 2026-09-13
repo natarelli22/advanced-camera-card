@@ -37,8 +37,14 @@ interface TimelineViewContext {
   window?: TimelineWindow;
 }
 
+interface MiniTimelineViewContext {
+  enabled?: boolean;
+}
+
 declare module 'view' {
   interface ViewContext {
     timeline?: TimelineViewContext;
+    miniTimeline?: MiniTimelineViewContext;
   }
 }
+

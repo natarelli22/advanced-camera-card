@@ -21,8 +21,16 @@ class ResultSlice {
   }
 
   private _getInitialSelectedIndex(options?: ResultSliceOptions): number | null {
-    if (options?.selectedIndex !== undefined && options?.selectedIndex !== null) {
-      return options.selectedIndex;
+    if (options?.selectedIndex !== undefined) {
+      if (
+        options.selectedIndex === null ||
+        (options.results &&
+          options.selectedIndex >= 0 &&
+          options.selectedIndex < options.results.length)
+      ) {
+        return options.selectedIndex;
+      }
+      return null;
     }
     if (options?.results && options.results.length) {
       if (!options?.selectApproach || options?.selectApproach === 'last') {
@@ -153,10 +161,13 @@ export class QueryResults {
   constructor(options?: ResultSliceOptions) {
     this._resultsTimestamp = new Date();
     this._main = new ResultSlice(options);
-    this._buildByCameraSlices(options?.selectApproach);
+    this._buildByCameraSlices(options?.selectApproach, options?.selectedIndex);
   }
 
-  private _buildByCameraSlices(selectApproach?: SelectApproach): void {
+  private _buildByCameraSlices(
+    selectApproach?: SelectApproach,
+    selectedIndex?: number | null,
+  ): void {
     const cameraMap: Map<string, ViewItem[]> = new Map();
     for (const result of this._main.getResults()) {
       const cameraID = ViewItemClassifier.isMedia(result) ? result.getCameraID() : null;
@@ -173,6 +184,7 @@ export class QueryResults {
         new ResultSlice({
           results: items,
           selectApproach: selectApproach,
+          selectedIndex: selectedIndex === null ? null : undefined,
         }),
       );
     }

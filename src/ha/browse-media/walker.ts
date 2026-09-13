@@ -96,6 +96,9 @@ export class BrowseMediaWalker {
       );
 
       for (const parent of mediaChunk) {
+        if (!parent) {
+          continue;
+        }
         for (const child of parent.children ?? []) {
           if (!step.matcher || step.matcher(child)) {
             output.push(child);
@@ -127,7 +130,7 @@ export class BrowseMediaWalker {
       metadataGenerator?: RichMetadataGenerator<M>;
       childrenMetadataUpdater?: ChildrenMetadataUpdater<M>;
     },
-  ): Promise<RichBrowseMedia<M>> {
+  ): Promise<RichBrowseMedia<M> | null> {
     const mediaContentID = typeof target === 'object' ? target.media_content_id : target;
     const cachedResponse = options?.cache ? options.cache.get(mediaContentID) : null;
 
@@ -135,13 +138,22 @@ export class BrowseMediaWalker {
       type: 'media_source/browse_media',
       media_content_id: mediaContentID,
     };
-    const response =
-      cachedResponse ??
-      (await homeAssistantWSRequest<RichBrowseMedia<M>>(
-        hass,
-        browseMediaSchema,
-        request,
-      ));
+    let response: RichBrowseMedia<M> | null = null;
+    try {
+      response =
+        cachedResponse ??
+        (await homeAssistantWSRequest<RichBrowseMedia<M>>(
+          hass,
+          browseMediaSchema,
+          request,
+        ));
+    } catch {
+      return null;
+    }
+
+    if (!response) {
+      return null;
+    }
 
     if (!cachedResponse && options?.cache) {
       options.cache.set(

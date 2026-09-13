@@ -27,6 +27,7 @@ import type {
   LogActionLevel,
 } from '../config/schema/actions/custom/log.js';
 import type { MediaPlayerActionConfig } from '../config/schema/actions/custom/media-player.js';
+import type { MiniTimelineActionConfig } from '../config/schema/actions/custom/mini-timeline.js';
 import type { PTZControlsActionConfig } from '../config/schema/actions/custom/ptz-controls.js';
 import type { PTZDigitialActionConfig } from '../config/schema/actions/custom/ptz-digital.js';
 import type { PTZMultiActionConfig } from '../config/schema/actions/custom/ptz-multi.js';
@@ -175,6 +176,18 @@ export function createPTZControlsAction(options?: {
     advanced_camera_card_action: 'ptz_controls',
     ...(options?.enabled !== undefined && { enabled: options.enabled }),
     ...(options?.type && { type: options.type }),
+    ...(options?.cardID && { card_id: options.cardID }),
+  };
+}
+
+export function createMiniTimelineAction(options?: {
+  cardID?: string;
+  enabled?: boolean;
+}): MiniTimelineActionConfig {
+  return {
+    action: 'fire-dom-event',
+    advanced_camera_card_action: 'mini_timeline',
+    ...(options?.enabled !== undefined && { enabled: options.enabled }),
     ...(options?.cardID && { card_id: options.cardID }),
   };
 }
