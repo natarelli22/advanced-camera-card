@@ -9,6 +9,7 @@ import {
   vi,
 } from 'vitest';
 
+import screenfull from 'screenfull';
 import {
   MediaHeightController,
   SET_HEIGHT_DEBOUNCE_SECONDS,
@@ -18,7 +19,17 @@ import {
   callResizeHandler,
   MutationObserverMock,
   ResizeObserverMock,
+  setScreenfulEnabled,
 } from '../test-utils';
+
+vi.mock('screenfull', () => ({
+  default: {
+    exit: vi.fn(),
+    request: vi.fn(),
+    off: vi.fn(),
+    on: vi.fn(),
+  },
+}));
 
 // @vitest-environment jsdom
 describe('MediaHeightController', () => {
@@ -38,6 +49,12 @@ describe('MediaHeightController', () => {
 
   afterEach(() => {
     vi.useRealTimers();
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: null,
+      configurable: true,
+      writable: true,
+    });
+    setScreenfulEnabled(false);
   });
 
   describe('should set height', () => {
@@ -241,12 +258,155 @@ describe('MediaHeightController', () => {
     });
   });
 
-  it('should destroy', () => {
+  describe('fullscreen handling', () => {
+    it('should not set maxHeight when host is in fullscreen', () => {
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: host,
+        configurable: true,
+        writable: true,
+      });
+
+      const controller = new MediaHeightController(host, 'div');
+      const root = document.createElement('div');
+      const child = document.createElement('div');
+      child.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 600,
+      });
+      root.appendChild(child);
+
+      controller.setRoot(root);
+      controller.setSelected(0);
+
+      vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+
+      expect(host.style.maxHeight).toBe('');
+      host.remove();
+    });
+
+    it('should detect fullscreen through shadow root ancestor', () => {
+      const outer = document.createElement('div');
+      const shadowRoot = outer.attachShadow({ mode: 'open' });
+      const host = document.createElement('div');
+      shadowRoot.appendChild(host);
+      document.body.appendChild(outer);
+
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: outer,
+        configurable: true,
+        writable: true,
+      });
+
+      const controller = new MediaHeightController(host, 'div');
+      const root = document.createElement('div');
+      const child = document.createElement('div');
+      child.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 600,
+      });
+      root.appendChild(child);
+
+      controller.setRoot(root);
+      controller.setSelected(0);
+
+      vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+
+      expect(host.style.maxHeight).toBe('');
+      outer.remove();
+    });
+
+    it('should clear maxHeight on fullscreenchange when entering fullscreen and restore on exit', () => {
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+
+      const controller = new MediaHeightController(host, 'div');
+      const root = document.createElement('div');
+      const child = document.createElement('div');
+      child.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 600,
+      });
+      root.appendChild(child);
+
+      controller.setRoot(root);
+      controller.setSelected(0);
+
+      vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+      expect(host.style.maxHeight).toBe('600px');
+
+      // Enter fullscreen
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: host,
+        configurable: true,
+        writable: true,
+      });
+      document.dispatchEvent(new Event('fullscreenchange'));
+
+      expect(host.style.maxHeight).toBe('');
+
+      // Exit fullscreen
+      Object.defineProperty(document, 'fullscreenElement', {
+        value: null,
+        configurable: true,
+        writable: true,
+      });
+      document.dispatchEvent(new Event('fullscreenchange'));
+
+      vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+      expect(host.style.maxHeight).toBe('600px');
+
+      host.remove();
+    });
+
+    it('should handle screenfull change event when screenfull is enabled', () => {
+      setScreenfulEnabled(true);
+      const host = document.createElement('div');
+      document.body.appendChild(host);
+
+      const controller = new MediaHeightController(host, 'div');
+      expect(vi.mocked(screenfull.on)).toHaveBeenCalledWith(
+        'change',
+        expect.any(Function),
+      );
+
+      controller.destroy();
+      expect(vi.mocked(screenfull.off)).toHaveBeenCalledWith(
+        'change',
+        expect.any(Function),
+      );
+
+      host.remove();
+    });
+  });
+
+  it('should clean up on destroy', () => {
     const host = document.createElement('div');
+    document.body.appendChild(host);
+
     const controller = new MediaHeightController(host, 'div');
+    const root = document.createElement('div');
+    const child = document.createElement('div');
+    child.getBoundingClientRect = vi.fn().mockReturnValue({
+      height: 600,
+    });
+    root.appendChild(child);
+    controller.setRoot(root);
+    controller.setSelected(0);
 
     controller.destroy();
 
-    // No observable effect.
+    // Dispatch fullscreen change after destroy
+    Object.defineProperty(document, 'fullscreenElement', {
+      value: host,
+      configurable: true,
+      writable: true,
+    });
+    document.dispatchEvent(new Event('fullscreenchange'));
+
+    vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+
+    // Pending setHeight should be canceled and listener removed
+    expect(host.style.maxHeight).toBe('');
+
+    host.remove();
   });
 });

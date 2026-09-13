@@ -501,6 +501,10 @@ export class AdvancedCameraCardLiveCarousel extends LitElement {
       this._setMediaTarget();
     }
 
+    if (this.autoHeight && changedProperties.has('viewManagerEpoch')) {
+      this._mediaHeightController.recalculate();
+    }
+
     const carouselEl = this._refCarousel.value;
     const view = this.viewManagerEpoch?.manager.getView();
     const streamAwareCameraID = view

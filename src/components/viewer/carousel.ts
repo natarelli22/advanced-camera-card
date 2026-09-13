@@ -400,6 +400,10 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
       this._setMediaTarget();
     }
 
+    if (this.autoHeight && changedProperties.has('viewManagerEpoch')) {
+      this._mediaHeightController.recalculate();
+    }
+
     if (changedProperties.has('viewManagerEpoch')) {
       // Seek into the video if the seek time has changed (this is also called
       // on media load, since the media may or may not have been loaded at

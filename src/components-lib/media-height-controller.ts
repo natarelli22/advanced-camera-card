@@ -1,4 +1,5 @@
 import { debounce, isEqual } from 'lodash-es';
+import screenfull from 'screenfull';
 
 // Balancing act: Debounce to avoid excessive calls to setHeight, when new media
 // is loading the player may be a much smaller height momentarily.
@@ -27,6 +28,12 @@ export class MediaHeightController {
   constructor(host: HTMLElement, selector: string) {
     this._host = host;
     this._selector = selector;
+
+    if (screenfull.isEnabled) {
+      screenfull.on('change', this._fullscreenHandler);
+    }
+    document.addEventListener('fullscreenchange', this._fullscreenHandler);
+    document.addEventListener('webkitfullscreenchange', this._fullscreenHandler);
   }
 
   public setRoot(root: HTMLElement | DocumentFragment): void {
@@ -67,6 +74,13 @@ export class MediaHeightController {
   }
 
   public destroy(): void {
+    if (screenfull.isEnabled) {
+      screenfull.off('change', this._fullscreenHandler);
+    }
+    document.removeEventListener('fullscreenchange', this._fullscreenHandler);
+    document.removeEventListener('webkitfullscreenchange', this._fullscreenHandler);
+
+    this._debouncedSetHeight.cancel();
     this._mutationObserver.disconnect();
     this._resizeObserver.disconnect();
 
@@ -75,8 +89,52 @@ export class MediaHeightController {
     this._selectedChild = null;
   }
 
+  private _isInFullscreen(): boolean {
+    const fsElement =
+      (screenfull.isEnabled ? screenfull.element : null) ??
+      document.fullscreenElement ??
+      (document as Document & {
+        webkitFullscreenElement?: Element;
+        webkitCurrentFullScreenElement?: Element;
+      }).webkitFullscreenElement ??
+      (document as Document & {
+        webkitFullscreenElement?: Element;
+        webkitCurrentFullScreenElement?: Element;
+      }).webkitCurrentFullScreenElement;
+
+    if (!fsElement) {
+      return false;
+    }
+
+    let current: Node | null = this._host;
+    while (current) {
+      if (current === fsElement) {
+        return true;
+      }
+      if (current instanceof ShadowRoot) {
+        current = current.host;
+      } else {
+        current = current.parentNode;
+      }
+    }
+    return false;
+  }
+
+  private _fullscreenHandler = (): void => {
+    if (this._isInFullscreen()) {
+      this._host.style.maxHeight = '';
+    } else {
+      this.recalculate();
+    }
+  };
+
   private _setHeight(): void {
     if (!this._selectedChild) {
+      return;
+    }
+
+    if (this._isInFullscreen()) {
+      this._host.style.maxHeight = '';
       return;
     }
 
