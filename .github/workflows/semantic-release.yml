@@ -2,10 +2,6 @@
 name: Semantic Release
 
 on:
-  push:
-    branches:
-      - main
-      - next
   workflow_dispatch:
 
 permissions:

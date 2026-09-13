@@ -12,6 +12,7 @@ import {
   type NotificationControlsContext,
 } from '../../../src/components-lib/media/notification-controller';
 import type { NotificationControl } from '../../../src/config/schema/actions/types';
+import type { HomeAssistant } from '../../../src/ha/types';
 import { formatDateAndTime } from '../../../src/utils/basic';
 import { downloadMedia, navigateToTimeline } from '../../../src/utils/media-actions';
 import { ViewFolder, ViewMediaType } from '../../../src/view/item';

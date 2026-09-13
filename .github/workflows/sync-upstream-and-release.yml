@@ -127,20 +127,24 @@ jobs:
         if: github.event_name != 'push' && steps.check_changes.outputs.already_up_to_date == 'false'
         run: git push origin main
 
-      - name: Determine New Tag Version
+      - name: Determine New Tag Version and Release Notes
         if: steps.should_run.outputs.run == 'true'
-        id: get_tag
+        id: get_release_info
         run: |
           DATE_TAG="v$(date +'%Y.%m.%d-%H%M')"
           echo "tag=$DATE_TAG" >> "$GITHUB_OUTPUT"
+          DELIMITER="EOF_$(date +%s)"
+          echo "body<<$DELIMITER" >> "$GITHUB_OUTPUT"
+          git log -1 --pretty=%B >> "$GITHUB_OUTPUT"
+          echo "$DELIMITER" >> "$GITHUB_OUTPUT"
 
       - name: Create GitHub Release for HACS
         if: steps.should_run.outputs.run == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get_tag.outputs.tag }}
-          name: ${{ steps.get_tag.outputs.tag }}
-          body: 'Release do Advanced Camera Card com suporte a cameras TP-Link Tapo e timeline sob demanda.'
+          tag_name: ${{ steps.get_release_info.outputs.tag }}
+          name: ${{ steps.get_release_info.outputs.tag }}
+          body: ${{ steps.get_release_info.outputs.body }}
           files: |
             advanced-camera-card.zip
             dist/*.js

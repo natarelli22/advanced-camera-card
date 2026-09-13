@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it, vi } from 'vitest';
 
+import type { HomeAssistant } from '../../src/ha/types.js';
 import { AdvancedCameraCardError } from '../../src/types.js';
 import {
   allPromises,

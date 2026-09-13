@@ -8,7 +8,6 @@ import type { StyleInfo } from 'lit/directives/style-map.js';
 import { isEqualWith, mergeWith, round, uniq } from 'lodash-es';
 
 import type { HomeAssistant } from '../ha/types';
-import { getLanguage } from '../localize/localize.js';
 import { AdvancedCameraCardError } from '../types';
 
 /**
