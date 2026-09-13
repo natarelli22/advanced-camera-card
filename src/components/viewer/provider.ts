@@ -15,6 +15,7 @@ import { QueryType } from '../../camera-manager/types.js';
 import type { ViewManagerEpoch } from '../../card-controller/view/types.js';
 import { LazyLoadController } from '../../components-lib/lazy-load-controller.js';
 import { MediaLoadWatchdogController } from '../../components-lib/media-load-watchdog-controller.js';
+import { MediaLoadedInfoSinkController } from '../../components-lib/media-loaded-info-sink-controller.js';
 import { ResolvedMediaController } from '../../components-lib/resolved-media-controller.js';
 import {
   getSignedURLErrorText,
@@ -39,6 +40,7 @@ import type {
   MediaPlayerController,
   MediaPlayerElement,
 } from '../../types.js';
+import { isValidAspectRatio } from '../../utils/basic.js';
 import { classifyMimeType } from '../../utils/mime-type.js';
 import { ViewItemClassifier } from '../../view/item-classifier.js';
 import type { ViewMedia } from '../../view/item.js';
@@ -86,6 +88,13 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
 
   private _refProvider: Ref<MediaPlayerElement> = createRef();
   private _lazyLoadController: LazyLoadController = new LazyLoadController(this);
+
+  private _mediaLoadedInfoSinkController = new MediaLoadedInfoSinkController(this, {
+    getTargetID: () => this.media?.getID() ?? null,
+    callback: () => {
+      this.toggleAttribute('sized', true);
+    },
+  });
 
   // Lit runs controllers in declaration order: Resolve first, then sign.
   private _resolvedMediaController = new ResolvedMediaController(this, () => ({
@@ -234,6 +243,13 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
   }
 
   protected render(): TemplateResult | void {
+    const cameraConfig = this._getRelevantCameraConfig();
+    const mediaLoaded = this._mediaLoadedInfoSinkController.has();
+    this.toggleAttribute(
+      'sized',
+      mediaLoaded || isValidAspectRatio(cameraConfig?.dimensions?.aspect_ratio),
+    );
+
     if (!this._shouldLoad() || !this.media || !this.hass || !this.viewerConfig) {
       return;
     }

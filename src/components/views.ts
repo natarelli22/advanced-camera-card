@@ -99,6 +99,7 @@ export class AdvancedCameraCardViews extends LitElement {
       const view = this.viewManagerEpoch?.manager.getView();
       if (view?.is('live') || this._shouldLivePreload()) {
         void import('./live/index.js');
+        void import('./viewer/index.js');
       }
       if (view?.isGalleryView()) {
         void import('./gallery/gallery.js');
@@ -108,6 +109,7 @@ export class AdvancedCameraCardViews extends LitElement {
         void import('./image.js');
       } else if (view?.is('timeline')) {
         void import('./timeline.js');
+        void import('./viewer/index.js');
       }
     }
 

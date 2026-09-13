@@ -1,6 +1,22 @@
 @use 'provider.scss';
+@use 'basic-block.scss';
+
+:host {
+  position: relative;
+}
+
+// Until something sizes the frame (the `sized` attribute), reserve a default
+// ratio to stop it collapsing. Media is never letterboxed into this ratio: the
+// attribute is set the moment anything else sizes the frame.
+:host(:not([sized])) {
+  aspect-ratio: 16 / 9;
+}
 
 advanced-camera-card-progress-indicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   padding: 30px;
   box-sizing: border-box;
 }

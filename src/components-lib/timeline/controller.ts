@@ -557,6 +557,17 @@ export class TimelineController {
         drawerAction = 'open';
       }
       fireAdvancedCameraCardEvent(this._host, `thumbnails:${drawerAction}`);
+    } else {
+      // Vis.js clears its internal selection when clicking background or axis.
+      // Re-apply the selection from the current view so the active item remains highlighted.
+      const mediaIDsToSelect = this._getAllSelectedMediaIDsFromView();
+      this._timeline?.setSelection(mediaIDsToSelect, {
+        focus: false,
+        animation: {
+          animation: false,
+          zoom: false,
+        },
+      });
     }
 
     this._ignoreClick = false;
@@ -847,13 +858,12 @@ export class TimelineController {
     }
     const prefetchedWindow = this._getPrefetchWindow(desiredWindow);
 
+    // Set the timeline window immediately if necessary.
+    if (!this._pointerHeld && !isEqual(desiredWindow, timelineWindow)) {
+      this._timeline.setWindow(desiredWindow.start, desiredWindow.end);
+    }
+
     if (!this._pointerHeld && view.query) {
-      // Don't fetch any data or touch the timeline in any way if the user is
-      // currently interacting with it. Without this the subsequent data fetches
-      // (via fetchIfNecessary) may update the timeline contents which causes
-      // the visjs timeline to stop dragging/panning operations which is very
-      // disruptive to the user.
-      await this._source?.refresh(prefetchedWindow);
       this._source.addMediaToDataset(view.query, view.queryResults?.getResults());
     }
 
@@ -886,9 +896,14 @@ export class TimelineController {
       });
     }
 
-    // Set the timeline window if necessary.
-    if (!this._pointerHeld && !isEqual(desiredWindow, timelineWindow)) {
-      this._timeline.setWindow(desiredWindow.start, desiredWindow.end);
+    if (!this._pointerHeld && view.query) {
+      // Don't fetch any data or touch the timeline in any way if the user is
+      // currently interacting with it. Without this the subsequent data fetches
+      // (via fetchIfNecessary) may update the timeline contents which causes
+      // the visjs timeline to stop dragging/panning operations which is very
+      // disruptive to the user.
+      await this._source?.refresh(prefetchedWindow);
+      this._source.addMediaToDataset(view.query, view.queryResults?.getResults());
     }
 
     // Only generate thumbnails if the existing query is not an acceptable

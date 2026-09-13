@@ -589,9 +589,11 @@ describe('TimelineController', () => {
       expect(view.context?.mediaViewer?.seek).toBeUndefined();
     });
 
-    it('should do nothing when clicked on background or axis', async () => {
+    it('should do nothing and restore selection when clicked on background or axis', async () => {
       const review = createReviewMedia();
       const harness = await createHarness({ media: [review] });
+
+      vi.mocked(harness.timeline.setSelection).mockClear();
 
       harness.trigger('click', {
         what: 'background',
@@ -600,6 +602,12 @@ describe('TimelineController', () => {
       });
 
       expect(harness.manager.setViewByParameters).not.toHaveBeenCalled();
+      expect(harness.timeline.setSelection).toHaveBeenCalledWith(
+        [review.getID()],
+        expect.objectContaining({ focus: false }),
+      );
+
+      vi.mocked(harness.timeline.setSelection).mockClear();
 
       harness.trigger('click', {
         what: 'axis',
@@ -608,6 +616,10 @@ describe('TimelineController', () => {
       });
 
       expect(harness.manager.setViewByParameters).not.toHaveBeenCalled();
+      expect(harness.timeline.setSelection).toHaveBeenCalledWith(
+        [review.getID()],
+        expect.objectContaining({ focus: false }),
+      );
     });
   });
 

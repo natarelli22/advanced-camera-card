@@ -14,7 +14,7 @@ $arm-horizontal: $bracket-length $bracket-thickness;
 $arm-vertical: $bracket-thickness $bracket-length;
 
 :host {
-  background-color: var(--advanced-camera-card-background);
+  background-color: var(--advanced-camera-card-media-background, #000000);
 
   // Corner brackets mark a media surface that is rendering nothing at all,
   // which is otherwise indistinguishable from a black video frame.
