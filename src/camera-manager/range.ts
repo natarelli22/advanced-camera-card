@@ -12,6 +12,7 @@ interface MemoryRangeSetInterface<T> {
   hasCoverage(range: T): boolean;
   add(range: T): void;
   clear(): void;
+  pruneOutside(allowedRange: DateRange): void;
 }
 
 export class MemoryRangeSet implements MemoryRangeSetInterface<DateRange> {
@@ -34,6 +35,16 @@ export class MemoryRangeSet implements MemoryRangeSetInterface<DateRange> {
 
   public clear(): void {
     this._ranges = [];
+  }
+
+  public pruneOutside(allowedRange: DateRange): void {
+    this._ranges = this._ranges
+      .filter((range) => rangesOverlap(range, allowedRange))
+      .map((range) => ({
+        start: range.start < allowedRange.start ? allowedRange.start : range.start,
+        end: range.end > allowedRange.end ? allowedRange.end : range.end,
+      }))
+      .filter((range) => range.start < range.end);
   }
 }
 
@@ -70,6 +81,17 @@ export class ExpiringMemoryRangeSet
 
   public clear(): void {
     this._ranges = [];
+  }
+
+  public pruneOutside(allowedRange: DateRange): void {
+    this._ranges = this._ranges
+      .filter((range) => rangesOverlap(range, allowedRange))
+      .map((range) => ({
+        ...range,
+        start: range.start < allowedRange.start ? allowedRange.start : range.start,
+        end: range.end > allowedRange.end ? allowedRange.end : range.end,
+      }))
+      .filter((range) => range.start < range.end);
   }
 }
 

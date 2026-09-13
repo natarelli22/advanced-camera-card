@@ -131,6 +131,7 @@ describe('config defaults', () => {
             size: 100,
           },
           timeline: {
+            chunk_hours: 24,
             clustering_threshold: 3,
             format: {
               '24h': true,
@@ -215,6 +216,7 @@ describe('config defaults', () => {
             size: 100,
           },
           timeline: {
+            chunk_hours: 24,
             clustering_threshold: 3,
             format: {
               '24h': true,
@@ -499,6 +501,7 @@ describe('config defaults', () => {
         style: 'popup',
       },
       timeline: {
+        chunk_hours: 24,
         clustering_threshold: 3,
         controls: {
           thumbnails: {

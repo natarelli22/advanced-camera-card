@@ -64,6 +64,7 @@ const createTimelineConfig = (
   style,
   format: { '24h': true },
   pan_mode: panMode,
+  chunk_hours: 24,
 });
 
 interface TestHarness {

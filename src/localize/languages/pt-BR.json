@@ -163,6 +163,7 @@
         "visible": "Ao mostrar o navegador/aba"
       },
       "timeline": {
+        "chunk_hours": "Intervalo de carregamento em horas (ex: 12 ou 24)",
         "clustering_threshold": "A contagem de eventos nos quais eles são agrupados (0 = sem agrupamento)",
         "show_recordings": "Mostrar gravações",
         "window_seconds": "A duração padrão da visualização da linha do tempo em segundos"

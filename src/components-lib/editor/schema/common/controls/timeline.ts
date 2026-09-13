@@ -53,6 +53,11 @@ export const getTimelineCoreSchema = (options?: {
       selector: createNumberSelector(),
     },
     {
+      name: 'chunk_hours',
+      label: localize('config.common.timeline.chunk_hours'),
+      selector: createNumberSelector({ min: 1, max: 24 }),
+    },
+    {
       name: 'clustering_threshold',
       label: localize('config.common.timeline.clustering_threshold'),
       selector: createNumberSelector(),

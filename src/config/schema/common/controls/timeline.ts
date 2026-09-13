@@ -10,6 +10,7 @@ export const timelineCoreConfigDefault = {
   },
   show_pan_control: true,
   show_next_previous: false,
+  chunk_hours: 24,
 };
 
 const timelinePanModeSchema = z.enum(['pan', 'seek', 'seek-in-media', 'seek-in-camera']);
@@ -45,6 +46,17 @@ export const timelineCoreConfigSchema = z.object({
     .default(timelineCoreConfigDefault.show_next_previous),
   style: z.enum(['stack', 'ribbon']).optional().default(timelineCoreConfigDefault.style),
   format: timelineFormatSchema.optional().default(timelineCoreConfigDefault.format),
+  chunk_hours: z
+    .union([
+      z.number(),
+      z
+        .string()
+        .regex(/^\s*\d+\s*h?\s*$/i)
+        .transform((val) => parseInt(val.replace(/h/i, '').trim(), 10)),
+    ])
+    .pipe(z.number().min(1).max(24))
+    .optional()
+    .default(timelineCoreConfigDefault.chunk_hours),
 });
 type TimelineCoreConfig = z.infer<typeof timelineCoreConfigSchema>;
 

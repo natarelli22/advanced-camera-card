@@ -45,6 +45,61 @@ describe('MemoryRangeSet', () => {
     rangeSet.clear();
     expect(rangeSet.hasCoverage(range)).toBeFalsy();
   });
+
+  it('should prune ranges outside allowed range', () => {
+    rangeSet.add({ start: now, end: add(now, { hours: 2 }) });
+    rangeSet.add({
+      start: add(now, { hours: 2, minutes: 30 }),
+      end: add(now, { hours: 4 }),
+    });
+    rangeSet.add({ start: add(now, { hours: 5 }), end: add(now, { hours: 7 }) });
+
+    // Prune outside [now + 1h, now + 3h]
+    rangeSet.pruneOutside({
+      start: add(now, { hours: 1 }),
+      end: add(now, { hours: 3 }),
+    });
+
+    // Range [now + 5h, now + 7h] is completely outside -> pruned
+    expect(
+      rangeSet.hasCoverage({
+        start: add(now, { hours: 5 }),
+        end: add(now, { hours: 6 }),
+      }),
+    ).toBeFalsy();
+
+    // Range [now, now + 2h] clipped to [now + 1h, now + 2h] -> covered
+    expect(
+      rangeSet.hasCoverage({
+        start: add(now, { hours: 1 }),
+        end: add(now, { hours: 2 }),
+      }),
+    ).toBeTruthy();
+
+    // The portion before now + 1h is pruned
+    expect(
+      rangeSet.hasCoverage({
+        start: now,
+        end: add(now, { hours: 1 }),
+      }),
+    ).toBeFalsy();
+
+    // Range [now + 2.5h, now + 4h] clipped to [now + 2.5h, now + 3h] -> covered
+    expect(
+      rangeSet.hasCoverage({
+        start: add(now, { hours: 2, minutes: 30 }),
+        end: add(now, { hours: 3 }),
+      }),
+    ).toBeTruthy();
+
+    // The portion after now + 3h is pruned
+    expect(
+      rangeSet.hasCoverage({
+        start: add(now, { hours: 3 }),
+        end: add(now, { hours: 4 }),
+      }),
+    ).toBeFalsy();
+  });
 });
 
 describe('ExpiringMemoryRangeSet', () => {
@@ -92,6 +147,72 @@ describe('ExpiringMemoryRangeSet', () => {
     expiringRangeSet.add(expiringRange);
     expiringRangeSet.clear();
     expect(expiringRangeSet.hasCoverage(expiringRange)).toBeFalsy();
+  });
+
+  it('should prune ranges outside allowed range', () => {
+    const testNow = new Date();
+    const future = add(testNow, { hours: 10 });
+    expiringRangeSet.add({
+      start: testNow,
+      end: add(testNow, { hours: 2 }),
+      expires: future,
+    });
+    expiringRangeSet.add({
+      start: add(testNow, { hours: 2, minutes: 30 }),
+      end: add(testNow, { hours: 4 }),
+      expires: future,
+    });
+    expiringRangeSet.add({
+      start: add(testNow, { hours: 5 }),
+      end: add(testNow, { hours: 7 }),
+      expires: future,
+    });
+
+    // Prune outside [testNow + 1h, testNow + 3h]
+    expiringRangeSet.pruneOutside({
+      start: add(testNow, { hours: 1 }),
+      end: add(testNow, { hours: 3 }),
+    });
+
+    // Range [testNow + 5h, testNow + 7h] is completely outside -> pruned
+    expect(
+      expiringRangeSet.hasCoverage({
+        start: add(testNow, { hours: 5 }),
+        end: add(testNow, { hours: 6 }),
+      }),
+    ).toBeFalsy();
+
+    // Range [testNow, testNow + 2h] clipped to [testNow + 1h, testNow + 2h] -> covered
+    expect(
+      expiringRangeSet.hasCoverage({
+        start: add(testNow, { hours: 1 }),
+        end: add(testNow, { hours: 2 }),
+      }),
+    ).toBeTruthy();
+
+    // The portion before testNow + 1h is pruned
+    expect(
+      expiringRangeSet.hasCoverage({
+        start: testNow,
+        end: add(testNow, { hours: 1 }),
+      }),
+    ).toBeFalsy();
+
+    // Range [testNow + 2.5h, testNow + 4h] clipped to [testNow + 2.5h, testNow + 3h] -> covered
+    expect(
+      expiringRangeSet.hasCoverage({
+        start: add(testNow, { hours: 2, minutes: 30 }),
+        end: add(testNow, { hours: 3 }),
+      }),
+    ).toBeTruthy();
+
+    // The portion after testNow + 3h is pruned
+    expect(
+      expiringRangeSet.hasCoverage({
+        start: add(testNow, { hours: 3 }),
+        end: add(testNow, { hours: 4 }),
+      }),
+    ).toBeFalsy();
   });
 });
 

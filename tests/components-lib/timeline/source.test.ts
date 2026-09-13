@@ -774,10 +774,15 @@ describe('TimelineDataSource', () => {
           true,
         );
 
-        await source.refresh(window);
+        const recordingWindow: TimelineWindow = {
+          start: new Date(1695307866000),
+          end: new Date(1695307875000),
+        };
+
+        await source.refresh(recordingWindow);
         expect(getRecordings(source.dataset).length).toBe(1);
 
-        await source.refresh(window);
+        await source.refresh(recordingWindow);
         expect(getRecordings(source.dataset).length).toBe(1);
 
         expect(cameraManager.getRecordingSegments).toHaveBeenCalledTimes(1);
@@ -956,7 +961,12 @@ describe('TimelineDataSource', () => {
           type: 'background',
         });
 
-        await source.refresh(window);
+        const recordingWindow: TimelineWindow = {
+          start: new Date(1695307866000),
+          end: new Date(1695307875000),
+        };
+
+        await source.refresh(recordingWindow);
 
         expect(getRecordings(source.dataset)).toEqual([
           {
@@ -1256,6 +1266,68 @@ describe('TimelineDataSource', () => {
 
       expect(eventQuery.hasSnapshot).toBe(true);
       expect(eventQuery.hasClip).toBeUndefined();
+    });
+
+    it('should prune items outside the retained chunk when navigating to a new chunk', async () => {
+      const cameraManager = createTestCameraManager();
+      const morningMedia = new TestViewMedia({
+        cameraID: CAMERA_ID,
+        id: 'morning-media',
+        startTime: new Date('2025-09-21T08:00:00Z'),
+        endTime: new Date('2025-09-21T08:10:00Z'),
+      });
+      const afternoonMedia = new TestViewMedia({
+        cameraID: CAMERA_ID,
+        id: 'afternoon-media',
+        startTime: new Date('2025-09-21T20:00:00Z'),
+        endTime: new Date('2025-09-21T20:10:00Z'),
+      });
+
+      vi.mocked(cameraManager.executeMediaQueries)
+        .mockResolvedValueOnce([morningMedia])
+        .mockResolvedValueOnce([afternoonMedia])
+        .mockResolvedValueOnce([morningMedia]);
+
+      const source = new TimelineDataSource(
+        cameraManager,
+        mock<FoldersManager>(),
+        mock<ConditionStateManagerReadonlyInterface>(),
+        cameraEventsQuery,
+        false,
+        12,
+      );
+
+      expect(source.chunkHours).toBe(12);
+      source.setChunkHours(6);
+      expect(source.chunkHours).toBe(6);
+      source.setChunkHours(undefined);
+      expect(source.chunkHours).toBe(24);
+      source.setChunkHours(12);
+
+      // 1. Refresh morning (08:00) -> loads morningMedia
+      await source.refresh({
+        start: new Date('2025-09-21T08:00:00Z'),
+        end: new Date('2025-09-21T08:30:00Z'),
+      });
+      expect(source.dataset.get('morning-media')).not.toBeNull();
+      expect(source.dataset.get('afternoon-media')).toBeNull();
+
+      // 2. Refresh afternoon (20:00) -> morningMedia is pruned, afternoonMedia loaded
+      await source.refresh({
+        start: new Date('2025-09-21T20:00:00Z'),
+        end: new Date('2025-09-21T20:30:00Z'),
+      });
+      expect(source.dataset.get('morning-media')).toBeNull();
+      expect(source.dataset.get('afternoon-media')).not.toBeNull();
+
+      // 3. Refresh back to morning (08:00) -> afternoonMedia is pruned, morningMedia reloaded
+      await source.refresh({
+        start: new Date('2025-09-21T08:00:00Z'),
+        end: new Date('2025-09-21T08:30:00Z'),
+      });
+      expect(source.dataset.get('morning-media')).not.toBeNull();
+      expect(source.dataset.get('afternoon-media')).toBeNull();
+      expect(cameraManager.executeMediaQueries).toHaveBeenCalledTimes(3);
     });
   });
 });

@@ -409,6 +409,7 @@
         }
       },
       "timeline": {
+        "chunk_hours": "Loading chunk size in hours (e.g. 12 or 24)",
         "clustering_threshold": "Number of events before clustering (0=no clustering)",
         "show_recordings": "Show recordings",
         "style": "Timeline style",

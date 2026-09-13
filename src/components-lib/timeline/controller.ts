@@ -185,6 +185,7 @@ export class TimelineController {
           options.conditionStateManager,
           newShape,
           options.timelineConfig.show_recordings,
+          options.timelineConfig.chunk_hours,
         );
       } else {
         this._source = null;
@@ -205,6 +206,7 @@ export class TimelineController {
     if (this._timelineConfig !== (options.timelineConfig ?? null)) {
       this._timelineConfig = options?.timelineConfig ?? null;
 
+      this._source?.setChunkHours(this._timelineConfig?.chunk_hours);
       this._host.toggleAttribute('recordings', !!this._timelineConfig?.show_recordings);
       this._host.toggleAttribute('ribbon', this._timelineConfig?.style === 'ribbon');
       this._host.toggleAttribute('stack', this._timelineConfig?.style === 'stack');
@@ -535,6 +537,7 @@ export class TimelineController {
       const query = this._source.buildRecordingsWindowedQuery(
         convertRangeToCacheFriendlyTimes(
           this._getPrefetchWindow(this._timeline.getWindow()),
+          { chunkHours: this._timelineConfig?.chunk_hours },
         ),
       );
       if (query) {
@@ -730,7 +733,9 @@ export class TimelineController {
     window: TimelineWindow,
   ): UnifiedQuery {
     const prefetchWindow = this._getPrefetchWindow(window);
-    const cacheFriendlyWindow = convertRangeToCacheFriendlyTimes(prefetchWindow);
+    const cacheFriendlyWindow = convertRangeToCacheFriendlyTimes(prefetchWindow, {
+      chunkHours: this._timelineConfig?.chunk_hours,
+    });
     return UnifiedQueryTransformer.rebuildQuery(
       UnifiedQueryTransformer.stripLimits(query),
       {

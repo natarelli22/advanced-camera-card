@@ -7,6 +7,7 @@ import {
   compressRanges,
   ExpiringMemoryRangeSet,
   MemoryRangeSet,
+  type DateRange,
 } from '../../camera-manager/range';
 import type { RecordingSegment } from '../../camera-manager/types';
 import { capEndDate } from '../../camera-manager/utils/cap-end-date';
@@ -94,6 +95,7 @@ export class TimelineDataSource {
   private _cache = new ExpiringMemoryRangeSet();
 
   private _showRecordings: boolean;
+  private _chunkHours: number;
 
   // The "shape" of the query, a UnifiedQuery without time ranges. Determines
   // the groups/structure of the timeline.
@@ -105,6 +107,7 @@ export class TimelineDataSource {
     conditionStateManager: ConditionStateManagerReadonlyInterface,
     shape: UnifiedQuery,
     showRecordings: boolean,
+    chunkHours = 24,
   ) {
     this._cameraManager = cameraManager;
     this._builder = new UnifiedQueryBuilder(cameraManager, foldersManager);
@@ -115,8 +118,17 @@ export class TimelineDataSource {
     );
     this._shape = shape;
     this._showRecordings = showRecordings;
+    this._chunkHours = chunkHours;
 
     this._groups = this._generateGroups();
+  }
+
+  get chunkHours(): number {
+    return this._chunkHours;
+  }
+
+  public setChunkHours(chunkHours?: number): void {
+    this._chunkHours = chunkHours ?? 24;
   }
 
   get dataset(): DataSet<AdvancedCameraCardTimelineItem> {
@@ -228,9 +240,27 @@ export class TimelineDataSource {
     });
   }
 
-  private async _refreshQuery(window: TimelineWindow): Promise<void> {
-    const cacheFriendlyWindow = convertRangeToCacheFriendlyTimes(window);
+  private _prune(retainedRange: DateRange): void {
+    const retainedStartMs = retainedRange.start.getTime();
+    const retainedEndMs = retainedRange.end.getTime();
 
+    const itemsToRemove = this._dataset.get({
+      filter: (item) => {
+        const itemStart = item.start;
+        const itemEnd = item.end ?? item.start;
+        return itemEnd < retainedStartMs || itemStart > retainedEndMs;
+      },
+    });
+
+    if (itemsToRemove.length > 0) {
+      this._dataset.remove(itemsToRemove.map((item) => item.id));
+    }
+
+    this._cache.pruneOutside(retainedRange);
+    this._recordingRanges.pruneOutside(retainedRange);
+  }
+
+  private async _refreshQuery(cacheFriendlyWindow: DateRange): Promise<void> {
     if (
       this._cache.hasCoverage({
         start: cacheFriendlyWindow.start,
@@ -255,17 +285,22 @@ export class TimelineDataSource {
   }
 
   public async refresh(window: TimelineWindow): Promise<void> {
+    const cacheFriendlyWindow = convertRangeToCacheFriendlyTimes(window, {
+      chunkHours: this._chunkHours,
+    });
+    this._prune(cacheFriendlyWindow);
+
     try {
       await Promise.all([
-        this._refreshQuery(window),
-        ...(this._showRecordings ? [this._refreshRecordings(window)] : []),
+        this._refreshQuery(cacheFriendlyWindow),
+        ...(this._showRecordings ? [this._refreshRecordings(cacheFriendlyWindow)] : []),
       ]);
     } catch (e) {
       errorToConsole(e);
     }
   }
 
-  private async _refreshRecordings(window: TimelineWindow): Promise<void> {
+  private async _refreshRecordings(cacheFriendlyWindow: DateRange): Promise<void> {
     // Recordings only apply to camera-based shapes
     const cameraIDs = this._shape.getAllCameraIDs();
     if (!cameraIDs?.size) {
@@ -319,8 +354,8 @@ export class TimelineDataSource {
     // for caching up to the freshness tolerance.
     if (
       this._recordingRanges.hasCoverage({
-        start: window.start,
-        end: sub(capEndDate(window.end), {
+        start: cacheFriendlyWindow.start,
+        end: sub(capEndDate(cacheFriendlyWindow.end), {
           seconds: TIMELINE_FRESHNESS_TOLERANCE_SECONDS,
         }),
       })
@@ -328,7 +363,6 @@ export class TimelineDataSource {
       return;
     }
 
-    const cacheFriendlyWindow = convertRangeToCacheFriendlyTimes(window);
     const recordingQueries = this._cameraManager.generateDefaultRecordingSegmentsQueries(
       cameraIDs,
       {
