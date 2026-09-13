@@ -25,9 +25,10 @@ import type { ConditionStateManagerReadonlyInterface } from '../../condition-tri
 import type { CameraConfig } from '../../config/schema/cameras';
 import type { AdvancedCameraCardView } from '../../config/schema/common/const';
 import type { ThumbnailsControlBaseConfig } from '../../config/schema/common/controls/thumbnails';
-import type {
-  TimelineCoreComponentConfig,
-  TimelinePanMode,
+import {
+  timelineCoreConfigDefault,
+  type TimelineCoreComponentConfig,
+  type TimelinePanMode,
 } from '../../config/schema/common/controls/timeline';
 import type { HomeAssistant } from '../../ha/types';
 import { getLanguage } from '../../localize/localize.js';
@@ -35,17 +36,13 @@ import { stopEventFromActivatingCardWideActions } from '../../utils/action';
 import { formatDateAndTime, isHoverableDevice, isTruthy } from '../../utils/basic';
 import { findBestMediaTimeIndex } from '../../utils/find-best-media-time-index';
 import { fireAdvancedCameraCardEvent } from '../../utils/fire-advanced-camera-card-event';
-import {
-  getTimelineLocale,
-  setMomentLocale,
-  TIMELINE_LOCALES,
-} from './locales.js';
 import type { ViewMedia } from '../../view/item';
 import { ViewItemClassifier } from '../../view/item-classifier';
 import { QueryResults } from '../../view/query-results';
 import type { UnifiedQuery } from '../../view/unified-query';
 import { UnifiedQueryTransformer } from '../../view/unified-query-transformer';
 import { mergeViewContext } from '../../view/view';
+import { getTimelineLocale, setMomentLocale, TIMELINE_LOCALES } from './locales.js';
 import {
   canMediaBeShownAsTimelineItem,
   TimelineDataSource,
@@ -120,8 +117,7 @@ export class TimelineController {
   // Need a way to separate when a user clicks (to pan the timeline) vs when a
   // user clicks (to choose a recording (non-event) to play).
   private _pointerHeld:
-    | (TimelineEventPropertiesResult & { window?: TimelineWindow })
-    | null = null;
+    (TimelineEventPropertiesResult & { window?: TimelineWindow }) | null = null;
   private _ignoreClick = false;
 
   constructor(host: LitElement) {
@@ -233,7 +229,7 @@ export class TimelineController {
     const itemID = request.detail.item;
     const media = this._source?.dataset.get(itemID)?.media;
     const cameraConfig = media
-      ? this._cameraManager?.getStore().getCameraConfigForMedia(media) ?? undefined
+      ? (this._cameraManager?.getStore().getCameraConfigForMedia(media) ?? undefined)
       : undefined;
 
     request.detail.hass = this._hass ?? undefined;
@@ -508,7 +504,7 @@ export class TimelineController {
 
     const view = this._viewManagerEpoch?.manager.getView();
     const id = properties.item ? String(properties.item) : null;
-    const item = id ? this._source?.dataset.get(id) ?? null : null;
+    const item = id ? (this._source?.dataset.get(id) ?? null) : null;
 
     if (
       this._ignoreClick ||
@@ -590,7 +586,9 @@ export class TimelineController {
         ...(seekTime && { mediaViewer: { seek: seekTime } }),
       });
       const modifiers = [
-        ...(!seekTime ? [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')] : []),
+        ...(!seekTime
+          ? [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]
+          : []),
         new MergeContextViewModifier(context),
       ];
 
@@ -932,7 +930,7 @@ export class TimelineController {
 
   private _getConfiguredWindowSeconds(): number {
     return (
-      this._timelineConfig?.window_seconds ?? configDefaults.timeline.window_seconds
+      this._timelineConfig?.window_seconds ?? timelineCoreConfigDefault.window_seconds
     );
   }
 

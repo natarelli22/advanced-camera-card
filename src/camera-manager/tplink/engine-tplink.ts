@@ -132,7 +132,10 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
             new Date(),
           );
         } else {
-          const rawDate = (dateMatch.groups?.date || dateMatch[0] || '').replace(/_/g, '-');
+          const rawDate = (dateMatch.groups?.date || dateMatch[0] || '').replace(
+            /_/g,
+            '-',
+          );
           if (rawDate.length === 8 && !rawDate.includes('-')) {
             parsedDate = parse(rawDate, 'yyyyMMdd', new Date());
           } else {
@@ -234,7 +237,9 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
         // Only consider a second match as endDate if its timestamp is strictly after start
         for (let i = 1; i < matches.length; i++) {
           const gi = matches[i].groups;
-          if (!gi) continue;
+          if (!gi) {
+            continue;
+          }
           const parsedEnd = new Date(
             Number(gi.year),
             Number(gi.month) - 1,
@@ -260,15 +265,21 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
           media.media_content_id.match(/date=(?<date>\d{4}[-_]\d{2}[-_]\d{2})/) ||
           media.title.match(/(?<date>\d{4}[-_]\d{2}[-_]\d{2})/);
         if (dateMatch?.groups?.date) {
-          const d = parse(dateMatch.groups.date.replace(/_/g, '-'), 'yyyy-MM-dd', new Date());
-          if (isValidDate(d)) return d;
+          const d = parse(
+            dateMatch.groups.date.replace(/_/g, '-'),
+            'yyyy-MM-dd',
+            new Date(),
+          );
+          if (isValidDate(d)) {
+            return d;
+          }
         }
         return null;
       })();
 
     // 4) Fallback from media.title of the form: "HH:mm:ss - HH:mm:ss" or "HH:mm:ss"
-    // Use \s+[-–—]\s+ to split range without tearing apart hyphens in dates or times
-    const rangeParts = media.title.split(/\s+[-–—]\s+/);
+    // Use regex to split range without tearing apart hyphens in dates or times
+    const rangeParts = media.title.split(/\s+[-–\u2014]\s+/);
     if (!startDate || !isValidDate(startDate)) {
       if (baseDate) {
         let parsedStart = parse(rangeParts[0], 'HH:mm:ss', baseDate);
@@ -369,7 +380,9 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
         normalizeString(entityID),
         normalizeString(entityID?.replace(/^camera\./, '')),
         normalizeString(
-          entityID?.replace(/^camera\./, '')?.replace(/_hd_stream|_sd_stream|_stream/, ''),
+          entityID
+            ?.replace(/^camera\./, '')
+            ?.replace(/_hd_stream|_sd_stream|_stream/, ''),
         ),
         normalizeString(cameraTitle?.replace(/\s*(hd|sd)?\s*stream/i, '')),
       ].filter((s) => s.length > 0),
@@ -488,7 +501,8 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
           (c) => c.can_expand && c.title.toLowerCase() === 'videos',
         );
 
-        let targetsToSearchForDates: (string | RichBrowseMedia<BrowseMediaMetadata>)[] = [];
+        let targetsToSearchForDates: (string | RichBrowseMedia<BrowseMediaMetadata>)[] =
+          [];
         if (videoFolder) {
           targetsToSearchForDates = [videoFolder.media_content_id];
         } else {
@@ -819,12 +833,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const camera = store.getCamera(cameraID);
     const directories =
       camera && camera instanceof TPLinkCamera
-        ? await this._getMatchingDirectories(
-            hass,
-            camera,
-            query,
-            engineOptions,
-          )
+        ? await this._getMatchingDirectories(hass, camera, query, engineOptions)
         : null;
     const limit = query.limit ?? CAMERA_MANAGER_ENGINE_EVENT_LIMIT_DEFAULT;
     let media: RichBrowseMedia<BrowseMediaMetadata>[] = [];
@@ -842,8 +851,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
             ) => this._tplinkFileMetadataGenerator(cameraID, media, parent),
             earlyExit: (media) => media.length >= limit,
             matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) =>
-              !media.can_expand &&
-              isMediaWithinDates(media, query.start, query.end),
+              !media.can_expand && isMediaWithinDates(media, query.start, query.end),
             sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) =>
               sortMostRecentFirst(media),
           },
@@ -922,7 +930,6 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     _store: CameraManagerReadOnlyConfigStore,
     media: ViewMedia,
     target: Date,
-    _engineOptions?: EngineOptions,
   ): Promise<number | null> {
     const start = media.getStartTime();
     if (!start) {
