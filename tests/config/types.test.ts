@@ -121,6 +121,7 @@ describe('config defaults', () => {
             position: 'bottom-right',
           },
           thumbnails: {
+            chunk_hours: 24,
             mode: 'right',
             show_details: true,
             show_download_control: false,
@@ -172,6 +173,7 @@ describe('config defaults', () => {
             mode: 'right',
           },
           thumbnails: {
+            chunk_hours: 24,
             show_details: false,
             show_download_control: false,
             show_favorite_control: true,
@@ -206,6 +208,7 @@ describe('config defaults', () => {
             position: 'bottom-right',
           },
           thumbnails: {
+            chunk_hours: 24,
             mode: 'right',
             show_details: true,
             show_download_control: false,
@@ -505,6 +508,7 @@ describe('config defaults', () => {
         clustering_threshold: 3,
         controls: {
           thumbnails: {
+            chunk_hours: 24,
             mode: 'right',
             show_details: true,
             show_download_control: false,

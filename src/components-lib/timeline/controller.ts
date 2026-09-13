@@ -266,8 +266,33 @@ export class TimelineController {
     this._host.requestUpdate();
   }
 
-  public setTimelineDate(date: Date): void {
-    this._timeline?.moveTo(date);
+  public async setTimelineDate(date: Date): Promise<void> {
+    if (!this._timeline) {
+      return;
+    }
+
+    const currentWindow = this._timeline.getWindow();
+    const durationSeconds = Math.max(
+      60,
+      differenceInSeconds(currentWindow.end, currentWindow.start),
+    );
+    const halfDuration = durationSeconds / 2;
+    const targetWindow: TimelineWindow = {
+      start: sub(date, { seconds: halfDuration }),
+      end: add(date, { seconds: halfDuration }),
+    };
+
+    this._timeline.setWindow(targetWindow.start, targetWindow.end, { animation: false });
+    await this._timelineRangeChangedHandler({
+      start: targetWindow.start,
+      end: targetWindow.end,
+      byUser: true,
+      event: new Event('date-picker') as Event & { additionalEvent: string },
+    });
+  }
+
+  public hasTimeline(): boolean {
+    return !!this._timeline;
   }
 
   public shouldSupportSeeking(): boolean {
@@ -525,47 +550,14 @@ export class TimelineController {
       return;
     }
 
-    let drawerAction: 'open' | 'close' = 'close';
-
-    if (
-      this._timelineConfig?.show_recordings &&
-      properties.time &&
-      ['background', 'axis'].includes(properties.what) &&
-      this._source &&
-      this._timeline
-    ) {
-      const query = this._source.buildRecordingsWindowedQuery(
-        convertRangeToCacheFriendlyTimes(
-          this._getPrefetchWindow(this._timeline.getWindow()),
-          { chunkHours: this._timelineConfig?.chunk_hours },
-        ),
-      );
-      if (query) {
-        await this._viewManagerEpoch?.manager.setViewByParametersWithExistingQuery({
-          baseView: view,
-          params: { view: 'recording', query: query },
-          queryExecutorOptions: {
-            selectResult: {
-              time: {
-                time: properties.time,
-              },
-            },
-          },
-          modifiers: [
-            new MergeContextViewModifier({
-              mediaViewer: { seek: properties.time },
-            }),
-          ],
-        });
-      }
-    } else if (item && properties.what === 'item') {
+    if (item && properties.what === 'item' && item.media) {
+      let drawerAction: 'open' | 'close' = 'close';
       await this._selectItem(item, properties.time, String(properties.group));
       if (this._itemClickAction === 'select') {
         drawerAction = 'open';
       }
+      fireAdvancedCameraCardEvent(this._host, `thumbnails:${drawerAction}`);
     }
-
-    fireAdvancedCameraCardEvent(this._host, `thumbnails:${drawerAction}`);
 
     this._ignoreClick = false;
   }

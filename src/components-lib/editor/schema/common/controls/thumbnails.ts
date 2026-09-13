@@ -57,10 +57,24 @@ export const getThumbnailsSchema = (options?: {
           ]),
         },
         sizeField,
+        {
+          name: 'chunk_hours',
+          label: localize('config.common.timeline.chunk_hours'),
+          selector: createNumberSelector({ min: 1, max: 24 }),
+        },
       ]),
     );
   } else {
-    schema.push(sizeField);
+    schema.push(
+      createGrid([
+        sizeField,
+        {
+          name: 'chunk_hours',
+          label: localize('config.common.timeline.chunk_hours'),
+          selector: createNumberSelector({ min: 1, max: 24 }),
+        },
+      ]),
+    );
   }
   schema.push(
     createGrid([

@@ -158,7 +158,7 @@ export class AdvancedCameraCardTimelineCore extends LitElement {
     const view = this.viewManagerEpoch?.manager.getView();
     const isLoading = !!view?.context?.loading?.query;
 
-    if (isLoading) {
+    if (isLoading && !this._controller.hasTimeline()) {
       if (!this.mini) {
         return renderNotificationBlockFromText(localize('error.awaiting_media'), {
           icon: 'mdi:chart-gantt',
@@ -249,7 +249,7 @@ export class AdvancedCameraCardTimelineCore extends LitElement {
             ev: CustomEvent<DatePickerEvent>,
           ) => {
             if (ev.detail.date) {
-              this._controller.setTimelineDate(ev.detail.date);
+              void this._controller.setTimelineDate(ev.detail.date);
             }
           }}
         >

@@ -106,6 +106,7 @@ export class AdvancedCameraCardSurround extends LitElement {
             .fadeThumbnails=${view.isViewerView()}
             .viewManagerEpoch=${this.viewManagerEpoch}
             .foldersManager=${this.foldersManager}
+            .conditionStateManager=${this.conditionStateManager}
             .selected=${view.queryResults?.getSelectedIndex() ?? undefined}
             .cardWideConfig=${this.cardWideConfig}
             .locked=${this.locked}

@@ -13,6 +13,7 @@ export const thumbnailControlsBaseDefaults = {
   show_download_control: false,
   show_review_control: true,
   show_info_control: true,
+  chunk_hours: 24,
 };
 
 // Configuration for the actual rendered thumbnail.
@@ -38,6 +39,17 @@ export const thumbnailsControlBaseSchema = z.object({
   show_info_control: z
     .boolean()
     .default(thumbnailControlsBaseDefaults.show_info_control),
+  chunk_hours: z
+    .union([
+      z.number(),
+      z
+        .string()
+        .regex(/^\s*\d+\s*h?\s*$/i)
+        .transform((val) => parseInt(val.replace(/h/i, '').trim(), 10)),
+    ])
+    .pipe(z.number().min(1).max(24))
+    .optional()
+    .default(thumbnailControlsBaseDefaults.chunk_hours),
 });
 export type ThumbnailsControlBaseConfig = z.infer<typeof thumbnailsControlBaseSchema>;
 

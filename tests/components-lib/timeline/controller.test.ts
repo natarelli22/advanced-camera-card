@@ -588,6 +588,56 @@ describe('TimelineController', () => {
 
       expect(view.context?.mediaViewer?.seek).toBeUndefined();
     });
+
+    it('should do nothing when clicked on background or axis', async () => {
+      const review = createReviewMedia();
+      const harness = await createHarness({ media: [review] });
+
+      harness.trigger('click', {
+        what: 'background',
+        time: add(WINDOW.start, { minutes: 10 }),
+        event: new Event('click'),
+      });
+
+      expect(harness.manager.setViewByParameters).not.toHaveBeenCalled();
+
+      harness.trigger('click', {
+        what: 'axis',
+        time: add(WINDOW.start, { minutes: 10 }),
+        event: new Event('click'),
+      });
+
+      expect(harness.manager.setViewByParameters).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('setTimelineDate', () => {
+    it('should set window and trigger range changed handler', async () => {
+      const harness = await createHarness();
+      const targetDate = add(WINDOW.start, { hours: 5 });
+
+      await harness.controller.setTimelineDate(targetDate);
+
+      expect(harness.timeline.setWindow).toHaveBeenCalled();
+    });
+
+    it('should do nothing when timeline is not initialized', async () => {
+      stubMatchMedia().mockReturnValue({ matches: true });
+      const controller = new TimelineController(new TimelineControllerTestHost());
+      expect(controller.hasTimeline()).toBe(false);
+
+      await controller.setTimelineDate(new Date());
+    });
+  });
+
+  describe('hasTimeline', () => {
+    it('should return true when initialized and false when destroyed', async () => {
+      const harness = await createHarness();
+      expect(harness.controller.hasTimeline()).toBe(true);
+
+      harness.controller.destroyTimeline();
+      expect(harness.controller.hasTimeline()).toBe(false);
+    });
   });
 
   describe('navigateMedia', () => {

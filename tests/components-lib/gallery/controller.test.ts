@@ -31,6 +31,7 @@ const createThumbnailConfig = (
   show_download_control: true,
   show_review_control: true,
   show_info_control: true,
+  chunk_hours: 24,
   ...config,
 });
 

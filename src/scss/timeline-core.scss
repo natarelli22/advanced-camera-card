@@ -140,10 +140,6 @@ div.timeline {
 .vis-item:not(.vis-background) {
   cursor: pointer;
 }
-:host([recordings]) .vis-item.vis-background,
-:host([recordings]) .vis-time-axis {
-  cursor: crosshair;
-}
 .vis-item:active {
   cursor: unset;
 }
@@ -173,17 +169,10 @@ div.timeline {
   border-color: var(--advanced-camera-card-timeline-divider-color);
 }
 
-// Give an indication that the user can interact with the axes.
+// Timeline axis text and labels styling.
 .vis-text.vis-minor,
 .vis-label {
   transition: background-color 0.5s ease-out;
-}
-:host([recordings]) .vis-text.vis-minor:hover {
-  background-color: color-mix(
-    in oklab,
-    var(--advanced-camera-card-timeline-text-color),
-    transparent 80%
-  );
 }
 
 .vis-time-axis .vis-grid.vis-major {
