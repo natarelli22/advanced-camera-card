@@ -80,7 +80,7 @@ jobs:
 
       - name: Install dependencies
         if: steps.check_changes.outputs.already_up_to_date == 'false' || inputs.force_release == true
-        run: yarn install --immutable
+        run: yarn install --no-immutable
 
       - name: Run Tests
         if: steps.check_changes.outputs.already_up_to_date == 'false' || inputs.force_release == true
