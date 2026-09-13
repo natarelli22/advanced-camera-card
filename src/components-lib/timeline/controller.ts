@@ -134,6 +134,7 @@ export class TimelineController {
     this._timeline = null;
     this._targetBarVisible = false;
     this._pointerHeld = null;
+    this._viewManagerEpoch = null;
   }
 
   /**
@@ -217,8 +218,11 @@ export class TimelineController {
     this._host.toggleAttribute('groups', this._shouldShowGroups());
   }
 
-  public async setView(viewManagerEpoch: ViewManagerEpoch | null): Promise<void> {
-    if (this._viewManagerEpoch === viewManagerEpoch) {
+  public async setView(
+    viewManagerEpoch: ViewManagerEpoch | null,
+    force = false,
+  ): Promise<void> {
+    if (!force && this._viewManagerEpoch === viewManagerEpoch) {
       return;
     }
 
@@ -581,20 +585,18 @@ export class TimelineController {
     const currentSelection = this._timeline?.getSelection() ?? [];
     const currentId = currentSelection.length ? String(currentSelection[0]) : null;
 
-    let targetIndex = -1;
-    if (currentId) {
-      const currentIndex = items.findIndex((it) => String(it.id) === currentId);
-      if (currentIndex !== -1) {
-        targetIndex = direction === 'previous' ? currentIndex - 1 : currentIndex + 1;
-      }
+    if (!currentId) {
+      return;
     }
 
+    const currentIndex = items.findIndex((it) => String(it.id) === currentId);
+    if (currentIndex === -1) {
+      return;
+    }
+
+    const targetIndex = direction === 'previous' ? currentIndex - 1 : currentIndex + 1;
     if (targetIndex < 0 || targetIndex >= items.length) {
-      if (direction === 'previous') {
-        targetIndex = targetIndex < 0 && currentId ? 0 : items.length - 1;
-      } else {
-        targetIndex = targetIndex >= items.length ? items.length - 1 : 0;
-      }
+      return;
     }
 
     const targetItem = items[targetIndex];

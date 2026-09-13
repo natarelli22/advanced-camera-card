@@ -114,12 +114,9 @@ div.timeline {
   );
 }
 
-:host([ribbon]:not([groups])) .vis-item.vis-selected:not(.vis-background) {
-  margin-top: 6px !important;
-}
-
 :host([ribbon]) .vis-item.vis-selected:not(.vis-background) {
   height: 8px !important;
+  transform: translateY(-1px);
 }
 .vis-item.vis-background {
   background-color: var(--advanced-camera-card-timeline-background-item-color);

@@ -200,7 +200,7 @@ export class AdvancedCameraCardTimelineCore extends LitElement {
     const showPanControl =
       this.timelineConfig?.show_pan_control !== false &&
       this._controller.shouldSupportSeeking();
-    const showNextPrevious = this.timelineConfig?.show_next_previous !== false;
+    const showNextPrevious = !!this.timelineConfig?.show_next_previous;
 
     return html` <div
       @advanced-camera-card:timeline:thumbnail-data-request=${this._controller
@@ -310,7 +310,7 @@ export class AdvancedCameraCardTimelineCore extends LitElement {
       // `this._timeline.setwindow()` being entirely ignored. Example case:
       // Clicking the timeline control on a recording thumbnail.
       window.requestAnimationFrame(() =>
-        this._controller.setView(this.viewManagerEpoch ?? null),
+        this._controller.setView(this.viewManagerEpoch ?? null, true),
       );
     } else {
       void this._controller.setView(this.viewManagerEpoch ?? null);

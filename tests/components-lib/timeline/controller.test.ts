@@ -209,6 +209,18 @@ describe('TimelineController', () => {
     );
   });
 
+  it('should reset view epoch on destroyTimeline and reload with force', async () => {
+    const harness = await createHarness();
+    const epoch = mock<ViewManagerEpoch>({ manager: harness.manager });
+    await harness.controller.setView(epoch);
+
+    vi.mocked(harness.timeline.getWindow).mockClear();
+    harness.controller.destroyTimeline();
+    harness.controller.setTimelineElement(document.createElement('div'));
+    await harness.controller.setView(epoch, true);
+    expect(harness.timeline.getWindow).toHaveBeenCalled();
+  });
+
   describe('should decide what can be clustered', () => {
     const createItem = (
       media: ViewMedia,
@@ -502,6 +514,84 @@ describe('TimelineController', () => {
       parameters?.modifiers?.forEach((modifier) => modifier.modify(view));
 
       expect(view.context?.mediaViewer?.seek).toBeUndefined();
+    });
+  });
+
+  describe('navigateMedia', () => {
+    it('should do nothing when there is no media', async () => {
+      const harness = await createHarness({ media: [] });
+      harness.controller.navigateMedia('previous');
+      harness.controller.navigateMedia('next');
+      expect(harness.timeline.setSelection).not.toHaveBeenCalled();
+    });
+
+    it('should do nothing when no media is selected', async () => {
+      const media1 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-1',
+        startTime: add(WINDOW.start, { minutes: 10 }),
+      });
+      const media2 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-2',
+        startTime: add(WINDOW.start, { minutes: 20 }),
+      });
+      const harness = await createHarness({ media: [media1, media2] });
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'live',
+          camera: CAMERA_ID,
+          queryResults: new QueryResults({ results: [media1, media2] }),
+        }),
+      );
+      vi.mocked(harness.timeline.getSelection).mockReturnValue([]);
+
+      harness.controller.navigateMedia('previous');
+      harness.controller.navigateMedia('next');
+
+      expect(harness.timeline.moveTo).not.toHaveBeenCalled();
+    });
+
+    it('should navigate to previous and next media when selected', async () => {
+      const startTime1 = add(WINDOW.start, { minutes: 10 });
+      const startTime2 = add(WINDOW.start, { minutes: 20 });
+      const media1 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-1',
+        startTime: startTime1,
+      });
+      const media2 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-2',
+        startTime: startTime2,
+      });
+      const harness = await createHarness({ media: [media1, media2] });
+
+      vi.mocked(harness.timeline.getSelection).mockReturnValue(['clip-1']);
+
+      // At clip-1, previous should do nothing
+      harness.controller.navigateMedia('previous');
+      expect(harness.timeline.moveTo).not.toHaveBeenCalled();
+
+      // At clip-1, next should select clip-2
+      harness.controller.navigateMedia('next');
+      expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-2');
+      expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime2);
+
+      // At clip-2, next should do nothing
+      vi.mocked(harness.timeline.getSelection).mockReturnValue(['clip-2']);
+      vi.mocked(harness.timeline.moveTo).mockClear();
+      harness.controller.navigateMedia('next');
+      expect(harness.timeline.moveTo).not.toHaveBeenCalled();
+
+      // At clip-2, previous should select clip-1
+      harness.controller.navigateMedia('previous');
+      expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-1');
+      expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime1);
     });
   });
 });

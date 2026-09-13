@@ -9,7 +9,7 @@ export const timelineCoreConfigDefault = {
     '24h': true,
   },
   show_pan_control: true,
-  show_next_previous: true,
+  show_next_previous: false,
 };
 
 const timelinePanModeSchema = z.enum(['pan', 'seek', 'seek-in-media', 'seek-in-camera']);
