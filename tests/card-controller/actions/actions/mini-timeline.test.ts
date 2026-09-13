@@ -66,3 +66,4 @@ describe('MiniTimelineAction', () => {
     expect(api.getViewManager().setViewByParametersWithNewQuery).toHaveBeenCalled();
   });
 });
+

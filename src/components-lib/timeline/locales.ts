@@ -10,6 +10,9 @@ import 'moment/locale/pt.js';
 import 'moment/locale/sk.js';
 
 export const TIMELINE_LOCALES = {
+  en: { current: 'current', time: 'time', deleteSelected: 'Delete selected' },
+  'en-US': { current: 'current', time: 'time', deleteSelected: 'Delete selected' },
+  en_US: { current: 'current', time: 'time', deleteSelected: 'Delete selected' },
   pt: { current: 'atual', time: 'data', deleteSelected: 'Apagar selecionado' },
   pt_BR: { current: 'atual', time: 'data', deleteSelected: 'Apagar selecionado' },
   'pt-br': { current: 'atual', time: 'data', deleteSelected: 'Apagar selecionado' },
@@ -18,6 +21,10 @@ export const TIMELINE_LOCALES = {
   'pt-pt': { current: 'atual', time: 'data', deleteSelected: 'Apagar selecionado' },
   'pt-PT': { current: 'atual', time: 'data', deleteSelected: 'Apagar selecionado' },
   ca: { current: 'actual', time: 'hora', deleteSelected: 'Eliminar seleccionats' },
+  de: { current: 'Aktuelle', time: 'Zeit', deleteSelected: 'Lösche ausgewähltes' },
+  fr: { current: 'actuel', time: 'heure', deleteSelected: 'Supprimer la selection' },
+  it: { current: 'attuale', time: 'tempo', deleteSelected: 'Cancella la selezione' },
+  pl: { current: 'aktualny', time: 'czas', deleteSelected: 'Usuń wybrane' },
   sk: { current: 'aktuálny', time: 'čas', deleteSelected: 'Vymazať vybrané' },
 };
 

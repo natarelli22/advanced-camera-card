@@ -47,3 +47,4 @@ declare module 'view' {
     miniTimeline?: MiniTimelineViewContext;
   }
 }
+

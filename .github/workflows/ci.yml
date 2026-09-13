@@ -44,6 +44,7 @@ jobs:
   # nor Node installed.
   check-hacs:
     name: Check / HACS
+    if: github.repository == 'dermotduffy/advanced-camera-card'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

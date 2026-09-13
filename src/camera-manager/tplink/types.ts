@@ -17,9 +17,7 @@ export class TPLinkQueryResultsClassifier {
   public static isTPLinkRecordingQueryResults(
     results: QueryResults,
   ): results is TPLinkRecordingQueryResults {
-    return (
-      results.engine === Engine.TPLink && results.type === QueryResultsType.Recording
-    );
+    return results.engine === Engine.TPLink && results.type === QueryResultsType.Recording;
   }
 }
 
@@ -40,3 +38,4 @@ export interface BrowseMediaTPLinkCameraMetadata extends BrowseMediaMetadata {
   cameraName?: string;
   title?: string;
 }
+

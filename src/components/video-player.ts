@@ -10,9 +10,9 @@ import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
+import type { BuiltinControlsOptions } from '../config/schema/common/controls/builtin.js';
 import { MediaLoadedInfoSourceController } from '../components-lib/media-loaded-info-source-controller.js';
 import { VideoMediaPlayerController } from '../components-lib/media-player/video.js';
-import type { BuiltinControlsOptions } from '../config/schema/common/controls/builtin.js';
 import videoPlayerStyle from '../scss/video-player.scss?inline';
 import type { MediaPlayer, MediaPlayerController, MediaPlayerElement } from '../types';
 import { mayHaveAudio } from '../utils/audio';

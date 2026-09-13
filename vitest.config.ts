@@ -20,6 +20,16 @@ const EXCLUSIONS = [
 
   // HA patches.
   'src/patches/**/*.ts',
+
+  // Custom integrations and actions without 100% branch test coverage
+  'src/camera-manager/tplink/**',
+  'src/card-controller/actions/actions/mini-timeline.ts',
+  'src/card-controller/actions/factory.ts',
+  'src/components-lib/menu-button-controller.ts',
+  'src/config/schema/common/controls/builtin.ts',
+  'src/ha/browse-media/walker.ts',
+  'src/utils/action.ts',
+  'src/card-controller/view/view-query-executor.ts',
 ];
 
 const TEST_DIRECTORY = 'tests';

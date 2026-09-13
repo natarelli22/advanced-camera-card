@@ -37,3 +37,4 @@ export const resolveBuiltinControls = (
     fullscreen: builtin.fullscreen ?? builtinControlsOptionsDefault.fullscreen,
   };
 };
+

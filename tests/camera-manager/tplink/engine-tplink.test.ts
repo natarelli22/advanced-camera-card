@@ -746,12 +746,7 @@ describe('TPLinkCameraManagerEngine', () => {
         resultsMap?.values() ?? [],
       )[0] as TPLinkRecordingQueryResults;
 
-      const media = engine.generateMediaFromRecordings(
-        createHASS(),
-        store,
-        query,
-        results,
-      );
+      const media = engine.generateMediaFromRecordings(createHASS(), store, query, results);
       expect(media?.length).toBe(3);
       expect(media?.[0].getContentID()).toBe(
         'media-source://tapo_control/tapo_control/?entry=tplink_config_entry_1&title=21%3A40%3A00',
@@ -1556,8 +1551,7 @@ describe('TPLinkCameraManagerEngine', () => {
             title: '2026-09-11',
             media_class: 'directory',
             media_content_type: 'video',
-            media_content_id:
-              'media-source://tapo_control/tapo_control/?date=2026-09-11',
+            media_content_id: 'media-source://tapo_control/tapo_control/?date=2026-09-11',
             children_media_class: 'directory',
             can_play: false,
             can_expand: true,
@@ -1673,8 +1667,7 @@ describe('TPLinkCameraManagerEngine', () => {
             title: '2026-09-11',
             media_class: 'directory',
             media_content_type: 'video',
-            media_content_id:
-              'media-source://media_source/local/tapo/Sala_02/videos/2026-09-11',
+            media_content_id: 'media-source://media_source/local/tapo/Sala_02/videos/2026-09-11',
             children_media_class: 'directory',
             can_play: false,
             can_expand: true,
@@ -1688,8 +1681,7 @@ describe('TPLinkCameraManagerEngine', () => {
         title: '2026-09-11',
         media_class: 'directory',
         media_content_type: 'video',
-        media_content_id:
-          'media-source://media_source/local/tapo/Sala_02/videos/2026-09-11',
+        media_content_id: 'media-source://media_source/local/tapo/Sala_02/videos/2026-09-11',
         children_media_class: 'video',
         can_play: false,
         can_expand: true,
@@ -1760,7 +1752,10 @@ describe('TPLinkCameraManagerEngine', () => {
       });
 
       const engine = createEngine({
-        entityRegistryManager: new EntityRegistryManagerMock([cameraEntity, syncEntity]),
+        entityRegistryManager: new EntityRegistryManagerMock([
+          cameraEntity,
+          syncEntity,
+        ]),
       });
       const camera = await engine.createCamera(
         createCameraConfig({
@@ -1796,7 +1791,8 @@ describe('TPLinkCameraManagerEngine', () => {
             title: '2026-09-12',
             media_class: 'directory',
             media_content_type: 'video',
-            media_content_id: 'media-source://media_source/local/tapo/Quarto/2026-09-12',
+            media_content_id:
+              'media-source://media_source/local/tapo/Quarto/2026-09-12',
             children_media_class: 'directory',
             can_play: false,
             can_expand: true,
@@ -1809,7 +1805,8 @@ describe('TPLinkCameraManagerEngine', () => {
         title: '2026-09-12',
         media_class: 'directory',
         media_content_type: 'video',
-        media_content_id: 'media-source://media_source/local/tapo/Quarto/2026-09-12',
+        media_content_id:
+          'media-source://media_source/local/tapo/Quarto/2026-09-12',
         children_media_class: 'video',
         can_play: false,
         can_expand: true,

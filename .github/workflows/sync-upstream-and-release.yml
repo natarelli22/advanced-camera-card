@@ -140,7 +140,7 @@ jobs:
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
           name: ${{ steps.get_tag.outputs.tag }}
-          body: "Release do Advanced Camera Card com suporte a cameras TP-Link Tapo e timeline sob demanda."
+          body: 'Release do Advanced Camera Card com suporte a cameras TP-Link Tapo e timeline sob demanda.'
           files: |
             advanced-camera-card.zip
             dist/*.js

@@ -34,7 +34,9 @@ describe('timeline locales', () => {
   });
 
   describe('TIMELINE_LOCALES', () => {
-    it('should contain Portuguese definitions', () => {
+    it('should contain Portuguese and English definitions', () => {
+      expect(TIMELINE_LOCALES['en']).toBeDefined();
+      expect(TIMELINE_LOCALES['en'].current).toBe('current');
       expect(TIMELINE_LOCALES['pt_BR']).toBeDefined();
       expect(TIMELINE_LOCALES['pt_BR'].current).toBe('atual');
       expect(TIMELINE_LOCALES['pt']).toBeDefined();

@@ -449,7 +449,7 @@ export class MenuButtonController {
 
     if (hasMiniTimeline && (isLive || isViewer)) {
       const isConfigHidden = isLive
-        ? liveTimelineConfig.mode === 'none' || !!liveTimelineConfig.hidden_by_default
+        ? (liveTimelineConfig.mode === 'none' || !!liveTimelineConfig.hidden_by_default)
         : !!viewerTimelineConfig.hidden_by_default;
 
       const isOn =

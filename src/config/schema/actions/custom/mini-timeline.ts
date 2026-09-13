@@ -8,3 +8,4 @@ export const miniTimelineActionConfigSchema =
     enabled: z.boolean().optional(),
   });
 export type MiniTimelineActionConfig = z.infer<typeof miniTimelineActionConfigSchema>;
+
