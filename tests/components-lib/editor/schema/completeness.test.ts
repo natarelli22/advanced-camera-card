@@ -77,6 +77,7 @@ const EDITOR_EXCLUDED = [
   'cameras.ptz',
   'cameras.dimensions.grid',
   'cameras.triggers.events.context',
+  'cameras.tplink',
 
   // Free-form CSS variable overrides.
   'view.theme.overrides',
