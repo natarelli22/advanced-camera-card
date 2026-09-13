@@ -25,7 +25,12 @@ export function getLanguage(hass?: HomeAssistant): string {
   };
 
   // Try the hass language first...
-  const hassLanguage = hass?.language ?? hass?.selectedLanguage;
+  const hassLanguage =
+    typeof hass?.language === 'string'
+      ? hass.language
+      : typeof hass?.selectedLanguage === 'string'
+        ? hass.selectedLanguage
+        : undefined;
   if (hassLanguage) {
     return canonicalizeLanguage(hassLanguage);
   }

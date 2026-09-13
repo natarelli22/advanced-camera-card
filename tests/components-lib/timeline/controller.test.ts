@@ -192,6 +192,21 @@ describe('TimelineController', () => {
     expect(options).toEqual(expect.objectContaining({ dataAttributes: ['severity'] }));
   });
 
+  it('should pass locale and locales to timeline options', async () => {
+    await createHarness();
+
+    const options = timelineConstructor.mock.calls[0]?.at(-1);
+
+    expect(options).toEqual(
+      expect.objectContaining({
+        locale: expect.any(String),
+        locales: expect.objectContaining({
+          pt_BR: expect.any(Object),
+        }),
+      }),
+    );
+  });
+
   describe('should decide what can be clustered', () => {
     const createItem = (
       media: ViewMedia,

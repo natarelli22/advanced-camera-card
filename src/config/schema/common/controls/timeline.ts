@@ -15,6 +15,7 @@ export type TimelinePanMode = z.infer<typeof timelinePanModeSchema>;
 
 const timelineFormatSchema = z.object({
   '24h': z.boolean().optional().default(timelineCoreConfigDefault.format['24h']),
+  locale: z.string().optional(),
 });
 
 export const timelineCoreConfigSchema = z.object({

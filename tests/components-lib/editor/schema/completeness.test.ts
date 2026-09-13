@@ -99,6 +99,11 @@ const EDITOR_EXCLUDED = [
 
   // Advanced folder path parsers/matchers/templating: text-editor only.
   'folders.ha.path',
+
+  // Timeline locale override (text-editor / YAML only)
+  'timeline.format.locale',
+  'live.controls.timeline.format.locale',
+  'media_viewer.controls.timeline.format.locale',
 ];
 
 // Every section's forms, keyed by section, so the harness walks the full

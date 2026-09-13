@@ -29,12 +29,17 @@ import type {
   TimelineCoreComponentConfig,
   TimelinePanMode,
 } from '../../config/schema/common/controls/timeline';
-import { configDefaults } from '../../config/schema/types';
 import type { HomeAssistant } from '../../ha/types';
+import { getLanguage } from '../../localize/localize.js';
 import { stopEventFromActivatingCardWideActions } from '../../utils/action';
 import { formatDateAndTime, isHoverableDevice, isTruthy } from '../../utils/basic';
 import { findBestMediaTimeIndex } from '../../utils/find-best-media-time-index';
 import { fireAdvancedCameraCardEvent } from '../../utils/fire-advanced-camera-card-event';
+import {
+  getTimelineLocale,
+  setMomentLocale,
+  TIMELINE_LOCALES,
+} from './locales.js';
 import type { ViewMedia } from '../../view/item';
 import { ViewItemClassifier } from '../../view/item-classifier';
 import { QueryResults } from '../../view/query-results';
@@ -992,9 +997,17 @@ export class TimelineController {
 
     const defaultWindow = this._getDefaultStartEnd();
     const stack = this._timelineConfig.style === 'stack';
+    const lang =
+      this._timelineConfig.format?.locale ??
+      (this._hass ? getLanguage(this._hass) : 'en');
+    const locale = getTimelineLocale(lang);
+    setMomentLocale(locale);
+
     // Configuration for the Timeline, see:
     // https://visjs.github.io/vis-timeline/docs/timeline/#Configuration_Options
     return {
+      locale,
+      locales: TIMELINE_LOCALES,
       cluster: this._isClustering()
         ? {
             // It would be better to automatically calculate `maxItems` from the
