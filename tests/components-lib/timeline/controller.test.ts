@@ -936,6 +936,37 @@ describe('TimelineController', () => {
         }),
       );
     });
+
+    it('should include target query when navigating media', async () => {
+      const startTime1 = add(WINDOW.start, { minutes: 10 });
+      const startTime2 = add(WINDOW.start, { minutes: 20 });
+      const media1 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-1',
+        startTime: startTime1,
+      });
+      const media2 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-2',
+        startTime: startTime2,
+      });
+      const harness = await createHarness({ media: [media1, media2] });
+
+      vi.mocked(harness.timeline.getSelection).mockReturnValue(['clip-1']);
+
+      await harness.controller.navigateMedia('next');
+
+      expect(harness.manager.setViewByParameters).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: expect.objectContaining({
+            view: 'media',
+            query: expect.any(Object),
+          }),
+        }),
+      );
+    });
   });
 
   describe('timelineRangeChanged', () => {

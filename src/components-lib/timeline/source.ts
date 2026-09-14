@@ -260,8 +260,12 @@ export class TimelineDataSource {
     this._recordingRanges.pruneOutside(retainedRange);
   }
 
-  private async _refreshQuery(cacheFriendlyWindow: DateRange): Promise<void> {
+  private async _refreshQuery(
+    cacheFriendlyWindow: DateRange,
+    options?: { force?: boolean },
+  ): Promise<void> {
     if (
+      !options?.force &&
       this._cache.hasCoverage({
         start: cacheFriendlyWindow.start,
         end: sub(capEndDate(cacheFriendlyWindow.end), {
@@ -284,7 +288,10 @@ export class TimelineDataSource {
     });
   }
 
-  public async refresh(window: TimelineWindow): Promise<void> {
+  public async refresh(
+    window: TimelineWindow,
+    options?: { force?: boolean },
+  ): Promise<void> {
     const cacheFriendlyWindow = convertRangeToCacheFriendlyTimes(window, {
       chunkHours: this._chunkHours,
     });
@@ -292,15 +299,20 @@ export class TimelineDataSource {
 
     try {
       await Promise.all([
-        this._refreshQuery(cacheFriendlyWindow),
-        ...(this._showRecordings ? [this._refreshRecordings(cacheFriendlyWindow)] : []),
+        this._refreshQuery(cacheFriendlyWindow, options),
+        ...(this._showRecordings
+          ? [this._refreshRecordings(cacheFriendlyWindow, options)]
+          : []),
       ]);
     } catch (e) {
       errorToConsole(e);
     }
   }
 
-  private async _refreshRecordings(cacheFriendlyWindow: DateRange): Promise<void> {
+  private async _refreshRecordings(
+    cacheFriendlyWindow: DateRange,
+    options?: { force?: boolean },
+  ): Promise<void> {
     // Recordings only apply to camera-based shapes
     const cameraIDs = this._shape.getAllCameraIDs();
     if (!cameraIDs?.size) {
@@ -353,6 +365,7 @@ export class TimelineDataSource {
     // Calculate an end date that's slightly short of the current time to allow
     // for caching up to the freshness tolerance.
     if (
+      !options?.force &&
       this._recordingRanges.hasCoverage({
         start: cacheFriendlyWindow.start,
         end: sub(capEndDate(cacheFriendlyWindow.end), {

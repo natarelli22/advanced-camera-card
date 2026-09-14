@@ -530,6 +530,24 @@ describe('TimelineDataSource', () => {
           expect(source.dataset.length).toBe(1);
           expect(cameraManager.executeMediaQueries).toHaveBeenCalledTimes(1);
         });
+
+        it('should refresh events when force option is true even if window is cached', async () => {
+          const cameraManager = createTestCameraManager();
+          const source = createSource(
+            cameraManager,
+            mock<FoldersManager>(),
+            mock<ConditionStateManagerReadonlyInterface>(),
+            cameraEventsQuery,
+            false,
+          );
+
+          await source.refresh(window);
+          expect(source.dataset.length).toBe(1);
+
+          await source.refresh(window, { force: true });
+          expect(source.dataset.length).toBe(1);
+          expect(cameraManager.executeMediaQueries).toHaveBeenCalledTimes(2);
+        });
       });
 
       describe('should refresh events from folder', () => {

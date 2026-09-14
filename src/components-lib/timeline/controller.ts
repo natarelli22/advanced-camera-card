@@ -643,16 +643,19 @@ export class TimelineController {
         filter: (it: AdvancedCameraCardTimelineItem) =>
           !it.className?.includes('vis-background') && !!it.media,
       });
-      const hasCoverage = currentDatasetItems.some(
-        (it) =>
-          it.id === currentMedia?.getID() ||
-          (Number(it.start) <= currentTime.getTime() &&
-            Number(it.end ?? it.start) >= currentTime.getTime()),
-      );
+      const hasCoverage =
+        currentDatasetItems.length > 1 &&
+        currentDatasetItems.some(
+          (it) =>
+            it.id === currentMedia?.getID() ||
+            (Number(it.start) <= currentTime.getTime() &&
+              Number(it.end ?? it.start) >= currentTime.getTime()),
+        );
 
       if (!hasCoverage) {
         await this._source.refresh(
           this._getPrefetchWindow({ start: currentTime, end: currentTime }),
+          { force: true },
         );
       }
 
@@ -759,9 +762,19 @@ export class TimelineController {
     const desiredView: AdvancedCameraCardView =
       this._itemClickAction === 'play' || view.isViewerView() ? 'media' : view.view;
 
+    const targetQuery =
+      targetItem?.query ??
+      (this._source
+        ? this._applyWindowToQuery(view.query ?? this._source.shape, {
+            start: targetStart,
+            end: targetStart,
+          })
+        : view.query ?? undefined);
+
     this._viewManagerEpoch?.manager.setViewByParameters({
       params: {
         view: desiredView,
+        ...(targetQuery && { query: targetQuery }),
         queryResults: newResults,
         ...(cameraID && { camera: cameraID }),
       },
@@ -1071,7 +1084,15 @@ export class TimelineController {
       // (via fetchIfNecessary) may update the timeline contents which causes
       // the visjs timeline to stop dragging/panning operations which is very
       // disruptive to the user.
-      await this._source?.refresh(prefetchedWindow);
+      const hasEventsInWindow =
+        (this._source?.dataset.get({
+          filter: (it) =>
+            !it.className?.includes('vis-background') &&
+            Number(it.end ?? it.start) >= prefetchedWindow.start.getTime() &&
+            Number(it.start) <= prefetchedWindow.end.getTime(),
+        }).length ?? 0) > 0;
+
+      await this._source?.refresh(prefetchedWindow, { force: !hasEventsInWindow });
       // Use the view's query if available. When navigateMedia builds results
       // directly from the existing timeline item (view.query is null), fall back
       // to the source's shape so the item is still added to the dataset.

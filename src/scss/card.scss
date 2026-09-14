@@ -139,6 +139,7 @@ ha-card {
   margin: auto;
 
   border: 0px;
+  border-radius: var(--advanced-camera-card-border-radius-final);
 
   // Some elements (such as submenus) may need to extend beyond the card boundary.
   overflow: visible;

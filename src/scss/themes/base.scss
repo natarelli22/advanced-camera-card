@@ -24,10 +24,10 @@
   // 1. --advanced-camera-card-border-radius-override (set by JS for performance config)
   // 2. --advanced-camera-card-border-radius (user theme override)
   // 3. --ha-card-border-radius (Home Assistant theme)
-  // 4. 4px (default)
+  // 4. 12px (default Home Assistant card border-radius)
   --advanced-camera-card-border-radius-final: var(
     --advanced-camera-card-border-radius-override,
-    var(--advanced-camera-card-border-radius, var(--ha-card-border-radius, 4px))
+    var(--advanced-camera-card-border-radius, var(--ha-card-border-radius, 12px))
   );
 
   --advanced-camera-card-control-background: var(--app-header-background-color);
