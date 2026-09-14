@@ -147,6 +147,10 @@ void customElements.whenDefined('ha-hls-player').then(() => {
         dispatchLiveErrorEvent(this, { description: this._error });
       }
       this._lastErrored = errored;
+
+      if (this.autoPlay && (changedProps.has('autoPlay') || changedProps.has('url'))) {
+        void this._mediaPlayerController.playback.play();
+      }
     }
 
     private _loadedDataHandler(ev: Event): void {
@@ -167,6 +171,9 @@ void customElements.whenDefined('ha-hls-player').then(() => {
       });
       if (info) {
         this._mediaLoadedInfoSourceController.set(info);
+      }
+      if (this.autoPlay) {
+        void this._mediaPlayerController.playback.play();
       }
     }
 

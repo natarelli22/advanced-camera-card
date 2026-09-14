@@ -214,6 +214,19 @@ export class TimelineDataSource {
           ? this._getGroupIDForCamera(cameraID)
           : null;
       if (id && startTime && groupID) {
+        if (folder && !this._groups.get(groupID)) {
+          this._groups.add({
+            id: groupID,
+            content: folder.title ?? groupID,
+          });
+        } else if (cameraID && !this._groups.get(groupID)) {
+          const cameraMetadata = this._cameraManager.getCameraMetadata(cameraID);
+          this._groups.add({
+            id: groupID,
+            content: cameraMetadata?.title ?? cameraID,
+          });
+        }
+
         data.push({
           id: id,
           group: groupID,

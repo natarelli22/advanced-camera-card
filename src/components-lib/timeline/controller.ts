@@ -34,7 +34,12 @@ import {
 import type { HomeAssistant } from '../../ha/types';
 import { getLanguage } from '../../localize/localize.js';
 import { stopEventFromActivatingCardWideActions } from '../../utils/action';
-import { formatDateAndTime, isHoverableDevice, isTruthy } from '../../utils/basic';
+import {
+  errorToConsole,
+  formatDateAndTime,
+  isHoverableDevice,
+  isTruthy,
+} from '../../utils/basic';
 import { findBestMediaTimeIndex } from '../../utils/find-best-media-time-index';
 import { fireAdvancedCameraCardEvent } from '../../utils/fire-advanced-camera-card-event';
 import type { ViewMedia } from '../../view/item';
@@ -165,10 +170,8 @@ export class TimelineController {
     //   the existing shape so the timeline is NOT needlessly destroyed and rebuilt.
     // - options.query !== undefined (including null) means an explicit override.
     const newShape =
-      options.query !== undefined
-        ? options.query
-          ? this._getQueryShape(options.query)
-          : null
+      options.query !== undefined && options.query !== null
+        ? this._getQueryShape(options.query)
         : this._source?.shape ?? null;
 
     // Rebuild source if config, dependencies, or shape changed.
@@ -570,14 +573,20 @@ export class TimelineController {
     } else {
       // Vis.js clears its internal selection when clicking background or axis.
       // Re-apply the selection from the current view so the active item remains highlighted.
-      const mediaIDsToSelect = this._getAllSelectedMediaIDsFromView();
-      this._timeline?.setSelection(mediaIDsToSelect, {
-        focus: false,
-        animation: {
-          animation: false,
-          zoom: false,
-        },
-      });
+      const mediaIDsToSelect = this._getAllSelectedMediaIDsFromView().filter(
+        (id) => !!this._source?.dataset.get(id),
+      );
+      try {
+        this._timeline?.setSelection(mediaIDsToSelect, {
+          focus: false,
+          animation: {
+            animation: false,
+            zoom: false,
+          },
+        });
+      } catch (e) {
+        errorToConsole(e);
+      }
     }
 
     this._ignoreClick = false;
@@ -653,8 +662,12 @@ export class TimelineController {
         );
 
       if (!hasCoverage) {
+        const chunkHours = this._source.chunkHours;
         await this._source.refresh(
-          this._getPrefetchWindow({ start: currentTime, end: currentTime }),
+          {
+            start: sub(currentTime, { hours: chunkHours }),
+            end: add(currentTime, { hours: chunkHours }),
+          },
           { force: true },
         );
       }
@@ -693,7 +706,8 @@ export class TimelineController {
       if (targetIndex < 0 && direction === 'previous') {
         const prevChunkTime = sub(currentTime, { hours: this._source.chunkHours });
         await this._source.refresh(
-          this._getPrefetchWindow({ start: prevChunkTime, end: prevChunkTime }),
+          { start: prevChunkTime, end: currentTime },
+          { force: true },
         );
         items = this._source.dataset.get({
           filter: (it: AdvancedCameraCardTimelineItem) =>
@@ -709,7 +723,8 @@ export class TimelineController {
       } else if (targetIndex >= items.length && direction === 'next') {
         const nextChunkTime = add(currentTime, { hours: this._source.chunkHours });
         await this._source.refresh(
-          this._getPrefetchWindow({ start: nextChunkTime, end: nextChunkTime }),
+          { start: currentTime, end: nextChunkTime },
+          { force: true },
         );
         items = this._source.dataset.get({
           filter: (it: AdvancedCameraCardTimelineItem) =>
@@ -1049,25 +1064,33 @@ export class TimelineController {
     const mediaIDsToSelect = this._getAllSelectedMediaIDsFromView();
 
     const selectMediaIDs = (mediaIDs: IdType[]) => {
+      const validIDs = this._source
+        ? mediaIDs.filter((id) => !!this._source?.dataset.get(id))
+        : mediaIDs;
+
       if (this._isClustering()) {
         // Hack: Clustering may not update unless the dataset changes, artifically
         // update the dataset to ensure the newly selected item cannot be included
         // in a cluster.
 
-        for (const mediaID of mediaIDs) {
+        for (const mediaID of validIDs) {
           // Need to this rewrite prior to setting the selection (just below), or
           // the selection will be lost on rewrite.
           this._source?.rewriteEvent(mediaID);
         }
       }
 
-      this._timeline?.setSelection(mediaIDs, {
-        focus: false,
-        animation: {
-          animation: false,
-          zoom: false,
-        },
-      });
+      try {
+        this._timeline?.setSelection(validIDs, {
+          focus: false,
+          animation: {
+            animation: false,
+            zoom: false,
+          },
+        });
+      } catch (e) {
+        errorToConsole(e);
+      }
     };
 
     const needToSelect =
@@ -1084,15 +1107,18 @@ export class TimelineController {
       // (via fetchIfNecessary) may update the timeline contents which causes
       // the visjs timeline to stop dragging/panning operations which is very
       // disruptive to the user.
-      const hasEventsInWindow =
-        (this._source?.dataset.get({
+      const eventsInWindow =
+        this._source?.dataset.get({
           filter: (it) =>
             !it.className?.includes('vis-background') &&
             Number(it.end ?? it.start) >= prefetchedWindow.start.getTime() &&
             Number(it.start) <= prefetchedWindow.end.getTime(),
-        }).length ?? 0) > 0;
+        }) ?? [];
 
-      await this._source?.refresh(prefetchedWindow, { force: !hasEventsInWindow });
+      const hasMultipleEventsInWindow = eventsInWindow.length > 1;
+      await this._source?.refresh(prefetchedWindow, {
+        force: !hasMultipleEventsInWindow,
+      });
       // Use the view's query if available. When navigateMedia builds results
       // directly from the existing timeline item (view.query is null), fall back
       // to the source's shape so the item is still added to the dataset.

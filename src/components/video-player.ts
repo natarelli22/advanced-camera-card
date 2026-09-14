@@ -3,6 +3,7 @@ import {
   LitElement,
   unsafeCSS,
   type CSSResultGroup,
+  type PropertyValues,
   type TemplateResult,
 } from 'lit';
 import { customElement, property } from 'lit/decorators.js';
@@ -59,6 +60,16 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
     return this._mediaPlayerController;
   }
 
+  protected updated(changedProperties: PropertyValues): void {
+    super.updated(changedProperties);
+    if (
+      this.autoplay &&
+      (changedProperties.has('autoplay') || changedProperties.has('url'))
+    ) {
+      void this._mediaPlayerController.playback.play();
+    }
+  }
+
   protected render(): TemplateResult | void {
     return html`
       <video
@@ -98,6 +109,9 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
           });
           if (info) {
             this._mediaLoadedInfoSourceController.set(info);
+          }
+          if (this.autoplay) {
+            void this._mediaPlayerController.playback.play();
           }
         }}"
         @volumechange=${() => dispatchMediaVolumeChangeEvent(this)}

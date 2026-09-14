@@ -88,13 +88,16 @@ export const navigateToMedia = (
 
   const newResults = view.queryResults
     .clone()
-    .selectResultIfFound((result) => result === media);
+    .selectResultIfFound(
+      (result) => result.getID() === media.getID() || result === media,
+    );
 
   const cameraID = media.getCameraID();
   manager.setViewByParameters({
     params: {
       view: 'media',
       queryResults: newResults,
+      ...(view.query && { query: view.query }),
       ...(cameraID && { camera: cameraID }),
     },
     modifiers: options?.modifiers,

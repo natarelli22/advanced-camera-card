@@ -409,16 +409,23 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
     }
 
     if (changedProperties.has('viewManagerEpoch')) {
-      // Seek into the video if the seek time has changed (this is also called
-      // on media load, since the media may or may not have been loaded at
-      // this point).
-      if (
-        this.viewerConfig?.auto_seek !== false &&
+      const oldSelectedItem =
+        this.viewManagerEpoch?.oldView?.queryResults?.getSelectedResult(
+          this.viewFilterCameraID,
+        );
+      const newSelectedItem = this.viewManagerEpoch?.manager
+        .getView()
+        ?.queryResults?.getSelectedResult(this.viewFilterCameraID);
+
+      const seekChanged =
         this.viewManagerEpoch?.manager
           .getView()
           ?.context?.mediaViewer?.seek?.getTime() !==
-          this.viewManagerEpoch?.oldView?.context?.mediaViewer?.seek?.getTime()
-      ) {
+        this.viewManagerEpoch?.oldView?.context?.mediaViewer?.seek?.getTime();
+
+      const selectedChanged = oldSelectedItem !== newSelectedItem;
+
+      if (this.viewerConfig?.auto_seek !== false && (seekChanged || selectedChanged)) {
         void this._seekHandler();
       }
     }
@@ -459,9 +466,11 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
       return;
     }
 
+    const shouldAutoPlay = this.viewerConfig?.auto_play?.includes('selected') ?? true;
+
     if (this.viewerConfig?.auto_seek === false) {
       this.toggleAttribute('unseekable', false);
-      if (mediaPlayerController.playback?.isPaused()) {
+      if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
         void mediaPlayerController.playback?.play();
       }
       return;
@@ -472,7 +481,7 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
     const seek = requestedSeek ?? selectedMedia.getPlaybackStartTime();
 
     if (!seek) {
-      if (mediaPlayerController.playback?.isPaused()) {
+      if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
         void mediaPlayerController.playback?.play();
       }
       return;
@@ -497,7 +506,7 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
       }
     }
 
-    if (mediaPlayerController.playback?.isPaused()) {
+    if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
       void mediaPlayerController.playback?.play();
     }
   }

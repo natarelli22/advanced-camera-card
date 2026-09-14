@@ -7,8 +7,6 @@
   // Keep carousel controls relative to the media carousel itself.
   position: relative;
 
-  // See: https://github.com/dermotduffy/advanced-camera-card/issues/2107
-  border-radius: var(--advanced-camera-card-border-radius-final);
   overflow: hidden;
 }
 

@@ -398,6 +398,36 @@ describe('TimelineDataSource', () => {
       });
     });
 
+    it('should dynamically register missing groups when adding media to dataset', () => {
+      const startTime = new Date('2025-09-21T15:32:21Z');
+      const endTime = new Date('2025-09-21T15:35:28Z');
+      const source = createSource(
+        createTestCameraManager(),
+        mock<FoldersManager>(),
+        mock<ConditionStateManagerReadonlyInterface>(),
+        cameraEventsQuery,
+        true,
+      );
+
+      const unconfiguredCameraID = 'unconfigured-camera';
+      const media = new TestViewMedia({
+        cameraID: unconfiguredCameraID,
+        startTime: startTime,
+        endTime: endTime,
+        id: 'new-media-id',
+      });
+
+      expect(source.groups.get(`camera/${unconfiguredCameraID}`)).toBeNull();
+
+      source.addMediaToDataset(cameraEventsQuery, [media]);
+
+      expect(source.groups.get(`camera/${unconfiguredCameraID}`)).toEqual({
+        id: `camera/${unconfiguredCameraID}`,
+        content: 'Camera Title',
+      });
+      expect(source.dataset.get('new-media-id')).not.toBeNull();
+    });
+
     it('should ignore non-events media', () => {
       const source = createSource(
         createTestCameraManager(),

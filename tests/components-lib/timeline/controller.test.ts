@@ -293,6 +293,43 @@ describe('TimelineController', () => {
     expect(sourceAfter).toBe(sourceBefore);
   });
 
+  it('should preserve source when setOptions is called with query: null', async () => {
+    stubMatchMedia().mockReturnValue({ matches: true });
+    const cameraManager = createCameraManager(createStore([{ cameraID: CAMERA_ID }]));
+    const foldersManager = mock<FoldersManager>();
+    const conditionStateManager = mock<ConditionStateManagerReadonlyInterface>();
+    const controller = new TimelineController(new TimelineControllerTestHost());
+    controller.setHass(createHASS());
+
+    const query = new UnifiedQuery();
+    query.addNode(createReviewQuery(CAMERA_ID));
+    const timelineConfig = createTimelineConfig('pan');
+
+    controller.setOptions({
+      cameraManager,
+      foldersManager,
+      conditionStateManager,
+      timelineConfig,
+      mini: true,
+      query,
+    });
+
+    const sourceBefore = controller['_source'] as TimelineDataSource | null;
+    expect(sourceBefore).not.toBeNull();
+
+    controller.setOptions({
+      cameraManager,
+      foldersManager,
+      conditionStateManager,
+      timelineConfig,
+      mini: true,
+      query: null,
+    });
+
+    const sourceAfter = controller['_source'] as TimelineDataSource | null;
+    expect(sourceAfter).toBe(sourceBefore);
+  });
+
   it('should use window_seconds window for a Frigate review (not the review duration)', async () => {
     // Regression: review media was not classified as "event" so
     // _getPerfectWindowFromMediaStartAndEndTime fell into the else branch and
@@ -565,6 +602,84 @@ describe('TimelineController', () => {
       });
 
       expect(harness.timeline.setSelection).not.toHaveBeenCalled();
+    });
+
+    it('should ignore media IDs not present in dataset when setting selection', async () => {
+      const harness = await createHarness({
+        media: [
+          new TestViewMedia({
+            mediaType: ViewMediaType.Clip,
+            cameraID: CAMERA_ID,
+            id: 'clip-1',
+            startTime: add(WINDOW.start, { minutes: 29 }),
+            endTime: add(WINDOW.start, { minutes: 31 }),
+          }),
+        ],
+      });
+
+      harness.timeline.setSelection.mockClear();
+      harness.controller['_updateTimelineFromView'](
+        createView({
+          view: 'media',
+          camera: CAMERA_ID,
+          queryResults: new QueryResults({
+            results: [
+              new TestViewMedia({
+                mediaType: ViewMediaType.Clip,
+                cameraID: CAMERA_ID,
+                id: 'non-existent-clip',
+                startTime: add(WINDOW.start, { minutes: 29 }),
+                endTime: add(WINDOW.start, { minutes: 31 }),
+              }),
+            ],
+            selectedIndex: 0,
+          }),
+        }),
+      );
+
+      expect(harness.timeline.setSelection).not.toHaveBeenCalledWith(
+        ['non-existent-clip'],
+        expect.anything(),
+      );
+    });
+
+    it('should safely catch exceptions when vis-timeline setSelection fails', async () => {
+      const harness = await createHarness({
+        media: [
+          new TestViewMedia({
+            mediaType: ViewMediaType.Clip,
+            cameraID: CAMERA_ID,
+            id: 'clip-1',
+            startTime: add(WINDOW.start, { minutes: 29 }),
+            endTime: add(WINDOW.start, { minutes: 31 }),
+          }),
+        ],
+      });
+
+      harness.timeline.setSelection.mockImplementation(() => {
+        throw new TypeError("Cannot read properties of undefined (reading 'item')");
+      });
+
+      expect(() =>
+        harness.controller['_updateTimelineFromView'](
+          createView({
+            view: 'media',
+            camera: CAMERA_ID,
+            queryResults: new QueryResults({
+              results: [
+                new TestViewMedia({
+                  mediaType: ViewMediaType.Clip,
+                  cameraID: CAMERA_ID,
+                  id: 'clip-1',
+                  startTime: add(WINDOW.start, { minutes: 29 }),
+                  endTime: add(WINDOW.start, { minutes: 31 }),
+                }),
+              ],
+              selectedIndex: 0,
+            }),
+          }),
+        ),
+      ).not.toThrow();
     });
   });
 
