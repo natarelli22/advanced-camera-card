@@ -14,10 +14,12 @@ import {
 } from 'vis-timeline';
 
 import type { CameraManager } from '../../camera-manager/manager';
+import { rangesOverlap } from '../../camera-manager/range';
 import { convertRangeToCacheFriendlyTimes } from '../../camera-manager/utils/range-to-cache-friendly';
 import type { FoldersManager } from '../../card-controller/folders/manager';
 import type { ViewItemManager } from '../../card-controller/view/item-manager';
 import { MergeContextViewModifier } from '../../card-controller/view/modifiers/merge-context';
+import { RemoveContextViewModifier } from '../../card-controller/view/modifiers/remove-context';
 import { RemoveContextPropertyViewModifier } from '../../card-controller/view/modifiers/remove-context-property';
 import type { ViewManagerEpoch } from '../../card-controller/view/types';
 import type { ConditionStateManagerReadonlyInterface } from '../../condition-trigger/conditions/types';
@@ -572,22 +574,11 @@ export class TimelineController {
     this._ignoreClick = false;
   }
 
-  public navigateMedia(direction: 'previous' | 'next'): void {
+  public async navigateMedia(direction: 'previous' | 'next'): Promise<void> {
     const view = this._viewManagerEpoch?.manager.getView();
     if (!view || !this._source) {
       return;
     }
-
-    const items = this._source.dataset.get({
-      filter: (it: AdvancedCameraCardTimelineItem) =>
-        !it.className?.includes('vis-background') && !!it.media,
-    });
-
-    if (!items.length) {
-      return;
-    }
-
-    items.sort((a, b) => Number(a.start) - Number(b.start));
 
     const currentSelection = this._timeline?.getSelection() ?? [];
     const currentId =
@@ -596,55 +587,180 @@ export class TimelineController {
         ? view.queryResults?.getSelectedResult()?.getID() ?? null
         : null);
 
-    if (!currentId) {
+    const currentMedia =
+      (currentId
+        ? this._source.dataset.get(currentId)?.media ??
+          view.queryResults
+            ?.getResults()
+            ?.find(
+              (m): m is ViewMedia =>
+                ViewItemClassifier.isMedia(m) && m.getID() === currentId,
+            ) ??
+          null
+        : null) ??
+      (view.isViewerView() ? view.queryResults?.getSelectedResult() ?? null : null);
+
+    if (!currentMedia && !currentId) {
       return;
     }
 
-    let currentIndex = items.findIndex((it) => String(it.id) === currentId);
-    if (currentIndex === -1) {
-      const currentMedia = view.queryResults?.getSelectedResult();
+    const queryMedia =
+      view.queryResults
+        ?.getResults()
+        ?.filter((m): m is ViewMedia => ViewItemClassifier.isMedia(m)) ?? [];
+
+    let targetMedia: ViewMedia | null = null;
+    let targetItem: AdvancedCameraCardTimelineItem | null = null;
+
+    if (currentMedia && queryMedia.length > 0) {
+      const currentIdx = queryMedia.findIndex((m) => m.getID() === currentMedia.getID());
+      if (currentIdx !== -1) {
+        const targetIdx = direction === 'previous' ? currentIdx - 1 : currentIdx + 1;
+        if (targetIdx >= 0 && targetIdx < queryMedia.length) {
+          targetMedia = queryMedia[targetIdx];
+        }
+      }
+    }
+
+    if (!targetMedia) {
       const currentTime =
-        currentMedia && ViewItemClassifier.isMedia(currentMedia)
-          ? currentMedia.getStartTime()?.getTime()
-          : null;
-      if (currentTime !== null && currentTime !== undefined) {
+        (currentMedia && ViewItemClassifier.isMedia(currentMedia)
+          ? currentMedia.getStartTime()
+          : null) ??
+        this._timeline?.getWindow().start ??
+        new Date();
+
+      const currentDatasetItems = this._source.dataset.get({
+        filter: (it: AdvancedCameraCardTimelineItem) =>
+          !it.className?.includes('vis-background') && !!it.media,
+      });
+      const hasCoverage = currentDatasetItems.some(
+        (it) =>
+          it.id === currentMedia?.getID() ||
+          (Number(it.start) <= currentTime.getTime() &&
+            Number(it.end ?? it.start) >= currentTime.getTime()),
+      );
+
+      if (!hasCoverage) {
+        await this._source.refresh(
+          this._getPrefetchWindow({ start: currentTime, end: currentTime }),
+        );
+      }
+
+      let items = this._source.dataset.get({
+        filter: (it: AdvancedCameraCardTimelineItem) =>
+          !it.className?.includes('vis-background') && !!it.media,
+      });
+      items.sort((a, b) => Number(a.start) - Number(b.start));
+
+      let currentIndex = currentMedia
+        ? items.findIndex((it) => String(it.id) === currentMedia.getID())
+        : -1;
+
+      const timeMs = currentTime.getTime();
+      if (currentIndex === -1) {
         if (direction === 'previous') {
           for (let i = items.length - 1; i >= 0; i--) {
-            if (Number(items[i].start) < currentTime) {
+            if (Number(items[i].start) < timeMs) {
               currentIndex = i + 1;
               break;
             }
           }
         } else {
           for (let i = 0; i < items.length; i++) {
-            if (Number(items[i].start) > currentTime) {
+            if (Number(items[i].start) > timeMs) {
               currentIndex = i - 1;
               break;
             }
           }
         }
       }
+
+      let targetIndex = direction === 'previous' ? currentIndex - 1 : currentIndex + 1;
+
+      if (targetIndex < 0 && direction === 'previous') {
+        const prevChunkTime = sub(currentTime, { hours: this._source.chunkHours });
+        await this._source.refresh(
+          this._getPrefetchWindow({ start: prevChunkTime, end: prevChunkTime }),
+        );
+        items = this._source.dataset.get({
+          filter: (it: AdvancedCameraCardTimelineItem) =>
+            !it.className?.includes('vis-background') && !!it.media,
+        });
+        items.sort((a, b) => Number(a.start) - Number(b.start));
+        for (let i = items.length - 1; i >= 0; i--) {
+          if (Number(items[i].start) < timeMs) {
+            targetIndex = i;
+            break;
+          }
+        }
+      } else if (targetIndex >= items.length && direction === 'next') {
+        const nextChunkTime = add(currentTime, { hours: this._source.chunkHours });
+        await this._source.refresh(
+          this._getPrefetchWindow({ start: nextChunkTime, end: nextChunkTime }),
+        );
+        items = this._source.dataset.get({
+          filter: (it: AdvancedCameraCardTimelineItem) =>
+            !it.className?.includes('vis-background') && !!it.media,
+        });
+        items.sort((a, b) => Number(a.start) - Number(b.start));
+        for (let i = 0; i < items.length; i++) {
+          if (Number(items[i].start) > timeMs) {
+            targetIndex = i;
+            break;
+          }
+        }
+      }
+
+      if (targetIndex >= 0 && targetIndex < items.length) {
+        targetItem = items[targetIndex];
+        targetMedia = targetItem?.media ?? null;
+      }
     }
 
-    if (currentIndex === -1) {
+    if (!targetMedia) {
       return;
     }
 
-    const targetIndex = direction === 'previous' ? currentIndex - 1 : currentIndex + 1;
-    if (targetIndex < 0 || targetIndex >= items.length) {
-      return;
+    const targetId = targetMedia.getID();
+    const cameraID = targetMedia.getCameraID();
+    const targetStart = targetMedia.getStartTime() ?? new Date();
+
+    if (targetId) {
+      this._timeline?.moveTo(targetStart);
+      this._timeline?.setSelection(targetId);
     }
 
-    const targetItem = items[targetIndex];
-    if (!targetItem) {
-      return;
+    let newResults = view.queryResults
+      ?.clone()
+      .resetSelectedResult()
+      .selectResultIfFound((media) => media.getID() === targetId);
+
+    if ((!newResults || !newResults.hasSelectedResult()) && targetItem) {
+      const queryResults = this._buildQueryResultsFromExistingItem(targetItem);
+      if (queryResults) {
+        newResults = queryResults;
+      }
     }
 
-    const targetStart = new Date(targetItem.start);
-    this._timeline?.moveTo(targetStart);
-    this._timeline?.setSelection(targetItem.id);
+    if (!newResults || !newResults.hasSelectedResult()) {
+      newResults = new QueryResults({ results: [targetMedia], selectedIndex: 0 });
+    }
 
-    void this._selectItem(targetItem, targetStart, String(targetItem.group));
+    const desiredView: AdvancedCameraCardView =
+      this._itemClickAction === 'play' || view.isViewerView() ? 'media' : view.view;
+
+    this._viewManagerEpoch?.manager.setViewByParameters({
+      params: {
+        view: desiredView,
+        queryResults: newResults,
+        ...(cameraID && { camera: cameraID }),
+      },
+      modifiers: [
+        new RemoveContextPropertyViewModifier('mediaViewer', 'seek'),
+        new RemoveContextViewModifier(['timeline']),
+      ],
+    });
 
     if (this._itemClickAction === 'select') {
       fireAdvancedCameraCardEvent(this._host, 'thumbnails:open');
@@ -872,7 +988,11 @@ export class TimelineController {
         : null;
     const context = view.context?.timeline;
 
-    if (context && context.window) {
+    if (
+      context &&
+      context.window &&
+      (!mediaWindow || rangesOverlap(mediaWindow, context.window))
+    ) {
       desiredWindow = context.window;
     } else if (mediaWindow) {
       const perfectMediaWindow = this._getPerfectWindowFromMediaStartAndEndTime(
@@ -898,40 +1018,49 @@ export class TimelineController {
     const currentSelection = this._timeline.getSelection();
     const mediaIDsToSelect = this._getAllSelectedMediaIDsFromView();
 
-    const needToSelect =
-      currentSelection.length !== mediaIDsToSelect.length ||
-      mediaIDsToSelect.some((mediaID) => !currentSelection.includes(mediaID));
-
-    if (needToSelect) {
+    const selectMediaIDs = (mediaIDs: IdType[]) => {
       if (this._isClustering()) {
         // Hack: Clustering may not update unless the dataset changes, artifically
         // update the dataset to ensure the newly selected item cannot be included
         // in a cluster.
 
-        for (const mediaID of mediaIDsToSelect) {
+        for (const mediaID of mediaIDs) {
           // Need to this rewrite prior to setting the selection (just below), or
           // the selection will be lost on rewrite.
           this._source?.rewriteEvent(mediaID);
         }
       }
 
-      this._timeline?.setSelection(mediaIDsToSelect, {
+      this._timeline?.setSelection(mediaIDs, {
         focus: false,
         animation: {
           animation: false,
           zoom: false,
         },
       });
+    };
+
+    const needToSelect =
+      currentSelection.length !== mediaIDsToSelect.length ||
+      mediaIDsToSelect.some((mediaID) => !currentSelection.includes(mediaID));
+
+    if (needToSelect) {
+      selectMediaIDs(mediaIDsToSelect);
     }
 
-    if (!this._pointerHeld && view.query) {
+    if (!this._pointerHeld) {
       // Don't fetch any data or touch the timeline in any way if the user is
       // currently interacting with it. Without this the subsequent data fetches
       // (via fetchIfNecessary) may update the timeline contents which causes
       // the visjs timeline to stop dragging/panning operations which is very
       // disruptive to the user.
       await this._source?.refresh(prefetchedWindow);
-      this._source.addMediaToDataset(view.query, view.queryResults?.getResults());
+      if (view.query) {
+        this._source.addMediaToDataset(view.query, view.queryResults?.getResults());
+      }
+      if (mediaIDsToSelect.length) {
+        selectMediaIDs(mediaIDsToSelect);
+      }
     }
 
     // Only generate thumbnails if the existing query is not an acceptable

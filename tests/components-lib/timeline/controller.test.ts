@@ -655,8 +655,8 @@ describe('TimelineController', () => {
   describe('navigateMedia', () => {
     it('should do nothing when there is no media', async () => {
       const harness = await createHarness({ media: [] });
-      harness.controller.navigateMedia('previous');
-      harness.controller.navigateMedia('next');
+      await harness.controller.navigateMedia('previous');
+      await harness.controller.navigateMedia('next');
       expect(harness.timeline.setSelection).not.toHaveBeenCalled();
     });
 
@@ -683,8 +683,8 @@ describe('TimelineController', () => {
       );
       vi.mocked(harness.timeline.getSelection).mockReturnValue([]);
 
-      harness.controller.navigateMedia('previous');
-      harness.controller.navigateMedia('next');
+      await harness.controller.navigateMedia('previous');
+      await harness.controller.navigateMedia('next');
 
       expect(harness.timeline.moveTo).not.toHaveBeenCalled();
     });
@@ -709,22 +709,22 @@ describe('TimelineController', () => {
       vi.mocked(harness.timeline.getSelection).mockReturnValue(['clip-1']);
 
       // At clip-1, previous should do nothing
-      harness.controller.navigateMedia('previous');
+      await harness.controller.navigateMedia('previous');
       expect(harness.timeline.moveTo).not.toHaveBeenCalled();
 
       // At clip-1, next should select clip-2
-      harness.controller.navigateMedia('next');
+      await harness.controller.navigateMedia('next');
       expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-2');
       expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime2);
 
       // At clip-2, next should do nothing
       vi.mocked(harness.timeline.getSelection).mockReturnValue(['clip-2']);
       vi.mocked(harness.timeline.moveTo).mockClear();
-      harness.controller.navigateMedia('next');
+      await harness.controller.navigateMedia('next');
       expect(harness.timeline.moveTo).not.toHaveBeenCalled();
 
       // At clip-2, previous should select clip-1
-      harness.controller.navigateMedia('previous');
+      await harness.controller.navigateMedia('previous');
       expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-1');
       expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime1);
     });
@@ -758,7 +758,7 @@ describe('TimelineController', () => {
         }),
       );
 
-      harness.controller.navigateMedia('next');
+      await harness.controller.navigateMedia('next');
       expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-2');
       expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime2);
     });
@@ -801,16 +801,72 @@ describe('TimelineController', () => {
         }),
       );
 
-      harness.controller.navigateMedia('next');
+      await harness.controller.navigateMedia('next');
       expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-2');
       expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime2);
 
       vi.mocked(harness.timeline.setSelection).mockClear();
       vi.mocked(harness.timeline.moveTo).mockClear();
 
-      harness.controller.navigateMedia('previous');
+      await harness.controller.navigateMedia('previous');
       expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-1');
       expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime1);
+    });
+
+    it('should navigate to adjacent media when timeline is panned away from selected media', async () => {
+      const startTime1 = add(WINDOW.start, { minutes: 10 });
+      const startTime2 = add(WINDOW.start, { minutes: 20 });
+      const media1 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-1',
+        startTime: startTime1,
+      });
+      const media2 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: CAMERA_ID,
+        id: 'clip-2',
+        startTime: startTime2,
+      });
+      const harness = await createHarness({ media: [media1, media2] });
+
+      // Timeline is panned far into future (e.g. 10 hours ahead), selection on timeline is empty
+      const pannedWindow = {
+        start: add(WINDOW.start, { hours: 10 }),
+        end: add(WINDOW.end, { hours: 10 }),
+      };
+      vi.mocked(harness.timeline.getWindow).mockReturnValue(pannedWindow);
+      vi.mocked(harness.timeline.getSelection).mockReturnValue([]);
+
+      // Currently playing media1 in media view
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          camera: CAMERA_ID,
+          queryResults: new QueryResults({
+            results: [media1, media2],
+            selectedIndex: 0,
+          }),
+          context: {
+            timeline: {
+              window: pannedWindow,
+            },
+          },
+        }),
+      );
+
+      await harness.controller.navigateMedia('next');
+
+      // Should select media2 (immediate next), move timeline to startTime2, and remove timeline context
+      expect(harness.timeline.setSelection).toHaveBeenCalledWith('clip-2');
+      expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime2);
+      expect(harness.manager.setViewByParameters).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modifiers: expect.arrayContaining([
+            expect.objectContaining({ _keys: ['timeline'] }),
+          ]),
+        }),
+      );
     });
   });
 
