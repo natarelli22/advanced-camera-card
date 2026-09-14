@@ -160,7 +160,16 @@ export class TimelineController {
 
   public setOptions(options: TimelineControllerOptions): void {
     // Extract the shape (query without time ranges) for comparison.
-    const newShape = options.query ? this._getQueryShape(options.query) : null;
+    // - options.query === undefined means "caller did not supply a query" (e.g.
+    //   the current view has query: null after navigateMedia). In that case keep
+    //   the existing shape so the timeline is NOT needlessly destroyed and rebuilt.
+    // - options.query !== undefined (including null) means an explicit override.
+    const newShape =
+      options.query !== undefined
+        ? options.query
+          ? this._getQueryShape(options.query)
+          : null
+        : this._source?.shape ?? null;
 
     // Rebuild source if config, dependencies, or shape changed.
     const needsRebuild =
@@ -978,7 +987,9 @@ export class TimelineController {
     const media = item && ViewItemClassifier.isMedia(item) ? item : null;
     const mediaStartTime = media?.getStartTime() ?? null;
     const mediaEndTime = media?.getEndTime() ?? null;
-    const mediaIsEvent = media ? ViewItemClassifier.isEvent(media) : false;
+    const mediaIsEvent = media
+      ? ViewItemClassifier.isEvent(media) || ViewItemClassifier.isReview(media)
+      : false;
 
     const mediaWindow: TimelineWindow | null =
       media && mediaStartTime
@@ -1011,8 +1022,14 @@ export class TimelineController {
       this._timeline.setWindow(desiredWindow.start, desiredWindow.end);
     }
 
-    if (!this._pointerHeld && view.query) {
-      this._source.addMediaToDataset(view.query, view.queryResults?.getResults());
+    if (!this._pointerHeld) {
+      const earlyDatasetQuery = view.query ?? this._source.shape;
+      if (earlyDatasetQuery) {
+        this._source.addMediaToDataset(
+          earlyDatasetQuery,
+          view.queryResults?.getResults(),
+        );
+      }
     }
 
     const currentSelection = this._timeline.getSelection();
@@ -1055,8 +1072,12 @@ export class TimelineController {
       // the visjs timeline to stop dragging/panning operations which is very
       // disruptive to the user.
       await this._source?.refresh(prefetchedWindow);
-      if (view.query) {
-        this._source.addMediaToDataset(view.query, view.queryResults?.getResults());
+      // Use the view's query if available. When navigateMedia builds results
+      // directly from the existing timeline item (view.query is null), fall back
+      // to the source's shape so the item is still added to the dataset.
+      const datasetQuery = view.query ?? this._source.shape;
+      if (datasetQuery) {
+        this._source.addMediaToDataset(datasetQuery, view.queryResults?.getResults());
       }
       if (mediaIDsToSelect.length) {
         selectMediaIDs(mediaIDsToSelect);

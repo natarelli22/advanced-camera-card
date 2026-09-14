@@ -249,6 +249,74 @@ describe('TimelineController', () => {
     expect(node).not.toHaveProperty('limit');
   });
 
+  it('should preserve source when setOptions is called with query: undefined (view.query is null)', async () => {
+    // Simulates the scenario where navigateMedia builds results from an existing
+    // timeline item and the resulting view has query: null. The timeline-core
+    // component calls setOptions with query: undefined, which must NOT destroy
+    // the existing source (which would blank the timeline).
+    stubMatchMedia().mockReturnValue({ matches: true });
+    const cameraManager = createCameraManager(createStore([{ cameraID: CAMERA_ID }]));
+    const foldersManager = mock<FoldersManager>();
+    const conditionStateManager = mock<ConditionStateManagerReadonlyInterface>();
+    const controller = new TimelineController(new TimelineControllerTestHost());
+    controller.setHass(createHASS());
+
+    const query = new UnifiedQuery();
+    query.addNode(createReviewQuery(CAMERA_ID));
+    const timelineConfig = createTimelineConfig('pan');
+
+    controller.setOptions({
+      cameraManager,
+      foldersManager,
+      conditionStateManager,
+      timelineConfig,
+      mini: true,
+      query,
+    });
+
+    const sourceBefore = controller['_source'] as TimelineDataSource | null;
+    expect(sourceBefore).not.toBeNull();
+
+    // Simulate what timeline-core does when view.query is null:
+    // query: undefined (not null) -- "caller did not supply a query"
+    controller.setOptions({
+      cameraManager,
+      foldersManager,
+      conditionStateManager,
+      timelineConfig,
+      mini: true,
+      query: undefined,
+    });
+
+    const sourceAfter = controller['_source'] as TimelineDataSource | null;
+    // The source must be the same instance -- not destroyed and rebuilt.
+    expect(sourceAfter).toBe(sourceBefore);
+  });
+
+  it('should use window_seconds window for a Frigate review (not the review duration)', async () => {
+    // Regression: review media was not classified as "event" so
+    // _getPerfectWindowFromMediaStartAndEndTime fell into the else branch and
+    // returned { start: reviewStart, end: reviewEnd } -- a ~15 second window
+    // instead of the configured 3600 second window. This caused the timeline to
+    // show a microscopic range and appear completely blank.
+    const reviewStart = add(WINDOW.start, { minutes: 10 });
+    const reviewEnd = add(WINDOW.start, { minutes: 10, seconds: 15 }); // 15-sec review
+    const review = createReviewMedia({ startTime: reviewStart, endTime: reviewEnd });
+    const harness = await createHarness({ media: [review] });
+
+    // window_seconds is 3600 (1 hour). With a 15-sec review, the timeline window
+    // should be centered on the review with at most 3600 seconds of width -- NOT
+    // a tiny 15-second sliver.
+    const [windowStart, windowEnd] =
+      vi.mocked(harness.timeline.setWindow).mock.calls[0] ?? [];
+    if (windowStart !== undefined && windowEnd !== undefined) {
+      const windowDurationSeconds = (Number(windowEnd) - Number(windowStart)) / 1000;
+      // The window must be close to 3600 s (window_seconds), not 15 s (review duration).
+      expect(windowDurationSeconds).toBeGreaterThan(3500);
+      expect(windowDurationSeconds).toBeLessThanOrEqual(3600);
+    }
+  });
+
   it('should request media without limits when user drags timeline', async () => {
     const queryWithLimit = new UnifiedQuery();
     queryWithLimit.addNode(createReviewQuery(CAMERA_ID, { limit: 50 }));
