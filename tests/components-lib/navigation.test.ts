@@ -325,6 +325,30 @@ describe('navigateToMedia', () => {
     );
   });
 
+  it('should preserve query when view has query', () => {
+    const api = createCardAPI();
+    const query = new UnifiedQuery();
+    const view = createViewWithMedia({ query });
+    vi.mocked(api.getViewManager().getView).mockReturnValue(view);
+
+    const media = mock<ViewMedia>();
+    const options: MediaNavigationParamaters = {
+      viewManagerEpoch: {
+        manager: api.getViewManager(),
+      },
+    };
+
+    navigateToMedia(media, options);
+
+    expect(api.getViewManager().setViewByParameters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          query,
+        }),
+      }),
+    );
+  });
+
   it('should navigate with modifiers', () => {
     const api = createCardAPI();
     const view = createViewWithMedia();

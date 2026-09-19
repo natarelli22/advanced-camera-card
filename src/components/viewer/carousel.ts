@@ -232,6 +232,7 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
 
   protected willUpdate(changedProps: PropertyValues): void {
     if (changedProps.has('viewerConfig')) {
+      this.setAttribute('transition-effect', this._getTransitionEffect());
       if (this.viewerConfig?.auto_seek === false) {
         this.toggleAttribute('unseekable', false);
       }
@@ -523,7 +524,7 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
     const mediaID = media.getID();
     const mediaEpoch = mediaID ? view.context?.mediaEpoch?.[mediaID] ?? 0 : 0;
 
-    return html` <div class="embla__slide">
+    return html` <div class="embla__slide ${isSelected ? 'slide-selected' : ''}">
       ${keyed(
         mediaEpoch,
         html`<advanced-camera-card-viewer-provider

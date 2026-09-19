@@ -428,6 +428,36 @@ describe('TimelineDataSource', () => {
       expect(source.dataset.get('new-media-id')).not.toBeNull();
     });
 
+    it('should dynamically register missing groups with cameraID fallback when metadata has no title', () => {
+      const startTime = new Date('2025-09-21T15:32:21Z');
+      const endTime = new Date('2025-09-21T15:35:28Z');
+      const cameraManager = createTestCameraManager();
+      vi.mocked(cameraManager.getCameraMetadata).mockReturnValue(null);
+
+      const source = createSource(
+        cameraManager,
+        mock<FoldersManager>(),
+        mock<ConditionStateManagerReadonlyInterface>(),
+        cameraEventsQuery,
+        true,
+      );
+
+      const unconfiguredCameraID = 'unconfigured-camera-no-title';
+      const media = new TestViewMedia({
+        cameraID: unconfiguredCameraID,
+        startTime: startTime,
+        endTime: endTime,
+        id: 'new-media-id-no-title',
+      });
+
+      source.addMediaToDataset(cameraEventsQuery, [media]);
+
+      expect(source.groups.get(`camera/${unconfiguredCameraID}`)).toEqual({
+        id: `camera/${unconfiguredCameraID}`,
+        content: unconfiguredCameraID,
+      });
+    });
+
     it('should ignore non-events media', () => {
       const source = createSource(
         createTestCameraManager(),

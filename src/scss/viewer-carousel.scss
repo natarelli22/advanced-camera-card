@@ -50,3 +50,17 @@
 
   flex: 0 0 100%;
 }
+
+:host([transition-effect='none']) .embla__slide.slide-selected {
+  animation: viewer-fade-in 0.18s ease-out;
+  will-change: opacity;
+}
+
+@keyframes viewer-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

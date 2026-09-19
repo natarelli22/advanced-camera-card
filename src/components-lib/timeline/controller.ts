@@ -83,7 +83,7 @@ interface TimelineControllerOptions {
   timelineConfig?: TimelineCoreComponentConfig;
   mini?: boolean;
   thumbnailConfig?: ThumbnailsControlBaseConfig;
-  query?: UnifiedQuery;
+  query?: UnifiedQuery | null;
 }
 
 const TIMELINE_TARGET_BAR_ID = 'target_bar';

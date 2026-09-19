@@ -617,8 +617,17 @@ describe('TimelineController', () => {
         ],
       });
 
-      harness.timeline.setSelection.mockClear();
-      harness.controller['_updateTimelineFromView'](
+      const source = harness.controller['_source'] as TimelineDataSource;
+      const originalGet = source.dataset.get.bind(source.dataset);
+      vi.spyOn(source.dataset, 'get').mockImplementation((...args: any[]) => {
+        if (args[0] === 'non-existent-clip') {
+          return null as any;
+        }
+        return (originalGet as any)(...args);
+      });
+
+      vi.mocked(harness.timeline.setSelection).mockClear();
+      vi.mocked(harness.manager.getView).mockReturnValue(
         createView({
           view: 'media',
           camera: CAMERA_ID,
@@ -636,6 +645,7 @@ describe('TimelineController', () => {
           }),
         }),
       );
+      await harness.controller['_updateTimelineFromView']();
 
       expect(harness.timeline.setSelection).not.toHaveBeenCalledWith(
         ['non-existent-clip'],
@@ -656,30 +666,32 @@ describe('TimelineController', () => {
         ],
       });
 
-      harness.timeline.setSelection.mockImplementation(() => {
+      vi.mocked(harness.timeline.setSelection).mockImplementation(() => {
         throw new TypeError("Cannot read properties of undefined (reading 'item')");
       });
 
-      expect(() =>
-        harness.controller['_updateTimelineFromView'](
-          createView({
-            view: 'media',
-            camera: CAMERA_ID,
-            queryResults: new QueryResults({
-              results: [
-                new TestViewMedia({
-                  mediaType: ViewMediaType.Clip,
-                  cameraID: CAMERA_ID,
-                  id: 'clip-1',
-                  startTime: add(WINDOW.start, { minutes: 29 }),
-                  endTime: add(WINDOW.start, { minutes: 31 }),
-                }),
-              ],
-              selectedIndex: 0,
-            }),
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          camera: CAMERA_ID,
+          queryResults: new QueryResults({
+            results: [
+              new TestViewMedia({
+                mediaType: ViewMediaType.Clip,
+                cameraID: CAMERA_ID,
+                id: 'clip-1',
+                startTime: add(WINDOW.start, { minutes: 29 }),
+                endTime: add(WINDOW.start, { minutes: 31 }),
+              }),
+            ],
+            selectedIndex: 0,
           }),
-        ),
-      ).not.toThrow();
+        }),
+      );
+
+      await expect(
+        harness.controller['_updateTimelineFromView'](),
+      ).resolves.not.toThrow();
     });
   });
 
