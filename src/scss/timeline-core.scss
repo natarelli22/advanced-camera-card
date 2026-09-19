@@ -222,21 +222,6 @@ div.vis-tooltip {
   transform: translateX(-50%);
 }
 
-.vis-time-axis {
-  mask-image: linear-gradient(
-    to right,
-    #000 0%,
-    #000 calc(100% - 130px),
-    transparent calc(100% - 20px)
-  );
-  -webkit-mask-image: linear-gradient(
-    to right,
-    #000 0%,
-    #000 calc(100% - 130px),
-    transparent calc(100% - 20px)
-  );
-}
-
 .timeline-tools {
   display: inline-flex;
   align-items: center;
@@ -248,7 +233,14 @@ div.vis-tooltip {
   padding: 2px 5px;
 
   color: var(--advanced-camera-card-timeline-tool-color);
-  background: transparent;
+  background-color: var(
+    --advanced-camera-card-timeline-tools-background,
+    var(
+      --advanced-camera-card-timeline-background,
+      var(--ha-card-background, var(--card-background-color, #fff))
+    )
+  );
+  border-top-left-radius: var(--advanced-camera-card-border-radius-final);
 
   z-index: 10;
 }

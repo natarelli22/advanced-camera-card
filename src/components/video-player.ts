@@ -92,9 +92,6 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
 
   protected render(): TemplateResult | void {
     return html`
-      ${this.poster && !this._isPlaying
-        ? html`<img class="poster" src="${this.poster}" aria-hidden="true" />`
-        : ''}
       <video
         ${ref(this._refVideo)}
         muted
@@ -147,6 +144,9 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
       >
         <source src="${ifDefined(this.url)}" type="video/mp4" />
       </video>
+      ${this.poster && !this._isPlaying
+        ? html`<img class="poster" src="${this.poster}" aria-hidden="true" />`
+        : ''}
     `;
   }
 
