@@ -5,7 +5,10 @@ import { mock } from 'vitest-mock-extended';
 
 import { resolveMedia } from '../../src/ha/resolved-media';
 import {
+  clearThumbnailCache,
   createFetchThumbnailTask,
+  getCachedThumbnail,
+  setCachedThumbnail,
   type FetchThumbnailTaskArgs,
 } from '../../src/utils/thumbnail';
 import { createHASS, flushPromises } from '../test-utils';
@@ -30,6 +33,7 @@ const createTaskFunctionOptions = (): TaskFunctionOptions => ({
 
 describe('thumbnail utilities', () => {
   afterEach(() => {
+    clearThumbnailCache();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
   });
@@ -119,6 +123,15 @@ describe('thumbnail utilities', () => {
     const result = await runPromise;
     expect(result).toBe(dataURL);
     expect(hass.fetchWithAuth).toHaveBeenCalledWith(thumbnailURL);
+
+    // Fetching the same URL again should return the cached data URL immediately
+    // without calling fetchWithAuth again.
+    const cachedResult = await options.task(
+      [true, thumbnailURL],
+      createTaskFunctionOptions(),
+    );
+    expect(cachedResult).toBe(dataURL);
+    expect(hass.fetchWithAuth).toHaveBeenCalledTimes(1);
   });
 
   it('should handle fetch failure', async () => {
@@ -471,5 +484,43 @@ describe('media source thumbnails', () => {
       options.task([true, thumbnail], createTaskFunctionOptions()),
     ).rejects.toThrow(/Could not resolve thumbnail/);
     expect(hass.fetchWithAuth).not.toHaveBeenCalled();
+  });
+
+  describe('thumbnailCache', () => {
+    it('should get and set cached thumbnails', () => {
+      expect(getCachedThumbnail()).toBeNull();
+      expect(getCachedThumbnail('http://example.com/not-cached.jpg')).toBeNull();
+
+      setCachedThumbnail('http://example.com/item.jpg', 'data:image/jpeg;base64,data');
+      expect(getCachedThumbnail('http://example.com/item.jpg')).toBe(
+        'data:image/jpeg;base64,data',
+      );
+
+      // Overwrite existing key
+      setCachedThumbnail('http://example.com/item.jpg', 'data:image/jpeg;base64,updated');
+      expect(getCachedThumbnail('http://example.com/item.jpg')).toBe(
+        'data:image/jpeg;base64,updated',
+      );
+    });
+
+    it('should evict oldest entry when cache is full', () => {
+      for (let i = 0; i < 1005; i++) {
+        setCachedThumbnail(`http://example.com/item-${i}.jpg`, `data:${i}`);
+      }
+
+      // Oldest item should have been evicted
+      expect(getCachedThumbnail('http://example.com/item-0.jpg')).toBeNull();
+      expect(getCachedThumbnail('http://example.com/item-1004.jpg')).toBe('data:1004');
+    });
+
+    it('should clear cache', () => {
+      setCachedThumbnail('http://example.com/item.jpg', 'data:image/jpeg;base64,data');
+      expect(getCachedThumbnail('http://example.com/item.jpg')).toBe(
+        'data:image/jpeg;base64,data',
+      );
+
+      clearThumbnailCache();
+      expect(getCachedThumbnail('http://example.com/item.jpg')).toBeNull();
+    });
   });
 });

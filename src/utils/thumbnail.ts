@@ -1,6 +1,7 @@
 import { Task } from '@lit/task';
 import type { ReactiveControllerHost } from 'lit';
 
+import { LRUCache } from '../cache/lru';
 import { isMediaSourceID } from '../ha/media-source';
 import { resolveMedia } from '../ha/resolved-media';
 import type { HomeAssistant } from '../ha/types';
@@ -33,6 +34,37 @@ const resolveImageURL = async (
   return resolved.url;
 };
 
+const MAX_THUMBNAIL_CACHE_ENTRIES = 500;
+const thumbnailCache = new LRUCache<string, string>(MAX_THUMBNAIL_CACHE_ENTRIES);
+
+/**
+ * Get a cached base64 data URL for a thumbnail if already fetched.
+ * @param thumbnailURL The thumbnail URL.
+ * @returns The cached base64 data URL or null.
+ */
+export const getCachedThumbnail = (thumbnailURL?: string): string | null => {
+  if (!thumbnailURL) {
+    return null;
+  }
+  return thumbnailCache.get(thumbnailURL);
+};
+
+/**
+ * Set a base64 data URL in the thumbnail cache.
+ * @param thumbnailURL The thumbnail URL.
+ * @param dataURL The base64 data URL.
+ */
+export const setCachedThumbnail = (thumbnailURL: string, dataURL: string): void => {
+  thumbnailCache.set(thumbnailURL, dataURL);
+};
+
+/**
+ * Clear the in-memory thumbnail cache (useful for testing or cache resets).
+ */
+export const clearThumbnailCache = (): void => {
+  thumbnailCache.clear();
+};
+
 /**
  * Fetch a thumbnail and return a data URL.
  * @param hass Home Assistant object.
@@ -51,6 +83,12 @@ const fetchThumbnail = async (
   if (thumbnailURL.startsWith('data:') || thumbnailURL.match(ABSOLUTE_URL_REGEX)) {
     return thumbnailURL;
   }
+
+  const cached = getCachedThumbnail(thumbnailURL);
+  if (cached) {
+    return cached;
+  }
+
   // Since we are fetching with an authorization header, we cannot just put the
   // URL directly into the document; we need to embed the image. We could do this
   // using blob URLs, but then we would need to keep track of them in order to
@@ -73,7 +111,11 @@ const fetchThumbnail = async (
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result;
-      resolve(typeof result === 'string' ? result : null);
+      const dataURL = typeof result === 'string' ? result : null;
+      if (dataURL) {
+        setCachedThumbnail(thumbnailURL, dataURL);
+      }
+      resolve(dataURL);
     };
     reader.onerror = (e) => reject(e);
     reader.readAsDataURL(blob);

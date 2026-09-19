@@ -6,7 +6,7 @@ import {
   type PropertyValues,
   type TemplateResult,
 } from 'lit';
-import { customElement, property } from 'lit/decorators.js';
+import { customElement, property, state } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { ifDefined } from 'lit/directives/if-defined.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
@@ -49,6 +49,9 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
   @property({ attribute: false })
   public controlsOptions?: BuiltinControlsOptions | null;
 
+  @state()
+  private _isPlaying = false;
+
   private _refVideo: Ref<MediaPlayerElement<HTMLVideoElement>> = createRef();
   private _mediaPlayerController = new VideoMediaPlayerController(
     this,
@@ -69,6 +72,9 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
     if (changedProperties.has('url') && this._refVideo.value) {
       setControlsOnVideo(this._refVideo.value, false);
     }
+    if ((changedProperties.has('url') || changedProperties.has('poster')) && this.poster) {
+      this._isPlaying = false;
+    }
     if (changedProperties.has('controls') && this._refVideo.value) {
       if (!this.controls) {
         setControlsOnVideo(this._refVideo.value, false);
@@ -86,6 +92,9 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
 
   protected render(): TemplateResult | void {
     return html`
+      ${this.poster && !this._isPlaying
+        ? html`<img class="poster" src="${this.poster}" aria-hidden="true" />`
+        : ''}
       <video
         ${ref(this._refVideo)}
         muted
@@ -130,6 +139,9 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
           }
         }}"
         @volumechange=${() => dispatchMediaVolumeChangeEvent(this)}
+        @playing=${() => {
+          this._isPlaying = true;
+        }}
         @play=${() => dispatchMediaPlayEvent(this)}
         @pause=${() => dispatchMediaPauseEvent(this)}
       >

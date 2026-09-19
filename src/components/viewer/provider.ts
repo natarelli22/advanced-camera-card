@@ -42,6 +42,10 @@ import type {
 } from '../../types.js';
 import { isValidAspectRatio } from '../../utils/basic.js';
 import { classifyMimeType } from '../../utils/mime-type.js';
+import {
+  createFetchThumbnailTask,
+  getCachedThumbnail,
+} from '../../utils/thumbnail.js';
 import { ViewItemClassifier } from '../../view/item-classifier.js';
 import type { ViewMedia } from '../../view/item.js';
 import { UnifiedQueryTransformer } from '../../view/unified-query-transformer.js';
@@ -88,6 +92,11 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
 
   private _refProvider: Ref<MediaPlayerElement> = createRef();
   private _lazyLoadController: LazyLoadController = new LazyLoadController(this);
+  private _thumbnailTask = createFetchThumbnailTask(
+    this,
+    () => this.hass,
+    () => this.media?.getThumbnail() ?? undefined,
+  );
 
   private _mediaLoadedInfoSinkController = new MediaLoadedInfoSinkController(this, {
     getTargetID: () => this.media?.getID() ?? null,
@@ -262,9 +271,12 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
       });
     }
 
+    const rawThumbnail = this.media.getThumbnail() ?? undefined;
+    const thumbnail =
+      getCachedThumbnail(rawThumbnail) ?? this._thumbnailTask.value ?? undefined;
+
     const url = this._signedURLController.getValue();
     if (!url) {
-      const thumbnail = this.media.getThumbnail();
       return this._renderContainer(html`
         ${thumbnail
           ? html`<img
@@ -282,7 +294,6 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
     // Note: crossorigin="anonymous" is required on <video> below in order to
     // allow screenshot of motionEye videos which currently go cross-origin.
     const mediaID = this.media.getID() ?? undefined;
-    const thumbnail = this.media.getThumbnail() ?? undefined;
     const { isHLS, isVideo } = classifyMimeType(
       this._resolvedMediaController.getValue()?.mime_type,
     );
