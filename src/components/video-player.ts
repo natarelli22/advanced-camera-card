@@ -20,6 +20,7 @@ import { mayHaveAudio } from '../utils/audio';
 import {
   hideMediaControlsTemporarily,
   MEDIA_LOAD_CONTROLS_HIDE_SECONDS,
+  setControlsOnVideo,
 } from '../utils/controls';
 import {
   createMediaLoadedInfo,
@@ -43,6 +44,9 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
   public controls = false;
 
   @property({ attribute: false })
+  public poster?: string;
+
+  @property({ attribute: false })
   public controlsOptions?: BuiltinControlsOptions | null;
 
   private _refVideo: Ref<MediaPlayerElement<HTMLVideoElement>> = createRef();
@@ -62,6 +66,16 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
 
   protected updated(changedProperties: PropertyValues): void {
     super.updated(changedProperties);
+    if (changedProperties.has('url') && this._refVideo.value) {
+      setControlsOnVideo(this._refVideo.value, false);
+    }
+    if (changedProperties.has('controls') && this._refVideo.value) {
+      if (!this.controls) {
+        setControlsOnVideo(this._refVideo.value, false);
+      } else if (this._refVideo.value.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        setControlsOnVideo(this._refVideo.value, true);
+      }
+    }
     if (
       this.autoplay &&
       (changedProperties.has('autoplay') || changedProperties.has('url'))
@@ -77,8 +91,8 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
         muted
         playsinline
         crossorigin="anonymous"
+        .poster=${this.poster ?? ''}
         ?autoplay=${this.autoplay}
-        ?controls=${this.controls}
         controlsList=${ifDefined(
           this.controlsOptions?.fullscreen === false ? 'nofullscreen' : undefined,
         )}
@@ -93,6 +107,7 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
             hideMediaControlsTemporarily(
               ev.target as HTMLVideoElement,
               MEDIA_LOAD_CONTROLS_HIDE_SECONDS,
+              true,
             );
           }
         }}

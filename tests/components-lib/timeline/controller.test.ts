@@ -619,12 +619,17 @@ describe('TimelineController', () => {
 
       const source = harness.controller['_source'] as TimelineDataSource;
       const originalGet = source.dataset.get.bind(source.dataset);
-      vi.spyOn(source.dataset, 'get').mockImplementation((...args: any[]) => {
-        if (args[0] === 'non-existent-clip') {
-          return null as any;
-        }
-        return (originalGet as any)(...args);
-      });
+      vi.spyOn(source.dataset, 'get').mockImplementation(
+        ((id: unknown, ...args: unknown[]) => {
+          if (id === 'non-existent-clip') {
+            return null;
+          }
+          return (originalGet as (i: unknown, ...a: unknown[]) => unknown)(
+            id,
+            ...args,
+          ) as ReturnType<typeof source.dataset.get>;
+        }) as unknown as typeof source.dataset.get,
+      );
 
       vi.mocked(harness.timeline.setSelection).mockClear();
       vi.mocked(harness.manager.getView).mockReturnValue(

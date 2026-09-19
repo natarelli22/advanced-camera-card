@@ -235,13 +235,21 @@ div.vis-tooltip {
   color: var(--advanced-camera-card-timeline-tool-color);
 
   // The tools sit over the bottom of the timeline, where visjs draws the time
-  // axis labels. A near-opaque background keeps the icons legible.
-  background-color: color-mix(
-    in oklab,
-    var(--advanced-camera-card-timeline-background),
-    transparent 20%
+  // axis labels. A solid background keeps the icons legible and prevents
+  // labels from bleeding through behind the buttons.
+  background-color: var(
+    --advanced-camera-card-timeline-tools-background,
+    var(
+      --advanced-camera-card-timeline-background,
+      var(--ha-card-background, var(--card-background-color, #fff))
+    )
   );
   border-top-left-radius: var(--advanced-camera-card-border-radius-final);
+  border-top: 1px solid
+    var(--advanced-camera-card-timeline-divider-color, rgba(0, 0, 0, 0.08));
+  border-left: 1px solid
+    var(--advanced-camera-card-timeline-divider-color, rgba(0, 0, 0, 0.08));
+  box-shadow: -2px -2px 6px rgba(0, 0, 0, 0.08);
 
   z-index: 10;
 }

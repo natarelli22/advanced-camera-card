@@ -67,6 +67,18 @@ describe('hideMediaControlsTemporarily', () => {
     video.dispatchEvent(new Event('loadstart'));
     expect(video._controlsHideTimer).toBeFalsy();
   });
+
+  it('should use targetControlsValue when provided', () => {
+    const video: AdvancedCameraCardHTMLVideoElement = document.createElement('video');
+    video.controls = false;
+    hideMediaControlsTemporarily(video, 2, true);
+
+    expect(video.controls).toBeFalsy();
+    vi.runOnlyPendingTimers();
+
+    expect(video.controls).toBeTruthy();
+    expect(video._controlsHideTimer).toBeFalsy();
+  });
 });
 
 describe('constants', () => {

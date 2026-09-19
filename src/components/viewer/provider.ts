@@ -264,14 +264,25 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
 
     const url = this._signedURLController.getValue();
     if (!url) {
-      return renderProgressIndicator({
-        cardWideConfig: this.cardWideConfig,
-      });
+      const thumbnail = this.media.getThumbnail();
+      return this._renderContainer(html`
+        ${thumbnail
+          ? html`<img
+              class="placeholder"
+              src="${thumbnail}"
+              aria-label="${this.media.getTitle() ?? ''}"
+            />`
+          : ''}
+        ${renderProgressIndicator({
+          cardWideConfig: this.cardWideConfig,
+        })}
+      `);
     }
 
     // Note: crossorigin="anonymous" is required on <video> below in order to
     // allow screenshot of motionEye videos which currently go cross-origin.
     const mediaID = this.media.getID() ?? undefined;
+    const thumbnail = this.media.getThumbnail() ?? undefined;
     const { isHLS, isVideo } = classifyMimeType(
       this._resolvedMediaController.getValue()?.mime_type,
     );
@@ -296,12 +307,14 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
               .targetID=${mediaID}
               ?controls=${!!builtinControls}
               .controlsOptions=${builtinControls}
+              .posterUrl=${thumbnail}
             >
             </advanced-camera-card-ha-hls-player>`
           : html`
               <advanced-camera-card-video-player
                 ${ref(this._refProvider)}
                 url=${url}
+                .poster=${thumbnail}
                 ?autoplay=${shouldAutoPlay}
                 aria-label="${this.media.getTitle() ?? ''}"
                 title="${this.media.getTitle() ?? ''}"
