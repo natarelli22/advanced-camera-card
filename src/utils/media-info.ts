@@ -68,6 +68,10 @@ export function dispatchMediaPauseEvent(target: HTMLElement): void {
   fireAdvancedCameraCardEvent(target, 'media:pause');
 }
 
+export function dispatchMediaEndedEvent(target: HTMLElement): void {
+  fireAdvancedCameraCardEvent(target, 'media:ended');
+}
+
 /**
  * Determine if a MediaLoadedInfo object is valid/acceptable.
  * @param info The MediaLoadedInfo object.

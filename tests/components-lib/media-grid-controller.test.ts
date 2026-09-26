@@ -713,6 +713,14 @@ describe('MediaGridController', () => {
     expect(Masonry).not.toHaveBeenCalled();
     expect(masonry.option).not.toHaveBeenCalled();
     expect(masonry.layout).not.toHaveBeenCalled();
+
+    // Trigger with zero width (e.g. background tab / hidden container).
+    setElementWidth(parent, 0);
+    triggerResizeObserver('host');
+    expect(masonry.option).not.toHaveBeenCalled();
+    expect(
+      parent.style.getPropertyValue('--advanced-camera-card-grid-column-size'),
+    ).toBe('749px');
   });
 
   describe('describe should sort grid elements correctly', () => {

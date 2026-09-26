@@ -329,6 +329,8 @@ export const cameraConfigSchema = z
     tplink: z
       .object({
         url: z.string().optional(),
+        events_folder: z.string().optional(),
+        continuous_folder: z.string().optional(),
       })
       .default(cameraConfigDefault.tplink),
 

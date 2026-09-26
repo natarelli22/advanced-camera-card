@@ -3,6 +3,7 @@ import type { NonEmptyTuple } from 'type-fest';
 import type { FolderPathComponent, FolderQuery } from '../card-controller/folders/types';
 import type { ViewManagerEpoch, ViewModifier } from '../card-controller/view/types';
 import { localize } from '../localize/localize';
+import { findBestMediaTimeIndex } from '../utils/find-best-media-time-index.js';
 import { ViewFolder, type ViewMedia } from '../view/item';
 import type { UnifiedQuery } from '../view/unified-query';
 import type { UnifiedQueryBuilder } from '../view/unified-query-builder';
@@ -86,11 +87,22 @@ export const navigateToMedia = (
     return;
   }
 
-  const newResults = view.queryResults
+  let newResults = view.queryResults
     .clone()
     .selectResultIfFound(
       (result) => result.getID() === media.getID() || result === media,
     );
+
+  const targetTime = media.getStartTime();
+  if (view.isGrid() && targetTime) {
+    newResults = newResults.selectBestResult(
+      (mediaArray) => findBestMediaTimeIndex(mediaArray, targetTime),
+      { allCameras: true },
+    );
+    newResults.selectResultIfFound(
+      (result) => result.getID() === media.getID() || result === media,
+    );
+  }
 
   const cameraID = media.getCameraID();
   manager.setViewByParameters({

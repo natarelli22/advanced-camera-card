@@ -10,6 +10,7 @@ export const timelineCoreConfigDefault = {
   },
   show_pan_control: true,
   show_next_previous: false,
+  show_playhead: false,
   chunk_hours: 24,
 };
 
@@ -44,6 +45,7 @@ export const timelineCoreConfigSchema = z.object({
     .boolean()
     .optional()
     .default(timelineCoreConfigDefault.show_next_previous),
+  show_playhead: z.boolean().optional().default(timelineCoreConfigDefault.show_playhead),
   style: z.enum(['stack', 'ribbon']).optional().default(timelineCoreConfigDefault.style),
   format: timelineFormatSchema.optional().default(timelineCoreConfigDefault.format),
   chunk_hours: z

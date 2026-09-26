@@ -1,3 +1,4 @@
+import { add, sub } from 'date-fns';
 import {
   html,
   LitElement,
@@ -12,11 +13,14 @@ import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
 import type { CameraManager } from '../camera-manager/manager.js';
 import type { DateRange } from '../camera-manager/range.js';
+import { QueryType, type RecordingQuery } from '../camera-manager/types.js';
 import { convertRangeToCacheFriendlyTimes } from '../camera-manager/utils/range-to-cache-friendly.js';
 import type { FoldersManager } from '../card-controller/folders/manager.js';
 import type { ViewItemManager } from '../card-controller/view/item-manager.js';
+import { MergeContextViewModifier } from '../card-controller/view/modifiers/merge-context.js';
+import { RemoveContextPropertyViewModifier } from '../card-controller/view/modifiers/remove-context-property.js';
 import { RemoveContextViewModifier } from '../card-controller/view/modifiers/remove-context.js';
-import type { ViewManagerEpoch } from '../card-controller/view/types.js';
+import type { ViewManagerEpoch, ViewModifier } from '../card-controller/view/types.js';
 import {
   getUpFolderItem,
   navigateToFolder,
@@ -28,6 +32,7 @@ import type { ConditionStateManagerReadonlyInterface } from '../condition-trigge
 import type { ThumbnailsControlConfig } from '../config/schema/common/controls/thumbnails.js';
 import type { CardWideConfig } from '../config/schema/types.js';
 import type { HomeAssistant } from '../ha/types.js';
+import { QuerySource } from '../query-source.js';
 import thumbnailCarouselStyle from '../scss/thumbnail-carousel.scss?inline';
 import { stopEventFromActivatingCardWideActions } from '../utils/action.js';
 import { errorToConsole } from '../utils/basic.js';
@@ -35,6 +40,7 @@ import type {
   CarouselDirection,
   CarouselSelected,
 } from '../utils/embla/carousel-controller.js';
+import { findBestMediaTimeIndex } from '../utils/find-best-media-time-index.js';
 import { fireAdvancedCameraCardEvent } from '../utils/fire-advanced-camera-card-event.js';
 import { ViewItemClassifier } from '../view/item-classifier.js';
 import type { ViewItem, ViewMedia } from '../view/item.js';
@@ -454,33 +460,96 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     return hasUpFolder ? index + 1 : index;
   }
 
-  private _handleMediaClick(item: ViewMedia): void {
+  private async _handleMediaClick(item: ViewMedia): Promise<void> {
     fireAdvancedCameraCardEvent<ThumbnailMediaSelect>(
       this,
       'thumbnails-carousel:media-select',
       { media: item },
     );
-    if (this.viewManagerEpoch) {
-      if (this._queryResults) {
-        const newResults = this._queryResults
-          .clone()
-          .selectResultIfFound((result) => result.getID() === item.getID());
-        const cameraID = item.getCameraID();
-        void this.viewManagerEpoch.manager.setViewByParameters({
-          params: {
-            view: 'media',
-            queryResults: newResults,
-            query: this._query ?? undefined,
-            ...(cameraID && { camera: cameraID }),
-          },
-          modifiers: [new RemoveContextViewModifier(['timeline', 'mediaViewer'])],
-        });
-      } else {
-        navigateToMedia(item, {
-          viewManagerEpoch: this.viewManagerEpoch,
-          modifiers: [new RemoveContextViewModifier(['timeline', 'mediaViewer'])],
+    if (!this.viewManagerEpoch) {
+      return;
+    }
+
+    const targetTime = item.getStartTime() ?? undefined;
+    const view = this.viewManagerEpoch.manager.getView();
+    const isGrid = view?.isGrid();
+    const cameraID = item.getCameraID();
+
+    const modifiers: ViewModifier[] = [
+      new RemoveContextViewModifier(['timeline']),
+      ...(targetTime
+        ? [new MergeContextViewModifier({ mediaViewer: { seek: targetTime } })]
+        : [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]),
+    ];
+
+    if (this._queryResults) {
+      let newResults = this._queryResults
+        .clone()
+        .selectResultIfFound((result) => result.getID() === item.getID());
+
+      if (isGrid && targetTime) {
+        const gridCameraIDs =
+          this.cameraManager?.getStore().getCameraIDsWithCapability('recordings') ??
+          new Set<string>();
+
+        let additionalMedia: ViewMedia[] = [];
+        for (const camID of gridCameraIDs) {
+          if (camID === cameraID) {
+            continue;
+          }
+          const existingSelected = newResults.getSelectedResult(camID);
+          const hasCovering =
+            existingSelected &&
+            ViewItemClassifier.isMedia(existingSelected) &&
+            existingSelected.includesTime(targetTime);
+
+          if (!hasCovering && this.cameraManager) {
+            const recordingQuery: RecordingQuery = {
+              source: QuerySource.Camera,
+              type: QueryType.Recording,
+              cameraIDs: new Set([camID]),
+              start: sub(targetTime, { hours: 1 }),
+              end: add(targetTime, { hours: 1 }),
+            };
+            const queriedMedia = await this.cameraManager.executeMediaQueries(
+              [recordingQuery],
+              { useCache: true },
+            );
+            if (queriedMedia?.length) {
+              additionalMedia = [...additionalMedia, ...queriedMedia];
+            }
+          }
+        }
+
+        if (additionalMedia.length) {
+          const combinedItems = [...(newResults.getResults() ?? []), ...additionalMedia];
+          newResults = new QueryResults({ results: combinedItems });
+        }
+
+        newResults.selectBestResult(
+          (mediaArray) => findBestMediaTimeIndex(mediaArray, targetTime),
+          { allCameras: true },
+        );
+        newResults.selectResultIfFound((result) => result.getID() === item.getID(), {
+          main: true,
+          cameraID: cameraID ?? undefined,
         });
       }
+
+      void this.viewManagerEpoch.manager.setViewByParameters({
+        params: {
+          view: 'media',
+          queryResults: newResults,
+          query: this._query ?? undefined,
+          ...(cameraID && { camera: cameraID }),
+        },
+        modifiers,
+      });
+    } else {
+      navigateToMedia(item, {
+        viewManagerEpoch: this.viewManagerEpoch,
+        modifiers,
+      });
     }
   }
 
@@ -540,7 +609,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       const clickHandler = (item: ViewItem, ev: Event) => {
         stopEventFromActivatingCardWideActions(ev);
         if (ViewItemClassifier.isMedia(item)) {
-          this._handleMediaClick(item);
+          void this._handleMediaClick(item);
         } else if (ViewItemClassifier.isFolder(item)) {
           navigateToFolder(item, this._getFolderNavOptions());
         }

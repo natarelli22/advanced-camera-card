@@ -4,6 +4,7 @@ import { mock } from 'vitest-mock-extended';
 import type { MediaLoadedCapabilities, MediaPlayer } from '../../src/types';
 import {
   createMediaLoadedInfo,
+  dispatchMediaEndedEvent,
   dispatchMediaPauseEvent,
   dispatchMediaPlayEvent,
   dispatchMediaVolumeChangeEvent,
@@ -113,6 +114,18 @@ describe('dispatchMediaPauseEvent', () => {
     div.addEventListener('advanced-camera-card:media:pause', handler);
 
     dispatchMediaPauseEvent(div);
+    expect(handler).toHaveBeenCalled();
+  });
+});
+
+// @vitest-environment jsdom
+describe('dispatchMediaEndedEvent', () => {
+  it('should dispatch', () => {
+    const handler = vi.fn();
+    const div = document.createElement('div');
+    div.addEventListener('advanced-camera-card:media:ended', handler);
+
+    dispatchMediaEndedEvent(div);
     expect(handler).toHaveBeenCalled();
   });
 });

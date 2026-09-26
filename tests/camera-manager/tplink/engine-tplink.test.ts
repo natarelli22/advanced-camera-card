@@ -8,6 +8,7 @@ import {
   type BrowseMediaTPLinkCameraMetadata,
   type TPLinkEventQueryResults,
   type TPLinkRecordingQueryResults,
+  type TPLinkRecordingSegmentsQueryResults,
 } from '../../../src/camera-manager/tplink/types';
 import {
   CameraManagerRequestCache,
@@ -18,6 +19,7 @@ import {
   type PartialRecordingQuery,
   type QueryReturnType,
   type RecordingQuery,
+  type RecordingSegmentsQuery,
 } from '../../../src/camera-manager/types';
 import {
   BROWSE_MEDIA_CACHE_SECONDS,
@@ -261,6 +263,31 @@ describe('TPLinkQueryResultsClassifier', () => {
     expect(
       TPLinkQueryResultsClassifier.isTPLinkEventQueryResults({
         type: QueryResultsType.Recording,
+        engine: Engine.TPLink,
+      }),
+    ).toBeFalsy();
+  });
+
+  it('should correctly identify matching recording segments results', () => {
+    expect(
+      TPLinkQueryResultsClassifier.isTPLinkRecordingSegmentsQueryResults({
+        type: QueryResultsType.RecordingSegments,
+        engine: Engine.TPLink,
+      }),
+    ).toBeTruthy();
+  });
+
+  it('should correctly identify non-matching recording segments results', () => {
+    expect(
+      TPLinkQueryResultsClassifier.isTPLinkRecordingSegmentsQueryResults({
+        type: QueryResultsType.RecordingSegments,
+        engine: Engine.Generic,
+      }),
+    ).toBeFalsy();
+
+    expect(
+      TPLinkQueryResultsClassifier.isTPLinkRecordingSegmentsQueryResults({
+        type: QueryResultsType.Event,
         engine: Engine.TPLink,
       }),
     ).toBeFalsy();
@@ -775,6 +802,108 @@ describe('TPLinkCameraManagerEngine', () => {
       expect(
         engine.generateMediaFromRecordings(createHASS(), store, query, results),
       ).toBeNull();
+    });
+  });
+
+  describe('generateDefaultRecordingSegmentsQuery', () => {
+    it('should generate default recording segments query', () => {
+      const engine = createEngine();
+      const store = new CameraManagerStore();
+      const start = new Date(2026, 8, 26, 10, 0, 0);
+      const end = new Date(2026, 8, 26, 11, 0, 0);
+
+      const queries = engine.generateDefaultRecordingSegmentsQuery(
+        store,
+        new Set(['tapo_office']),
+        { start, end },
+      );
+
+      expect(queries).toEqual([
+        {
+          type: QueryType.RecordingSegments,
+          cameraIDs: new Set(['tapo_office']),
+          start,
+          end,
+        },
+      ]);
+    });
+
+    it('should return null if start or end is missing', () => {
+      const engine = createEngine();
+      const store = new CameraManagerStore();
+
+      expect(
+        engine.generateDefaultRecordingSegmentsQuery(
+          store,
+          new Set(['tapo_office']),
+          {},
+        ),
+      ).toBeNull();
+    });
+  });
+
+  describe('getRecordingSegments', () => {
+    it('should successfully get recording segments from continuous recordings', async () => {
+      const engine = createPopulatedEngine();
+      const store = await createStoreWithTPLinkCamera(engine);
+
+      vi.mocked(homeAssistantWSRequest)
+        .mockResolvedValueOnce(TEST_CAMERAS)
+        .mockResolvedValueOnce(TEST_DIRECTORIES)
+        .mockResolvedValueOnce(TEST_FILES);
+
+      const query: RecordingSegmentsQuery = {
+        type: QueryType.RecordingSegments,
+        cameraIDs: new Set(['tapo_office']),
+        start: new Date(2024, 10, 4, 0, 0, 0),
+        end: new Date(2024, 10, 4, 23, 59, 59),
+      };
+
+      const results = await engine.getRecordingSegments(createHASS(), store, query, {
+        useCache: false,
+      });
+
+      expect(results).not.toBeNull();
+      const firstResult = Array.from(
+        results?.values() ?? [],
+      )[0] as TPLinkRecordingSegmentsQueryResults;
+
+      expect(firstResult.engine).toBe(Engine.TPLink);
+      expect(firstResult.type).toBe(QueryResultsType.RecordingSegments);
+      expect(firstResult.segments.length).toBe(3);
+      expect(firstResult.segments[0]).toEqual({
+        start_time: 1730767200,
+        end_time: 1730767230,
+        id: 'media-source://tapo_control/tapo_control/?entry=tplink_config_entry_1&title=21%3A40%3A00',
+      });
+    });
+
+    it('should use request cache on repeat queries', async () => {
+      const requestCache = new CameraManagerRequestCache();
+      const engine = createPopulatedEngine({ requestCache });
+      const store = await createStoreWithTPLinkCamera(engine);
+
+      vi.mocked(homeAssistantWSRequest)
+        .mockResolvedValueOnce(TEST_CAMERAS)
+        .mockResolvedValueOnce(TEST_DIRECTORIES)
+        .mockResolvedValueOnce(TEST_FILES);
+
+      const query: RecordingSegmentsQuery = {
+        type: QueryType.RecordingSegments,
+        cameraIDs: new Set(['tapo_office']),
+        start: new Date(2024, 10, 4, 0, 0, 0),
+        end: new Date(2024, 10, 4, 23, 59, 59),
+      };
+
+      const results1 = await engine.getRecordingSegments(createHASS(), store, query);
+      expect(homeAssistantWSRequest).toHaveBeenCalledTimes(3);
+
+      const results2 = await engine.getRecordingSegments(createHASS(), store, query);
+      expect(homeAssistantWSRequest).toHaveBeenCalledTimes(3);
+
+      const first1 = Array.from(results1?.values() ?? [])[0];
+      const first2 = Array.from(results2?.values() ?? [])[0];
+      expect(first2).toEqual({ ...first1, cached: true });
     });
   });
 

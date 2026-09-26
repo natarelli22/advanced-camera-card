@@ -325,6 +325,63 @@ describe('navigateToMedia', () => {
     );
   });
 
+  it('should synchronize grid selections when in grid view', () => {
+    const api = createCardAPI();
+    const startTime = new Date('2024-01-01T12:00:00Z');
+    const view = createViewWithMedia({ displayMode: 'grid' });
+    vi.mocked(api.getViewManager().getView).mockReturnValue(view);
+
+    const media = mock<ViewMedia>();
+    vi.mocked(media.getCameraID).mockReturnValue('camera1');
+    vi.mocked(media.getStartTime).mockReturnValue(startTime);
+    vi.mocked(media.getID).mockReturnValue('target-id');
+
+    const options: MediaNavigationParamaters = {
+      viewManagerEpoch: {
+        manager: api.getViewManager(),
+      },
+    };
+
+    navigateToMedia(media, options);
+
+    expect(api.getViewManager().setViewByParameters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          view: 'media',
+          camera: 'camera1',
+        }),
+      }),
+    );
+  });
+
+  it('should not synchronize grid selections if media has no start time in grid view', () => {
+    const api = createCardAPI();
+    const view = createViewWithMedia({ displayMode: 'grid' });
+    vi.mocked(api.getViewManager().getView).mockReturnValue(view);
+
+    const media = mock<ViewMedia>();
+    vi.mocked(media.getCameraID).mockReturnValue('camera1');
+    vi.mocked(media.getStartTime).mockReturnValue(null);
+    vi.mocked(media.getID).mockReturnValue('target-id');
+
+    const options: MediaNavigationParamaters = {
+      viewManagerEpoch: {
+        manager: api.getViewManager(),
+      },
+    };
+
+    navigateToMedia(media, options);
+
+    expect(api.getViewManager().setViewByParameters).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: expect.objectContaining({
+          view: 'media',
+          camera: 'camera1',
+        }),
+      }),
+    );
+  });
+
   it('should preserve query when view has query', () => {
     const api = createCardAPI();
     const query = new UnifiedQuery();

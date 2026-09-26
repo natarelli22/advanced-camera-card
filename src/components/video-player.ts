@@ -22,8 +22,10 @@ import {
   MEDIA_LOAD_CONTROLS_HIDE_SECONDS,
   setControlsOnVideo,
 } from '../utils/controls';
+import { fireAdvancedCameraCardEvent } from '../utils/fire-advanced-camera-card-event';
 import {
   createMediaLoadedInfo,
+  dispatchMediaEndedEvent,
   dispatchMediaPauseEvent,
   dispatchMediaPlayEvent,
   dispatchMediaVolumeChangeEvent,
@@ -72,7 +74,10 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
     if (changedProperties.has('url') && this._refVideo.value) {
       setControlsOnVideo(this._refVideo.value, false);
     }
-    if ((changedProperties.has('url') || changedProperties.has('poster')) && this.poster) {
+    if (
+      (changedProperties.has('url') || changedProperties.has('poster')) &&
+      this.poster
+    ) {
       this._isPlaying = false;
     }
     if (changedProperties.has('controls') && this._refVideo.value) {
@@ -141,6 +146,21 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
         }}
         @play=${() => dispatchMediaPlayEvent(this)}
         @pause=${() => dispatchMediaPauseEvent(this)}
+        @ended=${() => dispatchMediaEndedEvent(this)}
+        @timeupdate=${() => {
+          if (this._refVideo.value) {
+            fireAdvancedCameraCardEvent(this, 'media:timeupdate', {
+              currentTime: this._refVideo.value.currentTime,
+            });
+          }
+        }}
+        @seeked=${() => {
+          if (this._refVideo.value) {
+            fireAdvancedCameraCardEvent(this, 'media:seeked', {
+              currentTime: this._refVideo.value.currentTime,
+            });
+          }
+        }}
       >
         <source src="${ifDefined(this.url)}" type="video/mp4" />
       </video>

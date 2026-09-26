@@ -41,9 +41,13 @@ import {
   type MediaMetadataQueryResults,
   type MediaMetadataQueryResultsMap,
   type PartialRecordingQuery,
+  type PartialRecordingSegmentsQuery,
   type QueryReturnType,
   type RecordingQuery,
   type RecordingQueryResultsMap,
+  type RecordingSegment,
+  type RecordingSegmentsQuery,
+  type RecordingSegmentsQueryResultsMap,
 } from '../types';
 import { TPLinkCamera } from './camera';
 import {
@@ -51,6 +55,7 @@ import {
   type BrowseMediaTPLinkCameraMetadata,
   type TPLinkEventQueryResults,
   type TPLinkRecordingQueryResults,
+  type TPLinkRecordingSegmentsQueryResults,
 } from './types';
 
 export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
@@ -349,6 +354,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
       end?: Date;
     } | null,
     engineOptions?: EngineOptions,
+    category?: 'events' | 'continuous',
   ): Promise<RichBrowseMedia<BrowseMediaMetadata>[] | null> {
     const entity = camera.getEntity();
     const configID = entity?.config_entry_id;
@@ -442,6 +448,29 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
       return false;
     };
 
+    const tplinkConfig = camera.getConfig()?.tplink;
+    const isEvents = category === 'events';
+    const isContinuous = category === 'continuous';
+
+    const customFolderName = isEvents
+      ? tplinkConfig?.events_folder?.toLowerCase()
+      : isContinuous
+        ? tplinkConfig?.continuous_folder?.toLowerCase()
+        : undefined;
+
+    const eventNames = customFolderName
+      ? [customFolderName]
+      : ['events', 'eventos', 'detections', 'detection events', 'motion'];
+    const continuousNames = customFolderName
+      ? [customFolderName]
+      : ['continuous', 'continuo', 'continuous recording', 'recordings', 'gravacoes'];
+
+    const targetCategoryNames = isEvents
+      ? eventNames
+      : isContinuous
+        ? continuousNames
+        : [];
+
     const storagePath = camera.getStoragePath(hass);
 
     if (storagePath && storagePath.startsWith('/media')) {
@@ -501,10 +530,113 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
           (c) => c.can_expand && c.title.toLowerCase() === 'videos',
         );
 
-        let targetsToSearchForDates: (string | RichBrowseMedia<BrowseMediaMetadata>)[] =
-          [];
         if (videoFolder) {
-          targetsToSearchForDates = [videoFolder.media_content_id];
+          const videosChildren = await this._browseMediaWalker.walk(
+            hass,
+            [
+              {
+                targets: [videoFolder.media_content_id],
+              },
+            ],
+            {
+              ...(engineOptions?.useCache !== false && { cache: this._cache }),
+            },
+          );
+
+          const matchedCategoryFolder = targetCategoryNames.length
+            ? videosChildren.find(
+                (c) =>
+                  c.can_expand &&
+                  targetCategoryNames.some(
+                    (n) =>
+                      c.title.toLowerCase() === n || c.title.toLowerCase().includes(n),
+                  ),
+              )
+            : null;
+
+          if (matchedCategoryFolder) {
+            const dateDirectories = await this._browseMediaWalker.walk(
+              hass,
+              [
+                {
+                  targets: [matchedCategoryFolder.media_content_id],
+                  metadataGenerator: (media: BrowseMedia) =>
+                    this._tplinkDirectoryMetadataGenerator(camera.getID(), media),
+                  matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) =>
+                    media.can_expand &&
+                    isMediaWithinDates(media, matchOptions?.start, matchOptions?.end),
+                  sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) =>
+                    sortMostRecentFirst(media),
+                },
+              ],
+              {
+                ...(engineOptions?.useCache !== false && { cache: this._cache }),
+              },
+            );
+            if (dateDirectories?.length) {
+              return dateDirectories;
+            }
+          } else if (isContinuous && targetCategoryNames.length) {
+            const hasEventsFolder = videosChildren.some(
+              (c) =>
+                c.can_expand &&
+                ['events', 'eventos', 'detections', 'motion'].some((n) =>
+                  c.title.toLowerCase().includes(n),
+                ),
+            );
+            if (hasEventsFolder) {
+              return null;
+            }
+          }
+
+          // Legacy layout: videosChildren are already the date folders (or flat files)
+          const dateFoldersDirect = videosChildren
+            .map((c) => ({
+              ...c,
+              _metadata: this._tplinkDirectoryMetadataGenerator(camera.getID(), c),
+            }))
+            .filter(
+              (c) =>
+                c.can_expand &&
+                c._metadata &&
+                isMediaWithinDates(
+                  c as RichBrowseMedia<BrowseMediaMetadata>,
+                  matchOptions?.start,
+                  matchOptions?.end,
+                ),
+            ) as RichBrowseMedia<BrowseMediaMetadata>[];
+
+          if (dateFoldersDirect.length > 0) {
+            return sortMostRecentFirst(dateFoldersDirect);
+          }
+
+          const hasDirectVideosInVideos = videosChildren.some(
+            (c) =>
+              !c.can_expand &&
+              (c.media_class === MEDIA_CLASS_VIDEO ||
+                c.can_play ||
+                c.media_content_type === 'video' ||
+                c.title.toLowerCase().endsWith('.mp4')),
+          );
+
+          if (hasDirectVideosInVideos) {
+            return [
+              {
+                title: cameraTitle ?? cameraID,
+                media_class: 'directory',
+                media_content_type: 'video',
+                media_content_id: videoFolder.media_content_id,
+                children_media_class: 'directory',
+                can_play: false,
+                can_expand: true,
+                _metadata: {
+                  cameraID: camera.getID(),
+                  startDate: new Date(0),
+                  endDate: new Date(8640000000000000),
+                },
+              } as RichBrowseMedia<BrowseMediaMetadata>,
+            ];
+          }
         } else {
           // If no 'videos' subfolder, check if cameraFoldersContent already contains date folders
           const dateFoldersDirect = cameraFoldersContent
@@ -556,75 +688,6 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
                 }) as RichBrowseMedia<BrowseMediaMetadata>,
             );
           }
-
-          targetsToSearchForDates = cameraFolderUris;
-        }
-
-        // Search for date directories inside targetsToSearchForDates (e.g. inside 'videos' folder)
-        let dateDirectories = await this._browseMediaWalker.walk(
-          hass,
-          [
-            {
-              targets: targetsToSearchForDates,
-              metadataGenerator: (media: BrowseMedia) =>
-                this._tplinkDirectoryMetadataGenerator(camera.getID(), media),
-              matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) =>
-                media.can_expand &&
-                isMediaWithinDates(media, matchOptions?.start, matchOptions?.end),
-              sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) =>
-                sortMostRecentFirst(media),
-            },
-          ],
-          {
-            ...(engineOptions?.useCache !== false && { cache: this._cache }),
-          },
-        );
-
-        // If no date directories were found inside videos, check if videos contains flat video files directly
-        if (!dateDirectories?.length && videoFolder) {
-          const videosChildren = await this._browseMediaWalker.walk(
-            hass,
-            [
-              {
-                targets: [videoFolder.media_content_id],
-              },
-            ],
-            {
-              ...(engineOptions?.useCache !== false && { cache: this._cache }),
-            },
-          );
-
-          const hasDirectVideosInVideos = videosChildren.some(
-            (c) =>
-              !c.can_expand &&
-              (c.media_class === MEDIA_CLASS_VIDEO ||
-                c.can_play ||
-                c.media_content_type === 'video' ||
-                c.title.toLowerCase().endsWith('.mp4')),
-          );
-
-          if (hasDirectVideosInVideos) {
-            dateDirectories = [
-              {
-                title: cameraTitle ?? cameraID,
-                media_class: 'directory',
-                media_content_type: 'video',
-                media_content_id: videoFolder.media_content_id,
-                children_media_class: 'directory',
-                can_play: false,
-                can_expand: true,
-                _metadata: {
-                  cameraID: camera.getID(),
-                  startDate: new Date(0),
-                  endDate: new Date(8640000000000000),
-                },
-              } as RichBrowseMedia<BrowseMediaMetadata>,
-            ];
-          }
-        }
-
-        if (dateDirectories?.length) {
-          return dateDirectories;
         }
       }
     }
@@ -701,6 +764,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
         cameraID,
         perCameraQuery,
         engineOptions,
+        'events',
       );
 
       const results: TPLinkEventQueryResults = {
@@ -777,6 +841,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
         cameraID,
         perCameraQuery,
         engineOptions,
+        'continuous',
       );
 
       const results: TPLinkRecordingQueryResults = {
@@ -812,6 +877,84 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     return getViewMediaFromBrowseMediaArray(results.browseMedia);
   }
 
+  public generateDefaultRecordingSegmentsQuery(
+    _store: CameraManagerReadOnlyConfigStore,
+    cameraIDs: Set<string>,
+    query?: PartialRecordingSegmentsQuery,
+  ): RecordingSegmentsQuery[] | null {
+    if (!query?.start || !query?.end) {
+      return null;
+    }
+    return [
+      {
+        type: QueryType.RecordingSegments,
+        cameraIDs: cameraIDs,
+        start: query.start,
+        end: query.end,
+        ...query,
+      },
+    ];
+  }
+
+  public async getRecordingSegments(
+    hass: HomeAssistant,
+    store: CameraManagerReadOnlyConfigStore,
+    query: RecordingSegmentsQuery,
+    engineOptions?: EngineOptions,
+  ): Promise<RecordingSegmentsQueryResultsMap | null> {
+    const output: RecordingSegmentsQueryResultsMap = new Map();
+    const getSegmentsForCamera = async (cameraID: string): Promise<void> => {
+      const perCameraQuery = { ...query, cameraIDs: new Set([cameraID]) };
+      const cachedResult =
+        engineOptions?.useCache ?? true ? this._requestCache.get(perCameraQuery) : null;
+      if (cachedResult) {
+        output.set(perCameraQuery, cachedResult as TPLinkRecordingSegmentsQueryResults);
+        return;
+      }
+
+      const sortedMedia = await this._getBrowseMediaForCamera(
+        hass,
+        store,
+        cameraID,
+        perCameraQuery,
+        engineOptions,
+        'continuous',
+      );
+
+      const segments: RecordingSegment[] = [];
+      for (const m of sortedMedia) {
+        const startDate = m._metadata?.startDate;
+        const endDate = m._metadata?.endDate;
+        if (startDate && endDate) {
+          segments.push({
+            start_time: Math.floor(startDate.getTime() / 1000),
+            end_time: Math.ceil(endDate.getTime() / 1000),
+            id: m.media_content_id,
+          });
+        }
+      }
+
+      const results: TPLinkRecordingSegmentsQueryResults = {
+        engine: Engine.TPLink,
+        type: QueryResultsType.RecordingSegments,
+        segments: segments,
+        expiry: add(new Date(), { seconds: BROWSE_MEDIA_CACHE_SECONDS }),
+      };
+
+      if (engineOptions?.useCache ?? true) {
+        this._requestCache.set(
+          perCameraQuery,
+          { ...results, cached: true },
+          results.expiry,
+        );
+      }
+      output.set(perCameraQuery, results);
+    };
+
+    await allPromises(query.cameraIDs, (cameraID) => getSegmentsForCamera(cameraID));
+    return output;
+  }
+
   public override getQueryResultMaxAge(query: CameraQuery): number | null {
     if (query.type === QueryType.Event || query.type === QueryType.Recording) {
       return BROWSE_MEDIA_CACHE_SECONDS;
@@ -823,16 +966,45 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     hass: HomeAssistant,
     store: CameraManagerReadOnlyConfigStore,
     cameraID: string,
-    query: EventQuery | RecordingQuery,
+    query: EventQuery | RecordingQuery | RecordingSegmentsQuery,
     engineOptions?: EngineOptions,
+    category?: 'events' | 'continuous',
   ): Promise<RichBrowseMedia<BrowseMediaMetadata>[]> {
     const camera = store.getCamera(cameraID);
     const directories =
       camera && camera instanceof TPLinkCamera
-        ? await this._getMatchingDirectories(hass, camera, query, engineOptions)
+        ? await this._getMatchingDirectories(
+            hass,
+            camera,
+            query,
+            engineOptions,
+            category,
+          )
         : null;
-    const limit = query.limit ?? CAMERA_MANAGER_ENGINE_EVENT_LIMIT_DEFAULT;
+    const limit =
+      'limit' in query && query.limit
+        ? query.limit
+        : CAMERA_MANAGER_ENGINE_EVENT_LIMIT_DEFAULT;
     let media: RichBrowseMedia<BrowseMediaMetadata>[] = [];
+
+    const tplinkConfig = camera?.getConfig()?.tplink;
+    const isEvents = category === 'events';
+    const isContinuous = category === 'continuous';
+    const customFolderName = isEvents
+      ? tplinkConfig?.events_folder?.toLowerCase()
+      : isContinuous
+        ? tplinkConfig?.continuous_folder?.toLowerCase()
+        : undefined;
+
+    const targetCategoryNames = isEvents
+      ? customFolderName
+        ? [customFolderName]
+        : ['events', 'eventos', 'detections', 'detection events', 'motion']
+      : isContinuous
+        ? customFolderName
+          ? [customFolderName]
+          : ['continuous', 'continuo', 'continuous recording', 'recordings', 'gravacoes']
+        : [];
 
     if (directories?.length) {
       media = await this._browseMediaWalker.walk(
@@ -845,11 +1017,43 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
               media: BrowseMedia,
               parent?: RichBrowseMedia<BrowseMediaMetadata>,
             ) => this._tplinkFileMetadataGenerator(cameraID, media, parent),
-            earlyExit: (media) => media.length >= limit,
-            matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) =>
-              !media.can_expand && isMediaWithinDates(media, query.start, query.end),
+            earlyExit: (media) => media.filter((m) => !m.can_expand).length >= limit,
+            matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) => {
+              if (media.can_expand) {
+                return (
+                  targetCategoryNames.length > 0 &&
+                  targetCategoryNames.some(
+                    (n) =>
+                      media.title.toLowerCase().includes(n) ||
+                      media.media_content_id.toLowerCase().includes(`category=${n}`),
+                  )
+                );
+              }
+              return isMediaWithinDates(media, query.start, query.end);
+            },
             sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) =>
               sortMostRecentFirst(media),
+            advance: (media: RichBrowseMedia<BrowseMediaMetadata>[]) => {
+              const categoryDirs = media.filter((m) => m.can_expand);
+              if (!categoryDirs.length) {
+                return [];
+              }
+              return [
+                {
+                  targets: categoryDirs,
+                  concurrency: 1,
+                  metadataGenerator: (
+                    media: BrowseMedia,
+                    parent?: RichBrowseMedia<BrowseMediaMetadata>,
+                  ) => this._tplinkFileMetadataGenerator(cameraID, media, parent),
+                  earlyExit: (m) => m.length >= limit,
+                  matcher: (m: RichBrowseMedia<BrowseMediaMetadata>) =>
+                    !m.can_expand && isMediaWithinDates(m, query.start, query.end),
+                  sorter: (m: RichBrowseMedia<BrowseMediaMetadata>[]) =>
+                    sortMostRecentFirst(m),
+                },
+              ];
+            },
           },
         ],
         {
@@ -859,7 +1063,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     }
 
     return orderBy(
-      media,
+      media.filter((m) => !m.can_expand),
       (media: RichBrowseMedia<BrowseMediaMetadata>) => media._metadata?.startDate,
       'desc',
     ).slice(0, limit);

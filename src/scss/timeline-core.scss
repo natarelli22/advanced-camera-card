@@ -205,6 +205,15 @@ div.vis-tooltip {
   // Prevent the mouse interacting with the custom time.
   pointer-events: none;
 }
+.playhead_bar {
+  background-color: var(
+    --advanced-camera-card-timeline-playhead-color,
+    var(--primary-color, #ff9800)
+  );
+  width: 2px;
+  z-index: 25;
+  pointer-events: none;
+}
 .target_bar .vis-custom-time-marker {
   background-color: var(--advanced-camera-card-timeline-background);
   color: var(--advanced-camera-card-timeline-text-color);

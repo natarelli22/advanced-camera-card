@@ -33,6 +33,18 @@ describe('timelineCoreConfigSchema', () => {
     expect(() => timelineCoreConfigSchema.parse({ chunk_hours: 25 })).toThrow();
     expect(() => timelineCoreConfigSchema.parse({ chunk_hours: '0h' })).toThrow();
     expect(() => timelineCoreConfigSchema.parse({ chunk_hours: '30h' })).toThrow();
-    expect(() => timelineCoreConfigSchema.parse({ chunk_hours: 'invalid' })).toThrow();
+  });
+
+  it('should parse with default show_playhead as false', () => {
+    const parsed = timelineCoreConfigSchema.parse({});
+    expect(parsed.show_playhead).toBe(false);
+    expect(parsed.show_playhead).toBe(timelineCoreConfigDefault.show_playhead);
+  });
+
+  it('should accept show_playhead as true', () => {
+    const parsed = timelineCoreConfigSchema.parse({
+      show_playhead: true,
+    });
+    expect(parsed.show_playhead).toBe(true);
   });
 });

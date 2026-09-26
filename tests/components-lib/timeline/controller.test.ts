@@ -61,6 +61,7 @@ const createTimelineConfig = (
   show_recordings: false,
   show_pan_control: true,
   show_next_previous: true,
+  show_playhead: false,
   style,
   format: { '24h': true },
   pan_mode: panMode,
@@ -619,17 +620,18 @@ describe('TimelineController', () => {
 
       const source = harness.controller['_source'] as TimelineDataSource;
       const originalGet = source.dataset.get.bind(source.dataset);
-      vi.spyOn(source.dataset, 'get').mockImplementation(
-        ((id: unknown, ...args: unknown[]) => {
-          if (id === 'non-existent-clip') {
-            return null;
-          }
-          return (originalGet as (i: unknown, ...a: unknown[]) => unknown)(
-            id,
-            ...args,
-          ) as ReturnType<typeof source.dataset.get>;
-        }) as unknown as typeof source.dataset.get,
-      );
+      vi.spyOn(source.dataset, 'get').mockImplementation(((
+        id: unknown,
+        ...args: unknown[]
+      ) => {
+        if (id === 'non-existent-clip') {
+          return null;
+        }
+        return (originalGet as (i: unknown, ...a: unknown[]) => unknown)(
+          id,
+          ...args,
+        ) as ReturnType<typeof source.dataset.get>;
+      }) as unknown as typeof source.dataset.get);
 
       vi.mocked(harness.timeline.setSelection).mockClear();
       vi.mocked(harness.manager.getView).mockReturnValue(

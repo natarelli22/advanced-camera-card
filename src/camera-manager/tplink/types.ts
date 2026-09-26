@@ -5,6 +5,8 @@ import {
   type EventQueryResults,
   type QueryResults,
   type RecordingQueryResults,
+  type RecordingSegment,
+  type RecordingSegmentsQueryResults,
 } from '../types';
 
 export class TPLinkQueryResultsClassifier {
@@ -21,6 +23,15 @@ export class TPLinkQueryResultsClassifier {
       results.engine === Engine.TPLink && results.type === QueryResultsType.Recording
     );
   }
+
+  public static isTPLinkRecordingSegmentsQueryResults(
+    results: QueryResults,
+  ): results is TPLinkRecordingSegmentsQueryResults {
+    return (
+      results.engine === Engine.TPLink &&
+      results.type === QueryResultsType.RecordingSegments
+    );
+  }
 }
 
 export interface TPLinkEventQueryResults extends EventQueryResults {
@@ -31,6 +42,12 @@ export interface TPLinkEventQueryResults extends EventQueryResults {
 export interface TPLinkRecordingQueryResults extends RecordingQueryResults {
   engine: Engine.TPLink;
   browseMedia: RichBrowseMedia<BrowseMediaMetadata>[];
+}
+
+export interface TPLinkRecordingSegmentsQueryResults
+  extends RecordingSegmentsQueryResults {
+  engine: Engine.TPLink;
+  segments: RecordingSegment[];
 }
 
 export interface BrowseMediaTPLinkCameraMetadata extends BrowseMediaMetadata {

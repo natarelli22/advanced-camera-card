@@ -306,12 +306,14 @@ export class ViewQueryExecutor {
     } else if (options?.selectResult?.func) {
       queryResults.selectResultIfFound(options.selectResult.func);
     } else if (timeSelection) {
-      queryResults.selectBestResult((itemArray) =>
-        findBestMediaTimeIndex(
-          itemArray,
-          timeSelection.time,
-          timeSelection.favorCameraID,
-        ),
+      queryResults.selectBestResult(
+        (itemArray) =>
+          findBestMediaTimeIndex(
+            itemArray,
+            timeSelection.time,
+            timeSelection.favorCameraID,
+          ),
+        { allCameras: true },
       );
     }
 

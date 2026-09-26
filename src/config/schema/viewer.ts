@@ -30,6 +30,9 @@ export const viewerConfigDefault = {
   zoomable: true,
   transition_effect: 'slide' as const,
   snapshot_click_plays_clip: true,
+  grid: {
+    sync_playback: true,
+  },
   controls: {
     builtin: true,
     next_previous: {
@@ -62,6 +65,14 @@ const viewerNextPreviousControlConfigSchema = nextPreviousControlConfigSchema.ex
   ),
 });
 
+const viewerGridConfigDefault = viewerConfigDefault.grid;
+
+const viewerGridConfigSchema = z
+  .object({
+    sync_playback: z.boolean().default(viewerGridConfigDefault.sync_playback),
+  })
+  .default(viewerGridConfigDefault);
+
 export const viewerConfigSchema = z
   .object({
     auto_play: z
@@ -93,6 +104,7 @@ export const viewerConfigSchema = z
     snapshot_click_plays_clip: z
       .boolean()
       .default(viewerConfigDefault.snapshot_click_plays_clip),
+    grid: viewerGridConfigSchema.default(viewerConfigDefault.grid),
     display: viewDisplaySchema,
     controls: z
       .object({

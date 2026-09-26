@@ -87,6 +87,7 @@ interface TimelineControllerOptions {
 }
 
 const TIMELINE_TARGET_BAR_ID = 'target_bar';
+const TIMELINE_PLAYHEAD_ID = 'playhead_bar';
 
 export class TimelineController {
   private _host: LitElement;
@@ -108,6 +109,8 @@ export class TimelineController {
 
   private _panMode: TimelinePanMode | null = null;
   private _targetBarVisible = false;
+  private _playheadVisible = false;
+  private _boundTimeUpdate = this._handleTimeUpdate.bind(this);
   private _itemClickAction: TimelineItemClickAction = 'play';
 
   private _thumbnailConfig: ThumbnailsControlBaseConfig | null = null;
@@ -136,6 +139,11 @@ export class TimelineController {
   }
 
   public destroyTimeline(): void {
+    window.removeEventListener(
+      'advanced-camera-card:media:timeupdate',
+      this._boundTimeUpdate,
+    );
+    this._removePlayhead();
     this._timeline?.destroy();
     this._timeline = null;
     this._targetBarVisible = false;
@@ -244,6 +252,12 @@ export class TimelineController {
     }
 
     this._viewManagerEpoch = viewManagerEpoch ?? null;
+    if (
+      this._playheadVisible &&
+      !this._viewManagerEpoch?.manager.getView()?.queryResults?.getSelectedResult()
+    ) {
+      this._removePlayhead();
+    }
     await this._updateTimelineFromView();
   }
 
@@ -368,11 +382,53 @@ export class TimelineController {
       this._removeTargetBar();
     });
 
+    window.addEventListener(
+      'advanced-camera-card:media:timeupdate',
+      this._boundTimeUpdate,
+    );
+
     return true;
   }
 
   private _shouldShowGroups(): boolean {
     return !this._mini || (this._source?.groups.length ?? 0) > 1;
+  }
+
+  private _handleTimeUpdate(ev: Event): void {
+    if (!this._timelineConfig?.show_playhead || !this._timeline) {
+      this._removePlayhead();
+      return;
+    }
+    const detail = (ev as CustomEvent<{ currentTime: number }>).detail;
+    if (!detail || typeof detail.currentTime !== 'number') {
+      return;
+    }
+    const view = this._viewManagerEpoch?.manager.getView();
+    const selectedMedia = view?.queryResults?.getSelectedResult();
+    if (!selectedMedia || !ViewItemClassifier.isMedia(selectedMedia)) {
+      this._removePlayhead();
+      return;
+    }
+    const startTime = selectedMedia.getStartTime();
+    if (!startTime) {
+      this._removePlayhead();
+      return;
+    }
+
+    const currentRealTime = new Date(startTime.getTime() + detail.currentTime * 1000);
+    if (!this._playheadVisible) {
+      this._timeline.addCustomTime(currentRealTime, TIMELINE_PLAYHEAD_ID);
+      this._playheadVisible = true;
+    } else {
+      this._timeline.setCustomTime(currentRealTime, TIMELINE_PLAYHEAD_ID);
+    }
+  }
+
+  private _removePlayhead(): void {
+    if (this._playheadVisible) {
+      this._timeline?.removeCustomTime(TIMELINE_PLAYHEAD_ID);
+      this._playheadVisible = false;
+    }
   }
 
   private _setTargetBarAppropriately(targetTime: Date): void {

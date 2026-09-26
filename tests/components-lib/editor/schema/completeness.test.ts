@@ -104,6 +104,14 @@ const EDITOR_EXCLUDED = [
   'timeline.format.locale',
   'live.controls.timeline.format.locale',
   'media_viewer.controls.timeline.format.locale',
+
+  // Timeline playhead (text-editor / YAML only)
+  'timeline.show_playhead',
+  'live.controls.timeline.show_playhead',
+  'media_viewer.controls.timeline.show_playhead',
+
+  // Grid playback synchronization (text-editor / YAML only)
+  'media_viewer.grid.sync_playback',
 ];
 
 // Every section's forms, keyed by section, so the harness walks the full

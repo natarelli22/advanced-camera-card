@@ -306,9 +306,9 @@ export class MediaGridController {
   private _hostResizeHandler(): void {
     const dimensions = this._host.getBoundingClientRect();
 
-    // Only resize things if the width has changed. It is expected that the
-    // height may change during the layout.
-    if (dimensions.width !== this._hostWidth) {
+    // Only resize things if the width has changed and the container is visible (> 0).
+    // It is expected that the height may change during the layout.
+    if (dimensions.width > 0 && dimensions.width !== this._hostWidth) {
       this._hostWidth = dimensions.width;
       this._applyCellSize();
     }

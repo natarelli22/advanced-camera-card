@@ -25,6 +25,7 @@ import type { ViewerConfig } from '../../config/schema/viewer.js';
 import type { ResolvedMediaCache } from '../../ha/resolved-media.js';
 import type { HomeAssistant } from '../../ha/types.js';
 import { localize } from '../../localize/localize.js';
+import type { MediaPlayerController } from '../../types.js';
 
 import '../../patches/ha-hls-player.js';
 
@@ -539,6 +540,29 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
         ></advanced-camera-card-viewer-provider>`,
       )}
     </div>`;
+  }
+
+  public async getMediaPlayerController(): Promise<MediaPlayerController | null> {
+    return this._mediaLoadedInfoSinkController.get()?.mediaPlayerController ?? null;
+  }
+
+  public async play(): Promise<void> {
+    const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
+    await controller?.playback?.play();
+  }
+
+  public async pause(): Promise<void> {
+    const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
+    await controller?.playback?.pause();
+  }
+
+  public async seek(seconds: number): Promise<void> {
+    const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
+    await controller?.seek?.(seconds);
+  }
+
+  public getSelectedMedia(): ViewMedia | null {
+    return this._media && this._selected !== null ? this._media[this._selected] : null;
   }
 
   static get styles(): CSSResultGroup {
