@@ -872,8 +872,8 @@ describe('TPLinkCameraManagerEngine', () => {
       expect(firstResult.type).toBe(QueryResultsType.RecordingSegments);
       expect(firstResult.segments.length).toBe(3);
       expect(firstResult.segments[0]).toEqual({
-        start_time: 1730767200,
-        end_time: 1730767230,
+        start_time: Math.floor(new Date(2024, 10, 4, 21, 40, 0).getTime() / 1000),
+        end_time: Math.floor(new Date(2024, 10, 4, 21, 40, 30).getTime() / 1000),
         id: 'media-source://tapo_control/tapo_control/?entry=tplink_config_entry_1&title=21%3A40%3A00',
       });
     });
