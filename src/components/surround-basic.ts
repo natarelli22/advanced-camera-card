@@ -9,6 +9,8 @@ import {
 import { customElement, property } from 'lit/decorators.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
+import type { ViewManagerEpoch } from '../card-controller/view/types.js';
+import type { ThumbnailsControlConfig } from '../config/schema/common/controls/thumbnails.js';
 import surroundBasicStyle from '../scss/surround-basic.scss?inline';
 import { contentsChanged } from '../utils/basic.js';
 
@@ -30,6 +32,12 @@ export class AdvancedCameraCardSurroundBasic extends LitElement {
 
   @property({ attribute: false })
   public locked?: boolean;
+
+  @property({ attribute: false })
+  public thumbnailConfig?: ThumbnailsControlConfig;
+
+  @property({ attribute: false })
+  public viewManagerEpoch?: ViewManagerEpoch;
 
   private _refDrawerLeft: Ref<AdvancedCameraCardDrawer> = createRef();
   private _refDrawerRight: Ref<AdvancedCameraCardDrawer> = createRef();
@@ -70,6 +78,9 @@ export class AdvancedCameraCardSurroundBasic extends LitElement {
   protected updated(changedProps: PropertyValues): void {
     super.updated(changedProps);
     this._updateDrawerButtonPosition();
+    if (this.thumbnailConfig?.position === 'selected') {
+      window.requestAnimationFrame?.(() => this._updateDrawerButtonPosition());
+    }
   }
 
   private _getMainElement(): Element | null {
@@ -94,6 +105,21 @@ export class AdvancedCameraCardSurroundBasic extends LitElement {
     this._updateDrawerButtonPosition();
   }
 
+  private _findSelectedElement(element: Element): Element | null {
+    const root = element.shadowRoot ?? element;
+    const selected = root.querySelector('[selected]');
+    if (selected) {
+      return selected;
+    }
+    for (const child of Array.from(root.children)) {
+      const found = this._findSelectedElement(child);
+      if (found) {
+        return found;
+      }
+    }
+    return null;
+  }
+
   private _updateDrawerButtonPosition(): void {
     const mainElement = this._observedMainElement ?? this._getMainElement();
     if (!mainElement) {
@@ -107,7 +133,37 @@ export class AdvancedCameraCardSurroundBasic extends LitElement {
       return;
     }
 
-    const center = mainRect.top - hostRect.top + mainRect.height / 2;
+    const position = this.thumbnailConfig?.position ?? 'center';
+    let center: number;
+
+    if (position === 'selected') {
+      const selectedElement = this._findSelectedElement(mainElement);
+      const targetRect =
+        selectedElement && selectedElement.getBoundingClientRect().height > 0
+          ? selectedElement.getBoundingClientRect()
+          : mainRect;
+      center = targetRect.top - hostRect.top + targetRect.height / 2;
+    } else if (position === 'top') {
+      center = mainRect.top - hostRect.top + mainRect.height * 0.25;
+    } else if (position === 'bottom') {
+      center = mainRect.top - hostRect.top + mainRect.height * 0.75;
+    } else if (typeof position === 'string' && position.trim().endsWith('%')) {
+      const percent = parseFloat(position);
+      center = !isNaN(percent)
+        ? mainRect.top - hostRect.top + (mainRect.height * percent) / 100
+        : mainRect.top - hostRect.top + mainRect.height / 2;
+    } else if (
+      typeof position === 'number' ||
+      (typeof position === 'string' && /^\d+(\.\d+)?(px)?$/.test(position.trim()))
+    ) {
+      const pixels = parseFloat(String(position));
+      center = !isNaN(pixels)
+        ? mainRect.top - hostRect.top + pixels
+        : mainRect.top - hostRect.top + mainRect.height / 2;
+    } else {
+      center = mainRect.top - hostRect.top + mainRect.height / 2;
+    }
+
     this.style.setProperty(
       '--advanced-camera-card-drawer-button-top',
       `${Math.round(center)}px`,

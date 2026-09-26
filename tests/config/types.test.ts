@@ -123,6 +123,7 @@ describe('config defaults', () => {
           thumbnails: {
             chunk_hours: 24,
             mode: 'right',
+            position: 'center',
             show_details: true,
             show_download_control: false,
             show_favorite_control: true,
@@ -210,6 +211,7 @@ describe('config defaults', () => {
           thumbnails: {
             chunk_hours: 24,
             mode: 'right',
+            position: 'center',
             show_details: true,
             show_download_control: false,
             show_favorite_control: true,
@@ -510,6 +512,7 @@ describe('config defaults', () => {
           thumbnails: {
             chunk_hours: 24,
             mode: 'right',
+            position: 'center',
             show_details: true,
             show_download_control: false,
             show_favorite_control: true,

@@ -206,4 +206,184 @@ describe('AdvancedCameraCardSurroundBasic', () => {
     document.body.removeChild(element);
     expect(observer?.disconnect).toHaveBeenCalled();
   });
+
+  it('should calculate drawer button top for position top and bottom', () => {
+    const element = document.createElement(
+      'advanced-camera-card-surround-basic',
+    ) as AdvancedCameraCardSurroundBasic;
+    document.body.appendChild(element);
+
+    const mainChild = document.createElement('div');
+    element.appendChild(mainChild);
+
+    vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      height: 400,
+      bottom: 400,
+      left: 0,
+      right: 400,
+      width: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    vi.spyOn(mainChild, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      height: 400,
+      bottom: 400,
+      left: 0,
+      right: 400,
+      width: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    // top: 25% of 400 = 100px
+    element.thumbnailConfig = {
+      mode: 'right',
+      position: 'top',
+    } as unknown as typeof element.thumbnailConfig;
+    (
+      element as unknown as { _updateDrawerButtonPosition: () => void }
+    )._updateDrawerButtonPosition();
+    expect(
+      element.style.getPropertyValue('--advanced-camera-card-drawer-button-top'),
+    ).toBe('100px');
+
+    // bottom: 75% of 400 = 300px
+    element.thumbnailConfig = {
+      mode: 'right',
+      position: 'bottom',
+    } as unknown as typeof element.thumbnailConfig;
+    (
+      element as unknown as { _updateDrawerButtonPosition: () => void }
+    )._updateDrawerButtonPosition();
+    expect(
+      element.style.getPropertyValue('--advanced-camera-card-drawer-button-top'),
+    ).toBe('300px');
+
+    // custom percent '10%' of 400 = 40px
+    element.thumbnailConfig = {
+      mode: 'right',
+      position: '10%',
+    } as unknown as typeof element.thumbnailConfig;
+    (
+      element as unknown as { _updateDrawerButtonPosition: () => void }
+    )._updateDrawerButtonPosition();
+    expect(
+      element.style.getPropertyValue('--advanced-camera-card-drawer-button-top'),
+    ).toBe('40px');
+
+    // custom pixel 150
+    element.thumbnailConfig = {
+      mode: 'right',
+      position: 150,
+    } as unknown as typeof element.thumbnailConfig;
+    (
+      element as unknown as { _updateDrawerButtonPosition: () => void }
+    )._updateDrawerButtonPosition();
+    expect(
+      element.style.getPropertyValue('--advanced-camera-card-drawer-button-top'),
+    ).toBe('150px');
+
+    document.body.removeChild(element);
+  });
+
+  it('should calculate drawer button top for position selected', () => {
+    const element = document.createElement(
+      'advanced-camera-card-surround-basic',
+    ) as AdvancedCameraCardSurroundBasic;
+    document.body.appendChild(element);
+
+    const mainChild = document.createElement('div');
+    const cell1 = document.createElement('div');
+    const cell2 = document.createElement('div');
+    cell2.setAttribute('selected', '');
+    mainChild.appendChild(cell1);
+    mainChild.appendChild(cell2);
+    element.appendChild(mainChild);
+
+    vi.spyOn(element, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      height: 400,
+      bottom: 400,
+      left: 0,
+      right: 400,
+      width: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    vi.spyOn(mainChild, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      height: 400,
+      bottom: 400,
+      left: 0,
+      right: 400,
+      width: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    // Cell 2 (selected) is at top: 200, height: 200 -> center should be 200 + 100 = 300px
+    vi.spyOn(cell2, 'getBoundingClientRect').mockReturnValue({
+      top: 200,
+      height: 200,
+      bottom: 400,
+      left: 0,
+      right: 400,
+      width: 400,
+      x: 0,
+      y: 200,
+      toJSON: () => ({}),
+    });
+
+    element.thumbnailConfig = {
+      mode: 'right',
+      position: 'selected',
+    } as unknown as typeof element.thumbnailConfig;
+    (
+      element as unknown as { _updateDrawerButtonPosition: () => void }
+    )._updateDrawerButtonPosition();
+    expect(
+      element.style.getPropertyValue('--advanced-camera-card-drawer-button-top'),
+    ).toBe('300px');
+
+    // When cell 1 is selected instead: top: 0, height: 200 -> center should be 0 + 100 = 100px
+    cell2.removeAttribute('selected');
+    cell1.setAttribute('selected', '');
+    vi.spyOn(cell1, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      height: 200,
+      bottom: 200,
+      left: 0,
+      right: 400,
+      width: 400,
+      x: 0,
+      y: 0,
+      toJSON: () => ({}),
+    });
+
+    (
+      element as unknown as { _updateDrawerButtonPosition: () => void }
+    )._updateDrawerButtonPosition();
+    expect(
+      element.style.getPropertyValue('--advanced-camera-card-drawer-button-top'),
+    ).toBe('100px');
+
+    // Fallback when nothing is selected
+    cell1.removeAttribute('selected');
+    (
+      element as unknown as { _updateDrawerButtonPosition: () => void }
+    )._updateDrawerButtonPosition();
+    expect(
+      element.style.getPropertyValue('--advanced-camera-card-drawer-button-top'),
+    ).toBe('200px');
+
+    document.body.removeChild(element);
+  });
 });

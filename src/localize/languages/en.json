@@ -295,6 +295,13 @@
             "none": "None",
             "right": "Right drawer"
           },
+          "position": "Drawer button position",
+          "positions": {
+            "bottom": "Bottom",
+            "center": "Center",
+            "selected": "Selected camera",
+            "top": "Top"
+          },
           "show_details": "Show details",
           "show_download_control": "Show download control",
           "show_favorite_control": "Show favorite control",

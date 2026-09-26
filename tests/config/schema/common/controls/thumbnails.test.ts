@@ -47,9 +47,26 @@ describe('thumbnailsControlBaseSchema', () => {
 });
 
 describe('thumbnailsControlSchema', () => {
-  it('should parse with default mode and chunk_hours', () => {
+  it('should parse with default mode, position, and chunk_hours', () => {
     const parsed = thumbnailsControlSchema.parse({});
     expect(parsed.mode).toBe('right');
+    expect(parsed.position).toBe('center');
     expect(parsed.chunk_hours).toBe(24);
+  });
+
+  it('should accept valid position values', () => {
+    expect(thumbnailsControlSchema.parse({ position: 'selected' }).position).toBe(
+      'selected',
+    );
+    expect(thumbnailsControlSchema.parse({ position: 'top' }).position).toBe('top');
+    expect(thumbnailsControlSchema.parse({ position: 'bottom' }).position).toBe(
+      'bottom',
+    );
+    expect(thumbnailsControlSchema.parse({ position: 'center' }).position).toBe(
+      'center',
+    );
+    expect(thumbnailsControlSchema.parse({ position: '25%' }).position).toBe('25%');
+    expect(thumbnailsControlSchema.parse({ position: '150px' }).position).toBe('150px');
+    expect(thumbnailsControlSchema.parse({ position: 200 }).position).toBe(200);
   });
 });

@@ -123,6 +123,13 @@
             "none": "Sem miniaturas",
             "right": "Miniaturas em uma gaveta à direita"
           },
+          "position": "Posição do botão da gaveta",
+          "positions": {
+            "bottom": "Inferior",
+            "center": "Centro",
+            "selected": "Câmera selecionada",
+            "top": "Superior"
+          },
           "show_details": "Mostrar detalhes com miniaturas",
           "show_download_control": "Mostrar controle de download nas miniaturas",
           "show_favorite_control": "Mostrar controle de favorito nas miniaturas",

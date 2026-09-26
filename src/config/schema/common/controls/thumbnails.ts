@@ -53,14 +53,27 @@ export const thumbnailsControlBaseSchema = z.object({
 });
 export type ThumbnailsControlBaseConfig = z.infer<typeof thumbnailsControlBaseSchema>;
 
+export const THUMBNAIL_DRAWER_POSITIONS = [
+  'center',
+  'top',
+  'bottom',
+  'selected',
+] as const;
+export type ThumbnailDrawerPosition = (typeof THUMBNAIL_DRAWER_POSITIONS)[number];
+
 export const thumbnailControlsDefaults = {
   ...thumbnailControlsBaseDefaults,
   mode: 'right' as const,
+  position: 'center' as const,
 };
 
 export const thumbnailsControlSchema = thumbnailsControlBaseSchema.extend({
   mode: z
     .enum(['none', 'above', 'below', 'left', 'right'])
     .default(thumbnailControlsDefaults.mode),
+  position: z
+    .union([z.enum(THUMBNAIL_DRAWER_POSITIONS), z.string(), z.number()])
+    .optional()
+    .default(thumbnailControlsDefaults.position),
 });
 export type ThumbnailsControlConfig = z.infer<typeof thumbnailsControlSchema>;

@@ -56,6 +56,28 @@ export const getThumbnailsSchema = (options?: {
             },
           ]),
         },
+        {
+          name: 'position',
+          label: localize('config.common.controls.thumbnails.position'),
+          selector: createSelectSelector([
+            {
+              value: 'center',
+              label: localize('config.common.controls.thumbnails.positions.center'),
+            },
+            {
+              value: 'selected',
+              label: localize('config.common.controls.thumbnails.positions.selected'),
+            },
+            {
+              value: 'top',
+              label: localize('config.common.controls.thumbnails.positions.top'),
+            },
+            {
+              value: 'bottom',
+              label: localize('config.common.controls.thumbnails.positions.bottom'),
+            },
+          ]),
+        },
         sizeField,
         {
           name: 'chunk_hours',

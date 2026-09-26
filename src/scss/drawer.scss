@@ -13,6 +13,7 @@ div.control-surround {
   transform: translateY(-50%);
   padding-top: $drawer-padding-extend;
   padding-bottom: $drawer-padding-extend;
+  transition: top 0.25s ease-in-out;
 }
 :host([location='left']) div.control-surround {
   @if $drawer-icon-size < 32 {
