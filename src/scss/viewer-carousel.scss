@@ -1,3 +1,5 @@
+@use 'media-background.scss';
+
 :host {
   display: block;
   --video-max-height: none;
@@ -10,10 +12,15 @@
   overflow: hidden;
 }
 
+:host([empty]) {
+  aspect-ratio: var(--advanced-camera-card-camera-aspect-ratio, 16 / 9);
+}
+
 // When the carousel is not part of a grid ensure its height matches its
 // container.
 :host(:not([grid-id])) {
   height: 100%;
+  aspect-ratio: unset;
 }
 
 // If the carousel has an unselected attribute set on it, do not let the

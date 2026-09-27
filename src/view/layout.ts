@@ -24,12 +24,18 @@ export const getLiveGridCameraIDs = (
 };
 
 // The cameras a viewer grid lays out, one cell each, or null when the viewer is
-// laid out as a single carousel instead (incl. when there's <= 1 camera). The
-// cameras come from the query results, so only a camera with media to show gets
-// a cell.
-export const getViewerGridCameraIDs = (view: View): Set<string> | null => {
+// laid out as a single carousel instead (incl. when there's <= 1 camera).
+export const getViewerGridCameraIDs = (
+  view: View,
+  cameraManager?: CameraManager,
+): Set<string> | null => {
   if (!isGridLayout(view)) {
     return null;
+  }
+
+  const configuredCameraIDs = cameraManager?.getStore().getCameraIDs();
+  if (configuredCameraIDs && configuredCameraIDs.size > 1) {
+    return configuredCameraIDs;
   }
 
   const cameraIDs = view.queryResults?.getCameraIDs();
@@ -48,7 +54,7 @@ const getGridTargetIDs = (
   }
 
   if (view.isViewerView()) {
-    const cameraIDs = getViewerGridCameraIDs(view);
+    const cameraIDs = getViewerGridCameraIDs(view, cameraManager);
     if (!cameraIDs) {
       return null;
     }

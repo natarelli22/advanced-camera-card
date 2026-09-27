@@ -5,6 +5,7 @@ import { QueryType, type EventQuery } from '../../../src/camera-manager/types';
 import { applyViewModifiers } from '../../../src/card-controller/view/modifiers';
 import { ViewQueryExecutor } from '../../../src/card-controller/view/view-query-executor';
 import type { AdvancedCameraCardView } from '../../../src/config/schema/common/const';
+import type { PerformanceConfig } from '../../../src/config/schema/performance';
 import { QuerySource } from '../../../src/query-source';
 import { QueryResults } from '../../../src/view/query-results';
 import { UnifiedQuery } from '../../../src/view/unified-query';

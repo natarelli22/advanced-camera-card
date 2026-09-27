@@ -79,14 +79,17 @@ export class AdvancedCameraCardViewerGrid extends LitElement {
   }
 
   protected willUpdate(changedProps: PropertyValues): void {
-    if (changedProps.has('viewManagerEpoch') && this._getGridCameraIDs()) {
+    if (
+      (changedProps.has('viewManagerEpoch') || changedProps.has('cameraManager')) &&
+      this._getGridCameraIDs()
+    ) {
       void import('../media-grid.js');
     }
   }
 
   private _getGridCameraIDs(): Set<string> | null {
     const view = this.viewManagerEpoch?.manager.getView();
-    return view ? getViewerGridCameraIDs(view) : null;
+    return view ? getViewerGridCameraIDs(view, this.cameraManager) : null;
   }
 
   private _gridSelectCamera(cameraID: string): void {

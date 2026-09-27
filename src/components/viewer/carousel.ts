@@ -31,7 +31,7 @@ import '../../patches/ha-hls-player.js';
 
 import viewerCarouselStyle from '../../scss/viewer-carousel.scss?inline';
 import { stopEventFromActivatingCardWideActions } from '../../utils/action.js';
-import { contentsChanged } from '../../utils/basic.js';
+import { contentsChanged, isValidAspectRatio } from '../../utils/basic.js';
 import type { CarouselSelected } from '../../utils/embla/carousel-controller.js';
 import { getTextDirection } from '../../utils/text-direction.js';
 import { ViewItemClassifier } from '../../view/item-classifier.js';
@@ -304,6 +304,37 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
               : this._media && this._media.length
                 ? this._media.length - 1
                 : null;
+      }
+    }
+
+    const isEmpty = !this._media?.length || this._selected === null;
+    this.toggleAttribute('empty', isEmpty);
+    if (this._selected === null) {
+      this.toggleAttribute('unseekable', false);
+    }
+
+    if (
+      changedProps.has('viewManagerEpoch') ||
+      changedProps.has('cameraManager') ||
+      changedProps.has('viewFilterCameraID')
+    ) {
+      const cameraID =
+        this.viewFilterCameraID ??
+        this.viewManagerEpoch?.manager.getView()?.camera ??
+        null;
+      const cameraConfig = cameraID
+        ? this.cameraManager?.getStore().getCameraConfig(cameraID)
+        : null;
+      const ratio = isValidAspectRatio(cameraConfig?.dimensions?.aspect_ratio)
+        ? cameraConfig.dimensions.aspect_ratio
+        : null;
+      if (ratio) {
+        this.style.setProperty(
+          '--advanced-camera-card-camera-aspect-ratio',
+          `${ratio[0]} / ${ratio[1]}`,
+        );
+      } else {
+        this.style.removeProperty('--advanced-camera-card-camera-aspect-ratio');
       }
     }
   }

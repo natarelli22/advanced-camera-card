@@ -5,6 +5,8 @@ import { IntersectionObserverMock, ResizeObserverMock } from '../../test-utils';
 
 import '../../../src/components/viewer/grid';
 
+import type { CameraManager } from '../../../src/camera-manager/manager';
+import type { CameraManagerReadOnlyConfigStore } from '../../../src/camera-manager/store';
 import type { ViewManagerEpoch } from '../../../src/card-controller/view/types';
 import type { AdvancedCameraCardViewerCarousel } from '../../../src/components/viewer/carousel';
 import type { AdvancedCameraCardViewerGrid } from '../../../src/components/viewer/grid';
@@ -201,5 +203,38 @@ describe('AdvancedCameraCardViewerGrid', () => {
     } as unknown as CustomEvent<{ currentTime?: number }>);
 
     expect(carousel2.seek).toHaveBeenCalledWith(1030);
+  });
+
+  it('should render carousels in configured camera order via cameraManager', () => {
+    const grid = document.createElement(
+      'advanced-camera-card-viewer-grid',
+    ) as AdvancedCameraCardViewerGrid;
+
+    const view = mock<View>();
+    view.camera = 'camera1';
+    view.isGrid.mockReturnValue(true);
+    view.supportsMultipleDisplayModes.mockReturnValue(true);
+    view.queryResults = null;
+
+    const epoch: ViewManagerEpoch = {
+      manager: {
+        getView: () => view,
+      } as unknown as ViewManagerEpoch['manager'],
+    };
+
+    const cameraManager = mock<CameraManager>();
+    const store = mock<CameraManagerReadOnlyConfigStore>();
+    store.getCameraIDs.mockReturnValue(new Set(['camera1', 'camera2']));
+    store.getCameraConfig.mockReturnValue(null);
+    cameraManager.getStore.mockReturnValue(store);
+
+    grid.cameraManager = cameraManager;
+    grid.viewManagerEpoch = epoch;
+    grid.viewerConfig = {} as unknown as ViewerConfig;
+
+    const cameraIDs = (
+      grid as unknown as { _getGridCameraIDs: () => Set<string> | null }
+    )._getGridCameraIDs();
+    expect(cameraIDs).toEqual(new Set(['camera1', 'camera2']));
   });
 });

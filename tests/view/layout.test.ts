@@ -17,6 +17,7 @@ const createCameraManager = (cameraIDs: string[]): CameraManager => {
   const cameraManager = mock<CameraManager>();
   const store = mock<CameraManagerReadOnlyConfigStore>();
   store.getCameraIDsWithCapability.mockReturnValue(new Set(cameraIDs));
+  store.getCameraIDs.mockReturnValue(new Set(cameraIDs));
   cameraManager.getStore.mockReturnValue(store);
   return cameraManager;
 };
@@ -63,6 +64,18 @@ describe('getViewerGridCameraIDs', () => {
     });
 
     expect(getViewerGridCameraIDs(view)).toEqual(new Set(['kitchen', 'office']));
+  });
+
+  it('should return configured cameras when cameraManager is provided', () => {
+    const view = createView({
+      view: 'media',
+      displayMode: 'grid',
+      queryResults: createQueryResults(['kitchen']),
+    });
+
+    expect(
+      getViewerGridCameraIDs(view, createCameraManager(['kitchen', 'office'])),
+    ).toEqual(new Set(['kitchen', 'office']));
   });
 
   it('should return null when not laid out as a grid', () => {
