@@ -8,7 +8,7 @@ import {
 } from '../camera-manager/types.js';
 import { QuerySource } from '../query-source.js';
 import { ViewItemClassifier } from '../view/item-classifier.js';
-import type { ViewMedia } from '../view/item.js';
+import type { ViewItem, ViewMedia } from '../view/item.js';
 import { QueryResults } from '../view/query-results.js';
 import { findBestMediaTimeIndex } from './find-best-media-time-index.js';
 
@@ -34,28 +34,28 @@ export const syncGridResultsForTargetTime = async (
 
   let newResults = currentResults.clone();
 
+  const liveCameraIDs = cameraManager
+    ? cameraManager.getStore().getCameraIDsWithCapability('live')
+    : [];
   const gridCameraIDs =
     overrideGridCameraIDs ??
-    new Set([
-      ...(cameraManager?.getStore().getCameraIDsWithCapability('live') ?? []),
-      ...currentResults.getCameraIDs(),
-    ]);
+    new Set([...liveCameraIDs, ...currentResults.getCameraIDs()]);
 
-  const recordingCameraIDs =
-    cameraManager?.getStore().getCameraIDsWithCapability('recordings') ??
-    new Set<string>();
-  const clipsCameraIDs =
-    cameraManager?.getStore().getCameraIDsWithCapability('clips') ??
-    new Set<string>();
+  const recordingCameraIDs = cameraManager
+    ? cameraManager.getStore().getCameraIDsWithCapability('recordings')
+    : new Set<string>();
+  const clipsCameraIDs = cameraManager
+    ? cameraManager.getStore().getCameraIDsWithCapability('clips')
+    : new Set<string>();
 
-  let additionalMedia: ViewMedia[] = [];
+  const additionalMedia: ViewMedia[] = [];
   for (const camID of gridCameraIDs) {
     if (camID === selectedCameraID) {
       continue;
     }
     const existingSelected = newResults.getSelectedResult(camID);
     const hasCovering =
-      existingSelected &&
+      !!existingSelected &&
       ViewItemClassifier.isMedia(existingSelected) &&
       existingSelected.includesTime(targetTime);
 
@@ -86,14 +86,14 @@ export const syncGridResultsForTargetTime = async (
       const queriedMedia = await cameraManager.executeMediaQueries([query], {
         useCache: true,
       });
-      if (queriedMedia?.length) {
-        additionalMedia = [...additionalMedia, ...queriedMedia];
+      if (queriedMedia && queriedMedia.length > 0) {
+        additionalMedia.push(...queriedMedia);
       }
     }
   }
 
-  if (additionalMedia.length) {
-    const combinedItems = [...(newResults.getResults() ?? []), ...additionalMedia];
+  if (additionalMedia.length > 0) {
+    const combinedItems = (newResults.getResults() as ViewItem[]).concat(additionalMedia);
     newResults = new QueryResults({ results: combinedItems });
   }
 
