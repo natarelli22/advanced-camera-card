@@ -42,10 +42,7 @@ import type {
 } from '../../types.js';
 import { isValidAspectRatio } from '../../utils/basic.js';
 import { classifyMimeType } from '../../utils/mime-type.js';
-import {
-  createFetchThumbnailTask,
-  getCachedThumbnail,
-} from '../../utils/thumbnail.js';
+import { createFetchThumbnailTask, getCachedThumbnail } from '../../utils/thumbnail.js';
 import { ViewItemClassifier } from '../../view/item-classifier.js';
 import type { ViewMedia } from '../../view/item.js';
 import { UnifiedQueryTransformer } from '../../view/unified-query-transformer.js';

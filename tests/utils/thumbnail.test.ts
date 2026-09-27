@@ -497,7 +497,10 @@ describe('media source thumbnails', () => {
       );
 
       // Overwrite existing key
-      setCachedThumbnail('http://example.com/item.jpg', 'data:image/jpeg;base64,updated');
+      setCachedThumbnail(
+        'http://example.com/item.jpg',
+        'data:image/jpeg;base64,updated',
+      );
       expect(getCachedThumbnail('http://example.com/item.jpg')).toBe(
         'data:image/jpeg;base64,updated',
       );

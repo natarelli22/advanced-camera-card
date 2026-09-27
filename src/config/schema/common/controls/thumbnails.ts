@@ -53,12 +53,7 @@ export const thumbnailsControlBaseSchema = z.object({
 });
 export type ThumbnailsControlBaseConfig = z.infer<typeof thumbnailsControlBaseSchema>;
 
-const THUMBNAIL_DRAWER_POSITIONS = [
-  'center',
-  'top',
-  'bottom',
-  'selected',
-] as const;
+const THUMBNAIL_DRAWER_POSITIONS = ['center', 'top', 'bottom', 'selected'] as const;
 
 export const thumbnailControlsDefaults = {
   ...thumbnailControlsBaseDefaults,

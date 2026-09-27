@@ -40,8 +40,7 @@ export const hideMediaControlsTemporarily = (
   seconds = MEDIA_SEEK_CONTROLS_HIDE_SECONDS,
   targetControlsValue?: boolean,
 ): void => {
-  const oldValue =
-    targetControlsValue ?? video._controlsOriginalValue ?? video.controls;
+  const oldValue = targetControlsValue ?? video._controlsOriginalValue ?? video.controls;
   setControlsOnVideo(video, false);
   video._controlsHideTimer ??= new Timer();
   video._controlsOriginalValue = oldValue;

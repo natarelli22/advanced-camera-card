@@ -24,6 +24,7 @@ import '../../patches/ha-hls-player.js';
 import basicBlockStyle from '../../scss/basic-block.scss?inline';
 
 import './carousel.js';
+
 import type { AdvancedCameraCardViewerCarousel } from './carousel.js';
 
 @customElement('advanced-camera-card-viewer-grid')
