@@ -141,11 +141,12 @@ export class TPLinkCamera extends EntityCamera<TPLinkCameraInitializationOptions
       : null;
 
     const combinedPTZ = mergePTZCapabilities(tplinkPTZ, configPTZ);
+    const hasContinuousFolder = !!this.getConfig().tplink?.continuous_folder;
 
     return {
       ...(await super._getRawCapabilities(hass, options)),
       clips: true,
-      recordings: true,
+      recordings: hasContinuousFolder,
       ...(combinedPTZ && { ptz: combinedPTZ }),
     };
   }

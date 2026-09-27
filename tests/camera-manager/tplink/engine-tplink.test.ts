@@ -230,12 +230,15 @@ const createPopulatedEngine = (options?: {
 
 const createStoreWithTPLinkCamera = async (
   engine: TPLinkCameraManagerEngine,
+  cameraConfigOverrides?: Record<string, unknown>,
 ): Promise<CameraManagerStore> => {
   const store = new CameraManagerStore();
   const camera = await engine.createCamera(
     createCameraConfig({
       camera_entity: 'camera.tapo_c520ws_39d3_live_view',
       id: 'tapo_office',
+      tplink: { continuous_folder: 'continuous' },
+      ...cameraConfigOverrides,
     }),
   );
   store.addCamera(camera);
@@ -318,7 +321,7 @@ describe('TPLinkCameraManagerEngine', () => {
     expect(camera.getCapabilities()?.getRawCapabilities()).toEqual({
       '2-way-audio': false,
       clips: true,
-      recordings: true,
+      recordings: false,
       'remote-control-entity': true,
       live: true,
       menu: true,
@@ -746,6 +749,27 @@ describe('TPLinkCameraManagerEngine', () => {
       const first2 = Array.from(results2?.values() ?? [])[0];
       expect(first2).toEqual({ ...first1, cached: true });
     });
+
+    it('should return empty recordings when continuous_folder is not configured', async () => {
+      const engine = createPopulatedEngine();
+      const store = await createStoreWithTPLinkCamera(engine, {
+        tplink: {},
+      });
+
+      const query: RecordingQuery = {
+        source: QuerySource.Camera,
+        type: QueryType.Recording,
+        cameraIDs: new Set(['tapo_office']),
+        start: new Date('2024-11-04T00:00:00'),
+        end: new Date('2024-11-04T23:59:59'),
+      };
+
+      const results = await engine.getRecordings(createHASS(), store, query, {
+        useCache: false,
+      });
+
+      expect(results?.size ?? 0).toBe(0);
+    });
   });
 
   describe('generateMediaFromRecordings', () => {
@@ -840,6 +864,59 @@ describe('TPLinkCameraManagerEngine', () => {
         ),
       ).toBeNull();
     });
+
+    it('should filter out cameras without continuous_folder configured', async () => {
+      const engine = createPopulatedEngine();
+      const store = await createStoreWithTPLinkCamera(engine, {
+        id: 'cam_with_continuous',
+        tplink: { continuous_folder: 'continuous' },
+      });
+      const cameraWithoutContinuous = await engine.createCamera(
+        createCameraConfig({
+          camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+          id: 'cam_without_continuous',
+          tplink: {},
+        }),
+      );
+      store.addCamera(cameraWithoutContinuous);
+
+      const start = new Date(2026, 8, 26, 10, 0, 0);
+      const end = new Date(2026, 8, 26, 11, 0, 0);
+
+      const queries = engine.generateDefaultRecordingSegmentsQuery(
+        store,
+        new Set(['cam_with_continuous', 'cam_without_continuous']),
+        { start, end },
+      );
+
+      expect(queries).toEqual([
+        {
+          type: QueryType.RecordingSegments,
+          cameraIDs: new Set(['cam_with_continuous']),
+          start,
+          end,
+        },
+      ]);
+    });
+
+    it('should return null when no cameras have continuous_folder configured', async () => {
+      const engine = createPopulatedEngine();
+      const store = await createStoreWithTPLinkCamera(engine, {
+        id: 'sala_02',
+        tplink: {},
+      });
+
+      const start = new Date(2026, 8, 26, 10, 0, 0);
+      const end = new Date(2026, 8, 26, 11, 0, 0);
+
+      const queries = engine.generateDefaultRecordingSegmentsQuery(
+        store,
+        new Set(['sala_02']),
+        { start, end },
+      );
+
+      expect(queries).toBeNull();
+    });
   });
 
   describe('getRecordingSegments', () => {
@@ -876,6 +953,26 @@ describe('TPLinkCameraManagerEngine', () => {
         end_time: Math.floor(new Date(2024, 10, 4, 21, 40, 30).getTime() / 1000),
         id: 'media-source://tapo_control/tapo_control/?entry=tplink_config_entry_1&title=21%3A40%3A00',
       });
+    });
+
+    it('should return empty segments when continuous_folder is not configured', async () => {
+      const engine = createPopulatedEngine();
+      const store = await createStoreWithTPLinkCamera(engine, {
+        tplink: {},
+      });
+
+      const query: RecordingSegmentsQuery = {
+        type: QueryType.RecordingSegments,
+        cameraIDs: new Set(['tapo_office']),
+        start: new Date(2024, 10, 4, 0, 0, 0),
+        end: new Date(2024, 10, 4, 23, 59, 59),
+      };
+
+      const results = await engine.getRecordingSegments(createHASS(), store, query, {
+        useCache: false,
+      });
+
+      expect(results?.size ?? 0).toBe(0);
     });
 
     it('should use request cache on repeat queries', async () => {
@@ -1724,19 +1821,19 @@ describe('TPLinkCameraManagerEngine', () => {
         .mockResolvedValueOnce(SALA_DATES)
         .mockResolvedValueOnce(SALA_VIDEOS);
 
-      const query: RecordingQuery = {
+      const query: EventQuery = {
         source: QuerySource.Camera,
-        type: QueryType.Recording,
+        type: QueryType.Event,
         cameraIDs: new Set(['sala_02']),
       };
 
-      const results = await engine.getRecordings(createHASS(), store, query, {
+      const results = await engine.getEvents(createHASS(), store, query, {
         useCache: false,
       });
 
       const firstResult = Array.from(
         results?.values() ?? [],
-      )[0] as TPLinkRecordingQueryResults;
+      )[0] as TPLinkEventQueryResults;
 
       expect(firstResult.browseMedia.length).toBe(1);
       expect(firstResult.browseMedia[0]._metadata?.startDate).toEqual(
@@ -1854,19 +1951,19 @@ describe('TPLinkCameraManagerEngine', () => {
         .mockResolvedValueOnce(DATE_FOLDERS)
         .mockResolvedValueOnce(FILES);
 
-      const query: RecordingQuery = {
+      const query: EventQuery = {
         source: QuerySource.Camera,
-        type: QueryType.Recording,
+        type: QueryType.Event,
         cameraIDs: new Set(['sala_02']),
       };
 
-      const results = await engine.getRecordings(hass, store, query, {
+      const results = await engine.getEvents(hass, store, query, {
         useCache: false,
       });
 
       const firstResult = Array.from(
         results?.values() ?? [],
-      )[0] as TPLinkRecordingQueryResults;
+      )[0] as TPLinkEventQueryResults;
 
       expect(firstResult.browseMedia.length).toBe(1);
       expect(firstResult.browseMedia[0]._metadata?.startDate).toEqual(
@@ -1962,19 +2059,19 @@ describe('TPLinkCameraManagerEngine', () => {
         .mockResolvedValueOnce(QUARTO_ROOT)
         .mockResolvedValueOnce(QUARTO_FILES);
 
-      const query: RecordingQuery = {
+      const query: EventQuery = {
         source: QuerySource.Camera,
-        type: QueryType.Recording,
+        type: QueryType.Event,
         cameraIDs: new Set(['quarto']),
       };
 
-      const results = await engine.getRecordings(hass, store, query, {
+      const results = await engine.getEvents(hass, store, query, {
         useCache: false,
       });
 
       const firstResult = Array.from(
         results?.values() ?? [],
-      )[0] as TPLinkRecordingQueryResults;
+      )[0] as TPLinkEventQueryResults;
 
       expect(firstResult.browseMedia.length).toBe(1);
       expect(firstResult.browseMedia[0]._metadata?.startDate).toEqual(

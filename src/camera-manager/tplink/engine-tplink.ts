@@ -452,24 +452,17 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const isEvents = category === 'events';
     const isContinuous = category === 'continuous';
 
+    if (isContinuous && !tplinkConfig?.continuous_folder) {
+      return null;
+    }
+
     const customFolderName = isEvents
       ? tplinkConfig?.events_folder?.toLowerCase()
       : isContinuous
         ? tplinkConfig?.continuous_folder?.toLowerCase()
         : undefined;
 
-    const eventNames = customFolderName
-      ? [customFolderName]
-      : ['events', 'eventos', 'detections', 'detection events', 'motion'];
-    const continuousNames = customFolderName
-      ? [customFolderName]
-      : ['continuous', 'continuo', 'continuous recording', 'recordings', 'gravacoes'];
-
-    const targetCategoryNames = isEvents
-      ? eventNames
-      : isContinuous
-        ? continuousNames
-        : [];
+    const targetCategoryNames = customFolderName ? [customFolderName] : [];
 
     const storagePath = camera.getStoragePath(hass);
 
@@ -576,17 +569,11 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
             if (dateDirectories?.length) {
               return dateDirectories;
             }
-          } else if (isContinuous && targetCategoryNames.length) {
-            const hasEventsFolder = videosChildren.some(
-              (c) =>
-                c.can_expand &&
-                ['events', 'eventos', 'detections', 'motion'].some((n) =>
-                  c.title.toLowerCase().includes(n),
-                ),
-            );
-            if (hasEventsFolder) {
-              return null;
-            }
+            return null;
+          }
+
+          if (isContinuous || targetCategoryNames.length > 0) {
+            return null;
           }
 
           // Legacy layout: videosChildren are already the date folders (or flat files)
@@ -638,6 +625,10 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
             ];
           }
         } else {
+          if (isContinuous || targetCategoryNames.length > 0) {
+            return null;
+          }
+
           // If no 'videos' subfolder, check if cameraFoldersContent already contains date folders
           const dateFoldersDirect = cameraFoldersContent
             .map((c) => ({
@@ -801,15 +792,24 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
   }
 
   public generateDefaultRecordingQuery(
-    _store: CameraManagerReadOnlyConfigStore,
+    store: CameraManagerReadOnlyConfigStore,
     cameraIDs: Set<string>,
     query?: PartialRecordingQuery,
   ): RecordingQuery[] | null {
+    const filteredCameraIDs = new Set(
+      Array.from(cameraIDs).filter((cameraID) => {
+        const camera = store.getCamera(cameraID);
+        return !camera || !!camera.getConfig()?.tplink?.continuous_folder;
+      }),
+    );
+    if (!filteredCameraIDs.size) {
+      return null;
+    }
     return [
       {
         source: QuerySource.Camera,
         type: QueryType.Recording,
-        cameraIDs: cameraIDs,
+        cameraIDs: filteredCameraIDs,
         ...query,
       },
     ];
@@ -827,6 +827,12 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
 
     const output: RecordingQueryResultsMap = new Map();
     const getRecordingsForCamera = async (cameraID: string): Promise<void> => {
+      const camera = store.getCamera(cameraID);
+      const tplinkConfig = camera?.getConfig()?.tplink;
+      if (camera && !tplinkConfig?.continuous_folder) {
+        return;
+      }
+
       const perCameraQuery = { ...query, cameraIDs: new Set([cameraID]) };
       const cachedResult =
         engineOptions?.useCache ?? true ? this._requestCache.get(perCameraQuery) : null;
@@ -878,17 +884,26 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
   }
 
   public generateDefaultRecordingSegmentsQuery(
-    _store: CameraManagerReadOnlyConfigStore,
+    store: CameraManagerReadOnlyConfigStore,
     cameraIDs: Set<string>,
     query?: PartialRecordingSegmentsQuery,
   ): RecordingSegmentsQuery[] | null {
     if (!query?.start || !query?.end) {
       return null;
     }
+    const filteredCameraIDs = new Set(
+      Array.from(cameraIDs).filter((cameraID) => {
+        const camera = store.getCamera(cameraID);
+        return !camera || !!camera.getConfig()?.tplink?.continuous_folder;
+      }),
+    );
+    if (!filteredCameraIDs.size) {
+      return null;
+    }
     return [
       {
         type: QueryType.RecordingSegments,
-        cameraIDs: cameraIDs,
+        cameraIDs: filteredCameraIDs,
         start: query.start,
         end: query.end,
         ...query,
@@ -904,6 +919,12 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
   ): Promise<RecordingSegmentsQueryResultsMap | null> {
     const output: RecordingSegmentsQueryResultsMap = new Map();
     const getSegmentsForCamera = async (cameraID: string): Promise<void> => {
+      const camera = store.getCamera(cameraID);
+      const tplinkConfig = camera?.getConfig()?.tplink;
+      if (camera && !tplinkConfig?.continuous_folder) {
+        return;
+      }
+
       const perCameraQuery = { ...query, cameraIDs: new Set([cameraID]) };
       const cachedResult =
         engineOptions?.useCache ?? true ? this._requestCache.get(perCameraQuery) : null;
@@ -990,21 +1011,18 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const tplinkConfig = camera?.getConfig()?.tplink;
     const isEvents = category === 'events';
     const isContinuous = category === 'continuous';
+
+    if (camera && isContinuous && !tplinkConfig?.continuous_folder) {
+      return [];
+    }
+
     const customFolderName = isEvents
       ? tplinkConfig?.events_folder?.toLowerCase()
       : isContinuous
         ? tplinkConfig?.continuous_folder?.toLowerCase()
         : undefined;
 
-    const targetCategoryNames = isEvents
-      ? customFolderName
-        ? [customFolderName]
-        : ['events', 'eventos', 'detections', 'detection events', 'motion']
-      : isContinuous
-        ? customFolderName
-          ? [customFolderName]
-          : ['continuous', 'continuo', 'continuous recording', 'recordings', 'gravacoes']
-        : [];
+    const targetCategoryNames = customFolderName ? [customFolderName] : [];
 
     if (directories?.length) {
       media = await this._browseMediaWalker.walk(

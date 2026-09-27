@@ -450,8 +450,8 @@ describe('TPLinkCamera', () => {
     });
   });
 
-  it('should have clips and recordings capabilities', async () => {
-    const camera = await new TPLinkCamera(
+  it('should have clips capability and only recordings when continuous_folder configured', async () => {
+    const cameraWithoutContinuous = await new TPLinkCamera(
       createCameraConfig({
         camera_entity: 'camera.tapo_c520ws_39d3_live_view',
       }),
@@ -461,8 +461,22 @@ describe('TPLinkCamera', () => {
       entityRegistryManager: ptzPopulatedEntityRegistryManager,
     });
 
-    expect(camera.getCapabilities()?.has('clips')).toBe(true);
-    expect(camera.getCapabilities()?.has('recordings')).toBe(true);
+    expect(cameraWithoutContinuous.getCapabilities()?.has('clips')).toBe(true);
+    expect(cameraWithoutContinuous.getCapabilities()?.has('recordings')).toBe(false);
+
+    const cameraWithContinuous = await new TPLinkCamera(
+      createCameraConfig({
+        camera_entity: 'camera.tapo_c520ws_39d3_live_view',
+        tplink: { continuous_folder: 'continuous' },
+      }),
+      mock<CameraManagerEngine>(),
+    ).initialize({
+      hassManager: createHASSManager(),
+      entityRegistryManager: ptzPopulatedEntityRegistryManager,
+    });
+
+    expect(cameraWithContinuous.getCapabilities()?.has('clips')).toBe(true);
+    expect(cameraWithContinuous.getCapabilities()?.has('recordings')).toBe(true);
   });
 
   describe('getProxyConfig', () => {
