@@ -1122,6 +1122,59 @@ describe('TimelineController', () => {
         }),
       );
     });
+
+    it('should navigate media for selected camera in grid mode', async () => {
+      const startTime1 = add(WINDOW.start, { minutes: 10 });
+      const startTime2 = add(WINDOW.start, { minutes: 20 });
+      const cam1Media1 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: 'camera-1',
+        id: 'cam1-clip-1',
+        startTime: startTime1,
+      });
+      const cam1Media2 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: 'camera-1',
+        id: 'cam1-clip-2',
+        startTime: startTime2,
+      });
+      const cam2Media1 = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: 'camera-2',
+        id: 'cam2-clip-1',
+        startTime: add(WINDOW.start, { minutes: 15 }),
+      });
+
+      const harness = await createHarness({
+        media: [cam1Media1, cam2Media1, cam1Media2],
+      });
+
+      vi.mocked(harness.timeline.getSelection).mockReturnValue(['cam1-clip-1']);
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          displayMode: 'grid',
+          camera: 'camera-1',
+          queryResults: new QueryResults({
+            results: [cam1Media1, cam2Media1, cam1Media2],
+            selectedIndex: 0,
+          }),
+        }),
+      );
+
+      await harness.controller.navigateMedia('next');
+
+      // Should select cam1-clip-2 (not cam2-clip-1) and keep camera-1 active
+      expect(harness.timeline.setSelection).toHaveBeenCalledWith('cam1-clip-2');
+      expect(harness.timeline.moveTo).toHaveBeenCalledWith(startTime2);
+      expect(harness.manager.setViewByParameters).toHaveBeenCalledWith(
+        expect.objectContaining({
+          params: expect.objectContaining({
+            camera: 'camera-1',
+          }),
+        }),
+      );
+    });
   });
 
   describe('timelineRangeChanged', () => {
@@ -1164,6 +1217,61 @@ describe('TimelineController', () => {
       parameters?.modifiers?.forEach((modifier) => modifier.modify(view));
 
       expect(view.context?.mediaViewer?.seek).toBeUndefined();
+    });
+
+    it('should not pass selectResult when range changed and no item is selected', async () => {
+      const harness = await createHarness();
+      const manager = mock<ViewManagerInterface>();
+      const query = new UnifiedQuery();
+      query.addNode(createReviewQuery(CAMERA_ID));
+      manager.getView.mockReturnValue(
+        createView({
+          view: 'live',
+          camera: CAMERA_ID,
+          query,
+          queryResults: new QueryResults({ results: [], selectedIndex: null }),
+        }),
+      );
+      await harness.controller.setView(mock<ViewManagerEpoch>({ manager }));
+
+      const dragWindow = {
+        start: new Date('2025-01-01T10:00:00Z'),
+        end: new Date('2025-01-01T11:00:00Z'),
+        byUser: true,
+        event: new Event('rangechanged') as Event & { additionalEvent: string },
+      };
+
+      harness.trigger('rangechanged', dragWindow);
+
+      await vi.waitFor(() => {
+        expect(manager.setViewByParametersWithExistingQuery).toHaveBeenCalled();
+        const callArgs = vi.mocked(manager.setViewByParametersWithExistingQuery).mock
+          .calls[0]?.[0];
+        expect(callArgs?.queryExecutorOptions).toBeUndefined();
+      });
+    });
+
+    it('should ignore click after user range change without pointer held', async () => {
+      const event = createEventMedia();
+      const harness = await createHarness({ media: [event] });
+
+      // Trigger user range change (e.g. touch pan or trackpad)
+      harness.trigger('rangechange', {
+        start: WINDOW.start,
+        end: WINDOW.end,
+        byUser: true,
+        event: new Event('touchmove'),
+      });
+
+      // Trailing click should be ignored
+      harness.trigger('click', {
+        what: 'item',
+        item: event.getID(),
+        event: new MouseEvent('click'),
+      });
+
+      // setViewByParameters should not have been called by click
+      expect(harness.manager.setViewByParameters).not.toHaveBeenCalled();
     });
   });
 });

@@ -5,8 +5,8 @@ import { QueryType, type EventQuery } from '../../../src/camera-manager/types';
 import { applyViewModifiers } from '../../../src/card-controller/view/modifiers';
 import { ViewQueryExecutor } from '../../../src/card-controller/view/view-query-executor';
 import type { AdvancedCameraCardView } from '../../../src/config/schema/common/const';
-import type { PerformanceConfig } from '../../../src/config/schema/performance';
 import { QuerySource } from '../../../src/query-source';
+import { QueryResults } from '../../../src/view/query-results';
 import { UnifiedQuery } from '../../../src/view/unified-query';
 import { View } from '../../../src/view/view';
 import {
@@ -182,6 +182,82 @@ describe('ViewQueryExecutor', () => {
 
       expect(view.queryResults).not.toBeNull();
       expect(view.queryResults?.getSelectedResult()?.getID()).toBe('test-id');
+    });
+
+    it('should preserve selectedIndex null in live view when no explicit selectResult is given', async () => {
+      const api = createPopulatedAPI();
+      const viewQueryExecutor = new ViewQueryExecutor(api);
+
+      const media = new TestViewMedia({ id: 'test-id' });
+      const cameraManager = api.getCameraManager();
+      if (cameraManager) {
+        vi.mocked(cameraManager.executeMediaQueries).mockResolvedValue([media]);
+      }
+
+      const query = new UnifiedQuery();
+      const view = new View({
+        view: 'live',
+        camera: 'camera.office',
+        query,
+      });
+
+      const modifiers = await viewQueryExecutor.getExistingQueryModifiers(view);
+      applyViewModifiers(view, modifiers);
+
+      expect(view.queryResults).not.toBeNull();
+      expect(view.queryResults?.getSelectedIndex()).toBeNull();
+      expect(view.queryResults?.getSelectedResult()).toBeNull();
+    });
+
+    it('should preserve selectedIndex null in grid mode when no explicit selectResult is given', async () => {
+      const api = createPopulatedAPI();
+      const viewQueryExecutor = new ViewQueryExecutor(api);
+
+      const media = new TestViewMedia({ id: 'test-id' });
+      const cameraManager = api.getCameraManager();
+      if (cameraManager) {
+        vi.mocked(cameraManager.executeMediaQueries).mockResolvedValue([media]);
+      }
+
+      const query = new UnifiedQuery();
+      const view = new View({
+        view: 'media',
+        displayMode: 'grid',
+        query,
+      });
+
+      const modifiers = await viewQueryExecutor.getExistingQueryModifiers(view);
+      applyViewModifiers(view, modifiers);
+
+      expect(view.queryResults).not.toBeNull();
+      expect(view.queryResults?.getSelectedIndex()).toBeNull();
+      expect(view.queryResults?.getSelectedResult()).toBeNull();
+    });
+
+    it('should preserve selectedIndex null when view queryResults had no selection', async () => {
+      const api = createPopulatedAPI();
+      const viewQueryExecutor = new ViewQueryExecutor(api);
+
+      const media = new TestViewMedia({ id: 'test-id' });
+      const cameraManager = api.getCameraManager();
+      if (cameraManager) {
+        vi.mocked(cameraManager.executeMediaQueries).mockResolvedValue([media]);
+      }
+
+      const query = new UnifiedQuery();
+      const view = new View({
+        view: 'clips',
+        camera: 'camera.office',
+        query,
+        queryResults: new QueryResults({ results: [media], selectedIndex: null }),
+      });
+
+      const modifiers = await viewQueryExecutor.getExistingQueryModifiers(view);
+      applyViewModifiers(view, modifiers);
+
+      expect(view.queryResults).not.toBeNull();
+      expect(view.queryResults?.getSelectedIndex()).toBeNull();
+      expect(view.queryResults?.getSelectedResult()).toBeNull();
     });
   });
 

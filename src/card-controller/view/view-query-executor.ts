@@ -45,11 +45,19 @@ export class ViewQueryExecutor {
     });
 
     const isLive = view.view === 'live';
+    const hadNoSelection = view.queryResults?.getSelectedIndex() === null;
+    const hasExplicitSelection =
+      !!queryExecutorOptions?.selectResult?.id ||
+      !!queryExecutorOptions?.selectResult?.func ||
+      !!queryExecutorOptions?.selectResult?.time;
+
+    const shouldPreserveNoSelection =
+      (isLive || view.isGrid() || hadNoSelection) && !hasExplicitSelection;
 
     const queryResults = this._applyResultSelection(
       new QueryResults({
         results: items,
-        ...(isLive && !queryExecutorOptions?.selectResult && { selectedIndex: null }),
+        ...(shouldPreserveNoSelection && { selectedIndex: null }),
       }),
       queryExecutorOptions,
     );
