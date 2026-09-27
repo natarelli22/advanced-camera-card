@@ -59,7 +59,10 @@ import {
 } from './types';
 
 const cleanFolder = (folder?: string | null): string | undefined => {
-  const cleaned = folder?.trim().replace(/^\/+|\/+$/g, '').toLowerCase();
+  const cleaned = folder
+    ?.trim()
+    .replace(/^\/+|\/+$/g, '')
+    .toLowerCase();
   return cleaned && cleaned.length > 0 ? cleaned : undefined;
 };
 
@@ -881,7 +884,9 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const output: RecordingQueryResultsMap = new Map();
     const getRecordingsForCamera = async (cameraID: string): Promise<void> => {
       const camera = store.getCamera(cameraID);
-      const continuousFolder = cleanFolder(camera?.getConfig()?.tplink?.continuous_folder);
+      const continuousFolder = cleanFolder(
+        camera?.getConfig()?.tplink?.continuous_folder,
+      );
       if (camera && !continuousFolder) {
         return;
       }
@@ -973,7 +978,9 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const output: RecordingSegmentsQueryResultsMap = new Map();
     const getSegmentsForCamera = async (cameraID: string): Promise<void> => {
       const camera = store.getCamera(cameraID);
-      const continuousFolder = cleanFolder(camera?.getConfig()?.tplink?.continuous_folder);
+      const continuousFolder = cleanFolder(
+        camera?.getConfig()?.tplink?.continuous_folder,
+      );
       if (camera && !continuousFolder) {
         return;
       }

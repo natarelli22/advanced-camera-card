@@ -87,6 +87,9 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
   @property({ attribute: false })
   public forceSelected = false;
 
+  @property({ attribute: false })
+  public showControls = true;
+
   private _refProvider: Ref<MediaPlayerElement> = createRef();
   private _lazyLoadController: LazyLoadController = new LazyLoadController(this);
   private _thumbnailTask = createFetchThumbnailTask(
@@ -294,7 +297,9 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
     const { isHLS, isVideo } = classifyMimeType(
       this._resolvedMediaController.getValue()?.mime_type,
     );
-    const builtinControls = resolveBuiltinControls(this.viewerConfig?.controls?.builtin);
+    const builtinControls = this.showControls
+      ? resolveBuiltinControls(this.viewerConfig?.controls?.builtin)
+      : undefined;
     const shouldAutoPlay =
       this.forceSelected && (this.viewerConfig?.auto_play?.includes('selected') ?? true);
 
@@ -306,7 +311,6 @@ export class AdvancedCameraCardViewerProvider extends LitElement implements Medi
               allow-exoplayer
               aria-label="${this.media.getTitle() ?? ''}"
               ?autoplay=${shouldAutoPlay}
-              controls
               muted
               playsinline
               title="${this.media.getTitle() ?? ''}"

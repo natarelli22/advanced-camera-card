@@ -791,6 +791,27 @@ describe('TimelineController', () => {
       expect(view.context?.mediaViewer?.seek).toBeUndefined();
     });
 
+    it('should not set seek when clicking on an event media (clip)', async () => {
+      const event = createEventMedia();
+      const harness = await createHarness({ media: [event] });
+      const clickTime = add(WINDOW.start, { minutes: 30 });
+
+      harness.trigger('click', {
+        what: 'item',
+        item: 'event-1',
+        group: CAMERA_ID,
+        time: clickTime,
+        event: new Event('click'),
+      });
+
+      const parameters = vi.mocked(harness.manager.setViewByParameters).mock
+        .calls[0]?.[0];
+      const view = createView();
+      parameters?.modifiers?.forEach((modifier) => modifier.modify(view));
+
+      expect(view.context?.mediaViewer?.seek).toBeUndefined();
+    });
+
     it('should do nothing and restore selection when clicked on background or axis', async () => {
       const review = createReviewMedia();
       const harness = await createHarness({ media: [review] });
@@ -1124,6 +1145,25 @@ describe('TimelineController', () => {
       expect(
         harness.manager.setViewByParametersWithExistingQuery,
       ).not.toHaveBeenCalled();
+    });
+
+    it('should not set seek when range change selects an event media', async () => {
+      const event = createEventMedia();
+      const harness = await createHarness({ panMode: 'seek', media: [event] });
+
+      harness.trigger('rangechanged', {
+        start: WINDOW.start,
+        end: WINDOW.end,
+        byUser: true,
+        event: new Event('rangechanged'),
+      });
+
+      const parameters = vi.mocked(harness.manager.setViewByParameters).mock
+        .calls[0]?.[0];
+      const view = createView();
+      parameters?.modifiers?.forEach((modifier) => modifier.modify(view));
+
+      expect(view.context?.mediaViewer?.seek).toBeUndefined();
     });
   });
 });

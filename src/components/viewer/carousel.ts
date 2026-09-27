@@ -287,14 +287,23 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
       // item or the media changes.
       if (oldSelectedItem !== newSelectedItem || resetMedia) {
         const newSelected =
-          this._media?.findIndex((item) => item === newSelectedItem) ?? null;
+          newSelectedItem && this._media
+            ? this._media.findIndex((item) => item === newSelectedItem)
+            : null;
+        const isGrid = newView?.isGrid();
 
         // If there's no selected item, just choose the last (most recent one) to
-        // avoid rendering a blank. This could happen if the selected item was a
-        // folder.
+        // avoid rendering a blank when not in grid mode. In grid mode, keep it null
+        // so that cameras without covering media remain unselected/blank instead of
+        // playing an out-of-sync past clip.
         this._selected =
-          newSelected ??
-          (this._media && this._media.length ? this._media.length - 1 : null);
+          newSelected !== null && newSelected !== -1
+            ? newSelected
+            : isGrid
+              ? null
+              : this._media && this._media.length
+                ? this._media.length - 1
+                : null;
       }
     }
   }
@@ -470,6 +479,14 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
 
     const shouldAutoPlay = this.viewerConfig?.auto_play?.includes('selected') ?? true;
 
+    if (ViewItemClassifier.isEvent(selectedMedia)) {
+      this.toggleAttribute('unseekable', false);
+      if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
+        void mediaPlayerController.playback?.play();
+      }
+      return;
+    }
+
     if (this.viewerConfig?.auto_seek === false) {
       this.toggleAttribute('unseekable', false);
       if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
@@ -537,6 +554,7 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
           .cameraManager=${this.cameraManager}
           .cardWideConfig=${this.cardWideConfig}
           .forceSelected=${isSelected}
+          .showControls=${this.showControls}
         ></advanced-camera-card-viewer-provider>`,
       )}
     </div>`;

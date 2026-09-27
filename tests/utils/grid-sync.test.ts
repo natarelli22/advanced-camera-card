@@ -94,7 +94,7 @@ describe('syncGridResultsForTargetTime', () => {
     expect(synced.getSelectedResult('camera2')?.getID()).toBe('media-2');
   });
 
-  it('should query event/clip media if other camera has clips but not recordings', async () => {
+  it('should not query event media and leave camera unselected if other camera lacks continuous recordings', async () => {
     const targetTime = new Date('2024-01-01T10:15:00Z');
 
     const mediaCam1 = new TestViewMedia({
@@ -102,13 +102,6 @@ describe('syncGridResultsForTargetTime', () => {
       cameraID: 'camera1',
       startTime: new Date('2024-01-01T10:00:00Z'),
       endTime: new Date('2024-01-01T10:30:00Z'),
-    });
-
-    const clipCam2 = new TestViewMedia({
-      id: 'clip-2',
-      cameraID: 'camera2',
-      startTime: new Date('2024-01-01T10:10:00Z'),
-      endTime: new Date('2024-01-01T10:20:00Z'),
     });
 
     const cameraManager = mock<CameraManager>();
@@ -124,8 +117,6 @@ describe('syncGridResultsForTargetTime', () => {
       return new Set();
     });
 
-    cameraManager.executeMediaQueries.mockResolvedValue([clipCam2]);
-
     const results = new QueryResults({ results: [mediaCam1] });
 
     const synced = await syncGridResultsForTargetTime(results, {
@@ -135,19 +126,9 @@ describe('syncGridResultsForTargetTime', () => {
       selectedItemID: 'media-1',
     });
 
-    expect(cameraManager.executeMediaQueries).toHaveBeenCalledWith(
-      [
-        expect.objectContaining({
-          source: QuerySource.Camera,
-          type: QueryType.Event,
-          cameraIDs: new Set(['camera2']),
-        }),
-      ],
-      { useCache: true },
-    );
-
+    expect(cameraManager.executeMediaQueries).not.toHaveBeenCalled();
     expect(synced.getSelectedResult('camera1')?.getID()).toBe('media-1');
-    expect(synced.getSelectedResult('camera2')?.getID()).toBe('clip-2');
+    expect(synced.getSelectedResult('camera2')).toBeNull();
   });
 
   it('should skip querying camera if it has neither recordings nor clips', async () => {
@@ -324,6 +305,46 @@ describe('syncGridResultsForTargetTime', () => {
     });
 
     expect(cameraManager.executeMediaQueries).toHaveBeenCalled();
+    expect(synced.getSelectedResult('camera1')?.getID()).toBe('media-1');
+    expect(synced.getSelectedResult('camera2')).toBeNull();
+  });
+
+  it('should reset selection for other camera if existing media does not cover targetTime and cannot be synced', async () => {
+    const targetTime = new Date('2024-01-01T10:15:00Z');
+
+    const mediaCam1 = new TestViewMedia({
+      id: 'media-1',
+      cameraID: 'camera1',
+      startTime: new Date('2024-01-01T10:00:00Z'),
+      endTime: new Date('2024-01-01T10:30:00Z'),
+    });
+
+    const oldMediaCam2 = new TestViewMedia({
+      id: 'media-old-2',
+      cameraID: 'camera2',
+      startTime: new Date('2024-01-01T08:00:00Z'),
+      endTime: new Date('2024-01-01T08:30:00Z'),
+    });
+
+    const cameraManager = mock<CameraManager>();
+    const store = mock<CameraManagerStore>();
+    cameraManager.getStore.mockReturnValue(store);
+    store.getCameraIDsWithCapability.mockImplementation((cap) => {
+      if (cap === 'live') {
+        return new Set(['camera1', 'camera2']);
+      }
+      return new Set();
+    });
+
+    const results = new QueryResults({ results: [mediaCam1, oldMediaCam2] });
+
+    const synced = await syncGridResultsForTargetTime(results, {
+      cameraManager,
+      targetTime,
+      selectedCameraID: 'camera1',
+      selectedItemID: 'media-1',
+    });
+
     expect(synced.getSelectedResult('camera1')?.getID()).toBe('media-1');
     expect(synced.getSelectedResult('camera2')).toBeNull();
   });

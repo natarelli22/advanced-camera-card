@@ -106,15 +106,34 @@ export class AdvancedCameraCardSurroundBasic extends LitElement {
   }
 
   private _findSelectedElement(element: Element): Element | null {
-    const root = element.shadowRoot ?? element;
-    const selected = root.querySelector('[selected]');
+    if (element.hasAttribute?.('selected')) {
+      return element;
+    }
+    const root = element.shadowRoot;
+    const selected = (root ?? element).querySelector('[selected]');
     if (selected) {
       return selected;
     }
-    for (const child of Array.from(root.children)) {
+    if (element instanceof HTMLSlotElement) {
+      for (const assigned of element.assignedElements({ flatten: true })) {
+        const found = this._findSelectedElement(assigned);
+        if (found) {
+          return found;
+        }
+      }
+    }
+    for (const child of Array.from(element.children)) {
       const found = this._findSelectedElement(child);
       if (found) {
         return found;
+      }
+    }
+    if (root) {
+      for (const child of Array.from(root.children)) {
+        const found = this._findSelectedElement(child);
+        if (found) {
+          return found;
+        }
       }
     }
     return null;

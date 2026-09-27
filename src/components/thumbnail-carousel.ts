@@ -241,7 +241,8 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
         const allResults = view.queryResults.getResults() ?? [];
         this._items = cameraForQuery
           ? allResults.filter(
-              (it) => ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
+              (it) =>
+                ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
             )
           : allResults;
       } else {
@@ -256,7 +257,8 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       const allResults = view.queryResults.getResults() ?? [];
       this._items = cameraForQuery
         ? allResults.filter(
-            (it) => ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
+            (it) =>
+              ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
           )
         : allResults;
       this._thumbnails = this._renderThumbnails();
@@ -294,8 +296,15 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       );
 
       const isFolderView = !!view.query?.hasFolderQueries();
+      const cameraForQuery = view.camera ?? undefined;
       if (isFolderView) {
-        this._items = view.queryResults?.getResults() ?? [];
+        const allResults = view.queryResults?.getResults() ?? [];
+        this._items = cameraForQuery
+          ? allResults.filter(
+              (it) =>
+                ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
+            )
+          : allResults;
         this._query = view.query ?? null;
         this._queryResults = view.queryResults ?? null;
         this._currentChunk = chunk;
@@ -305,7 +314,6 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       }
 
       let baseQuery = view.query;
-      const cameraForQuery = view.camera ?? undefined;
       if (baseQuery && cameraForQuery) {
         baseQuery = UnifiedQueryTransformer.filterByCamera(baseQuery, cameraForQuery);
       }
@@ -454,10 +462,10 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     }
   }
 
-  private _getSelectedSlide(): number | null {
+  private _getSelectedSlide(items?: ViewItem[]): number | null {
     const view = this.viewManagerEpoch?.manager.getView();
     const isFolderView = !!view?.query?.hasFolderQueries();
-    if (isFolderView) {
+    if (isFolderView && !view?.isGrid()) {
       const selectedIndex = view?.queryResults?.getSelectedIndex() ?? null;
       if (selectedIndex === null) {
         return null;
@@ -470,7 +478,8 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     if (!selectedMedia) {
       return null;
     }
-    const index = this._items.findIndex(
+    const targetItems = items ?? this._items;
+    const index = targetItems.findIndex(
       (item) =>
         ViewItemClassifier.isMedia(item) && item.getID() === selectedMedia.getID(),
     );
@@ -495,16 +504,18 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     const view = this.viewManagerEpoch.manager.getView();
     const isGrid = view?.isGrid();
     const cameraID = item.getCameraID();
+    const isEvent = ViewItemClassifier.isEvent(item);
 
     const modifiers: ViewModifier[] = [
       new RemoveContextViewModifier(['timeline']),
-      ...(targetTime
+      ...(targetTime && !isEvent
         ? [new MergeContextViewModifier({ mediaViewer: { seek: targetTime } })]
         : [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]),
     ];
 
-    if (this._queryResults) {
-      let newResults = this._queryResults
+    const sourceResults = (isGrid ? view?.queryResults : null) ?? this._queryResults;
+    if (sourceResults) {
+      let newResults = sourceResults
         .clone()
         .selectResultIfFound((result) => result.getID() === item.getID());
 
@@ -521,7 +532,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
         params: {
           view: 'media',
           queryResults: newResults,
-          query: this._query ?? undefined,
+          query: isGrid ? view?.query ?? undefined : this._query ?? undefined,
           ...(cameraID && { camera: cameraID }),
         },
         modifiers,
@@ -583,8 +594,14 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       : [];
 
     const isFolderView = !!view?.query?.hasFolderQueries();
-    const items = isFolderView ? view?.queryResults?.getResults() ?? [] : this._items;
-    const selectedIndex = this._getSelectedSlide();
+    const cameraForQuery = view?.camera ?? undefined;
+    const rawItems = isFolderView ? view?.queryResults?.getResults() ?? [] : this._items;
+    const items = cameraForQuery
+      ? rawItems.filter(
+          (it) => ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
+        )
+      : rawItems;
+    const selectedIndex = this._getSelectedSlide(items);
 
     for (const item of items) {
       const clickHandler = (item: ViewItem, ev: Event) => {

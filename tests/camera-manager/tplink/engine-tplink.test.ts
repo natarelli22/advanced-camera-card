@@ -1241,8 +1241,7 @@ describe('TPLinkCameraManagerEngine', () => {
         title: 'events',
         media_class: 'directory',
         media_content_type: 'video',
-        media_content_id:
-          'media-source://media_source/local/tapo/Cozinha/videos/events',
+        media_content_id: 'media-source://media_source/local/tapo/Cozinha/videos/events',
         children_media_class: 'directory',
         can_play: false,
         can_expand: true,
@@ -1272,23 +1271,29 @@ describe('TPLinkCameraManagerEngine', () => {
         }),
       });
 
-      vi.mocked(homeAssistantWSRequest).mockImplementation(async (...args: unknown[]) => {
-        const request = (args[2] ?? args[1]) as { media_content_id?: string } | undefined;
-        const id = request?.media_content_id;
-        if (id === 'media-source://media_source/local/tapo/Cozinha') {
-          return COZINHA_ROOT;
-        }
-        if (id === 'media-source://media_source/local/tapo/Cozinha/videos') {
-          return VIDEOS_DIR;
-        }
-        if (id === 'media-source://media_source/local/tapo/Cozinha/videos/continuous') {
-          return CONTINUOUS_DATES;
-        }
-        if (id === 'media-source://media_source/local/tapo/Cozinha/videos/events') {
-          return EVENTS_DATES;
-        }
-        return null;
-      });
+      vi.mocked(homeAssistantWSRequest).mockImplementation(
+        async (...args: unknown[]) => {
+          const request = (args[2] ?? args[1]) as
+            | { media_content_id?: string }
+            | undefined;
+          const id = request?.media_content_id;
+          if (id === 'media-source://media_source/local/tapo/Cozinha') {
+            return COZINHA_ROOT;
+          }
+          if (id === 'media-source://media_source/local/tapo/Cozinha/videos') {
+            return VIDEOS_DIR;
+          }
+          if (
+            id === 'media-source://media_source/local/tapo/Cozinha/videos/continuous'
+          ) {
+            return CONTINUOUS_DATES;
+          }
+          if (id === 'media-source://media_source/local/tapo/Cozinha/videos/events') {
+            return EVENTS_DATES;
+          }
+          return null;
+        },
+      );
 
       const metadata = await engine.getMediaMetadata(
         hass,

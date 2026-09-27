@@ -1,11 +1,7 @@
 import { add, sub } from 'date-fns';
 
 import type { CameraManager } from '../camera-manager/manager.js';
-import {
-  QueryType,
-  type EventQuery,
-  type RecordingQuery,
-} from '../camera-manager/types.js';
+import { QueryType, type RecordingQuery } from '../camera-manager/types.js';
 import { QuerySource } from '../query-source.js';
 import { ViewItemClassifier } from '../view/item-classifier.js';
 import type { ViewItem, ViewMedia } from '../view/item.js';
@@ -44,9 +40,6 @@ export const syncGridResultsForTargetTime = async (
   const recordingCameraIDs = cameraManager
     ? cameraManager.getStore().getCameraIDsWithCapability('recordings')
     : new Set<string>();
-  const clipsCameraIDs = cameraManager
-    ? cameraManager.getStore().getCameraIDsWithCapability('clips')
-    : new Set<string>();
 
   const additionalMedia: ViewMedia[] = [];
   for (const camID of gridCameraIDs) {
@@ -61,39 +54,29 @@ export const syncGridResultsForTargetTime = async (
 
     if (!hasCovering && cameraManager) {
       const hasRecordings = recordingCameraIDs.has(camID);
-      const hasClips = clipsCameraIDs.has(camID);
+      if (hasRecordings) {
+        const query: RecordingQuery = {
+          source: QuerySource.Camera,
+          type: QueryType.Recording,
+          cameraIDs: new Set([camID]),
+          start: sub(targetTime, { hours: 1 }),
+          end: add(targetTime, { hours: 1 }),
+        };
 
-      if (!hasRecordings && !hasClips) {
-        continue;
-      }
-
-      const query = hasRecordings
-        ? ({
-            source: QuerySource.Camera,
-            type: QueryType.Recording,
-            cameraIDs: new Set([camID]),
-            start: sub(targetTime, { hours: 1 }),
-            end: add(targetTime, { hours: 1 }),
-          } as RecordingQuery)
-        : ({
-            source: QuerySource.Camera,
-            type: QueryType.Event,
-            cameraIDs: new Set([camID]),
-            start: sub(targetTime, { hours: 1 }),
-            end: add(targetTime, { hours: 1 }),
-          } as EventQuery);
-
-      const queriedMedia = await cameraManager.executeMediaQueries([query], {
-        useCache: true,
-      });
-      if (queriedMedia && queriedMedia.length > 0) {
-        additionalMedia.push(...queriedMedia);
+        const queriedMedia = await cameraManager.executeMediaQueries([query], {
+          useCache: true,
+        });
+        if (queriedMedia && queriedMedia.length > 0) {
+          additionalMedia.push(...queriedMedia);
+        }
       }
     }
   }
 
   if (additionalMedia.length > 0) {
-    const combinedItems = (newResults.getResults() as ViewItem[]).concat(additionalMedia);
+    const combinedItems = (newResults.getResults() as ViewItem[]).concat(
+      additionalMedia,
+    );
     newResults = new QueryResults({ results: combinedItems });
   }
 
@@ -101,6 +84,20 @@ export const syncGridResultsForTargetTime = async (
     (mediaArray) => findBestMediaTimeIndex(mediaArray, targetTime),
     { allCameras: true },
   );
+
+  for (const camID of gridCameraIDs) {
+    if (camID === selectedCameraID) {
+      continue;
+    }
+    const camSelected = newResults.getSelectedResult(camID);
+    if (
+      !camSelected ||
+      !ViewItemClassifier.isMedia(camSelected) ||
+      !camSelected.includesTime(targetTime)
+    ) {
+      newResults.resetSelectedResult(camID);
+    }
+  }
 
   if (selectedItemID) {
     newResults.selectResultIfFound((result) => result.getID() === selectedItemID, {

@@ -70,7 +70,9 @@ export class UnifiedQueryTransformer {
   static filterByCamera(query: UnifiedQuery, cameraID: string): UnifiedQuery {
     const nodes = query
       .getNodes()
-      .filter((node) => node.source === QuerySource.Camera && node.cameraIDs?.has(cameraID))
+      .filter(
+        (node) => node.source === QuerySource.Camera && node.cameraIDs?.has(cameraID),
+      )
       .map((node) => ({
         ...node,
         cameraIDs: new Set([cameraID]),

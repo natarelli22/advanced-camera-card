@@ -386,4 +386,28 @@ describe('AdvancedCameraCardSurroundBasic', () => {
 
     document.body.removeChild(element);
   });
+
+  it('should find selected element in slotted or shadow root children', () => {
+    const element = document.createElement(
+      'advanced-camera-card-surround-basic',
+    ) as AdvancedCameraCardSurroundBasic;
+    document.body.appendChild(element);
+
+    const mainChild = document.createElement('div');
+    const slot = document.createElement('slot');
+    const slottedChild = document.createElement('div');
+    slottedChild.setAttribute('selected', '');
+    vi.spyOn(slot, 'assignedElements').mockReturnValue([slottedChild]);
+
+    mainChild.appendChild(slot);
+    element.appendChild(mainChild);
+
+    const found = (
+      element as unknown as { _findSelectedElement: (el: Element) => Element | null }
+    )._findSelectedElement(mainChild);
+
+    expect(found).toBe(slottedChild);
+
+    document.body.removeChild(element);
+  });
 });

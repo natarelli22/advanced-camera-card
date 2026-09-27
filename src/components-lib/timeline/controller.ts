@@ -565,6 +565,8 @@ export class TimelineController {
     const selectedCamera = ViewItemClassifier.isMedia(selectedItem)
       ? selectedItem.getCameraID()
       : null;
+    const isEvent = ViewItemClassifier.isEvent(selectedItem);
+    const effectiveCanSeek = canSeek && !isEvent;
 
     this._viewManagerEpoch?.manager.setViewByParameters({
       params: {
@@ -574,7 +576,7 @@ export class TimelineController {
       },
       modifiers: [
         new MergeContextViewModifier({
-          ...(canSeek && { mediaViewer: { seek: targetTime } }),
+          ...(effectiveCanSeek && { mediaViewer: { seek: targetTime } }),
           ...this._getTimelineContext({ start: properties.start, end: properties.end }),
         }),
       ],
@@ -893,7 +895,8 @@ export class TimelineController {
 
     const selectedItem = newResults?.getSelectedResult();
     let seekTime: Date | null = null;
-    if (canMediaBeShownAsTimelineItem(selectedItem)) {
+    const isEvent = ViewItemClassifier.isEvent(selectedItem);
+    if (!isEvent && canMediaBeShownAsTimelineItem(selectedItem)) {
       const start = selectedItem.getStartTime();
       const end = selectedItem.getEndTime() ?? selectedItem.getUsableEndTime();
       if (start && end && end > start && clickTime) {
