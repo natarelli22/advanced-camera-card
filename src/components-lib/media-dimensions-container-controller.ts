@@ -135,15 +135,18 @@ export class MediaDimensionsContainerController implements ReactiveController {
     this._resize();
   }
 
+  private _getEffectiveAspectRatio(): number[] | undefined {
+    if (isValidAspectRatio(this._dimensionsConfig?.aspect_ratio)) {
+      return this._dimensionsConfig.aspect_ratio;
+    }
+    if (this._mediaDimensions) {
+      return [this._mediaDimensions.width, this._mediaDimensions.height];
+    }
+    return undefined;
+  }
+
   private _hasFixedAspectRatio(): boolean {
-    return (
-      isValidAspectRatio(this._dimensionsConfig?.aspect_ratio) ||
-      !!(
-        this._mediaDimensions &&
-        this._mediaDimensions.width > 0 &&
-        this._mediaDimensions.height > 0
-      )
-    );
+    return Boolean(this._getEffectiveAspectRatio());
   }
 
   private _requiresRotation(): boolean {
@@ -170,13 +173,7 @@ export class MediaDimensionsContainerController implements ReactiveController {
       `${this._dimensionsConfig?.rotation}deg`,
     );
 
-    const ratio =
-      this._dimensionsConfig?.aspect_ratio ??
-      (this._mediaDimensions &&
-      this._mediaDimensions.width > 0 &&
-      this._mediaDimensions.height > 0
-        ? [this._mediaDimensions.width, this._mediaDimensions.height]
-        : undefined);
+    const ratio = this._getEffectiveAspectRatio();
 
     this._innerContainer.style.aspectRatio = aspectRatioToString({
       ratio,

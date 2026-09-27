@@ -473,6 +473,27 @@ describe('MediaHeightController', () => {
       expect(host.style.maxHeight).toBe('500px');
     });
 
+    it('should not recalculate on visibilitychange when document is hidden', () => {
+      const host = document.createElement('div');
+      const controller = new MediaHeightController(host, 'div');
+      const recalculateSpy = vi.spyOn(controller, 'recalculate');
+
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        configurable: true,
+        writable: true,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      expect(recalculateSpy).not.toHaveBeenCalled();
+
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true,
+        writable: true,
+      });
+    });
+
     it('should protect against spurious collapse from healthy height to min-height', () => {
       const host = document.createElement('div');
       const controller = new MediaHeightController(host, 'div');

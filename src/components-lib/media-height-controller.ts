@@ -92,7 +92,7 @@ export class MediaHeightController {
   }
 
   private _visibilityHandler = (): void => {
-    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    if (document.visibilityState === 'visible') {
       this.recalculate();
     }
   };
@@ -150,7 +150,7 @@ export class MediaHeightController {
       return;
     }
 
-    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+    if (document.visibilityState === 'hidden') {
       return;
     }
 
