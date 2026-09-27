@@ -101,6 +101,7 @@ export class MediaDimensionsContainerController implements ReactiveController {
       width: info.width,
       height: info.height,
     };
+    this._setInnerContainerProperties();
     this.resize();
   };
 
@@ -135,7 +136,14 @@ export class MediaDimensionsContainerController implements ReactiveController {
   }
 
   private _hasFixedAspectRatio(): boolean {
-    return isValidAspectRatio(this._dimensionsConfig?.aspect_ratio);
+    return (
+      isValidAspectRatio(this._dimensionsConfig?.aspect_ratio) ||
+      !!(
+        this._mediaDimensions &&
+        this._mediaDimensions.width > 0 &&
+        this._mediaDimensions.height > 0
+      )
+    );
   }
 
   private _requiresRotation(): boolean {
@@ -162,8 +170,16 @@ export class MediaDimensionsContainerController implements ReactiveController {
       `${this._dimensionsConfig?.rotation}deg`,
     );
 
+    const ratio =
+      this._dimensionsConfig?.aspect_ratio ??
+      (this._mediaDimensions &&
+      this._mediaDimensions.width > 0 &&
+      this._mediaDimensions.height > 0
+        ? [this._mediaDimensions.width, this._mediaDimensions.height]
+        : undefined);
+
     this._innerContainer.style.aspectRatio = aspectRatioToString({
-      ratio: this._dimensionsConfig?.aspect_ratio,
+      ratio,
     });
 
     updateElementStyleFromMediaLayoutConfig(

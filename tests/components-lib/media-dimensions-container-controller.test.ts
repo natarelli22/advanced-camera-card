@@ -776,5 +776,40 @@ describe('MediaDimensionsContainerController', () => {
 
       expect(host.hasAttribute('rotated')).toBeFalsy();
     });
+
+    it('should set aspect ratio on inner container from media dimensions when no config is provided', () => {
+      const host = createLitElement();
+      host.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 200,
+        width: 200,
+      });
+
+      const innerContainer = document.createElement('div');
+      innerContainer.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 90,
+        width: 160,
+      });
+      const outerContainer = document.createElement('div');
+
+      const controller = new MediaDimensionsContainerController(host);
+
+      Object.defineProperty(host, 'isConnected', {
+        value: true,
+      });
+      controller.hostConnected();
+      controller.setContainers(innerContainer, outerContainer);
+
+      expect(innerContainer.style.aspectRatio).toBe('auto');
+
+      const mediaLoadedInfo: MediaLoadedInfo = {
+        width: 1920,
+        height: 1080,
+      };
+      innerContainer.dispatchEvent(
+        createMediaLoadedInfoEvent({ info: mediaLoadedInfo }),
+      );
+
+      expect(innerContainer.style.aspectRatio).toBe('1920 / 1080');
+    });
   });
 });

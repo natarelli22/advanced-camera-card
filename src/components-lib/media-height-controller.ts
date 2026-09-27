@@ -34,6 +34,7 @@ export class MediaHeightController {
     }
     document.addEventListener('fullscreenchange', this._fullscreenHandler);
     document.addEventListener('webkitfullscreenchange', this._fullscreenHandler);
+    document.addEventListener('visibilitychange', this._visibilityHandler);
   }
 
   public setRoot(root: HTMLElement | DocumentFragment): void {
@@ -79,6 +80,7 @@ export class MediaHeightController {
     }
     document.removeEventListener('fullscreenchange', this._fullscreenHandler);
     document.removeEventListener('webkitfullscreenchange', this._fullscreenHandler);
+    document.removeEventListener('visibilitychange', this._visibilityHandler);
 
     this._debouncedSetHeight.cancel();
     this._mutationObserver.disconnect();
@@ -88,6 +90,12 @@ export class MediaHeightController {
     this._children = [];
     this._selectedChild = null;
   }
+
+  private _visibilityHandler = (): void => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      this.recalculate();
+    }
+  };
 
   private _isInFullscreen(): boolean {
     const fsElement =
@@ -142,24 +150,37 @@ export class MediaHeightController {
       return;
     }
 
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return;
+    }
+
     const originalHeight = this._host.style.maxHeight;
+    const originalTransition = this._host.style.transition;
 
     // Remove the height restriction to ensure the full max height. Example of
     // behavior without this: Chrome on Android will not correctly size if the
     // card is in fullscreen mode.
+    // Temporarily remove transition so that unconstrained layout can be measured
+    // synchronously without 100ms transition lag holding the height down.
+    this._host.style.transition = 'none';
     this._host.style.maxHeight = '';
 
     // Calculate the true height.
     const selectedHeight = this._selectedChild.getBoundingClientRect().height;
 
-    // Reset the original height so that browser transition animation can be
-    // applied from the current to the target.
+    // Reset the original height and transition so that browser transition
+    // animation can be applied from the current to the target.
+    this._host.style.transition = originalTransition;
     this._host.style.maxHeight = originalHeight;
 
     // Force the browser to reflow.
     this._selectedChild.getBoundingClientRect();
 
     if (selectedHeight && !isNaN(selectedHeight) && selectedHeight > 0) {
+      const prevPx = parseFloat(originalHeight);
+      if (prevPx > 200 && selectedHeight <= 120) {
+        return;
+      }
       this._host.style.maxHeight = `${selectedHeight}px`;
     }
   }

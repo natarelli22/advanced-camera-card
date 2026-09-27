@@ -409,4 +409,96 @@ describe('MediaHeightController', () => {
 
     host.remove();
   });
+
+  describe('visibility and collapse protection', () => {
+    it('should not update height when document is hidden', () => {
+      const host = document.createElement('div');
+      const controller = new MediaHeightController(host, 'div');
+
+      const root = document.createElement('div');
+      const child = document.createElement('div');
+      child.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 600,
+      });
+      root.appendChild(child);
+      controller.setRoot(root);
+
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'hidden',
+        configurable: true,
+        writable: true,
+      });
+
+      controller.setSelected(0);
+      vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+
+      expect(host.style.maxHeight).toBe('');
+
+      // Restore visibilityState
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true,
+        writable: true,
+      });
+    });
+
+    it('should recalculate on visibilitychange when document becomes visible', () => {
+      const host = document.createElement('div');
+      const controller = new MediaHeightController(host, 'div');
+
+      const root = document.createElement('div');
+      const child = document.createElement('div');
+      child.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 400,
+      });
+      root.appendChild(child);
+      controller.setRoot(root);
+      controller.setSelected(0);
+
+      vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+      expect(host.style.maxHeight).toBe('400px');
+
+      child.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 500,
+      });
+
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true,
+        writable: true,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+
+      vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+      expect(host.style.maxHeight).toBe('500px');
+    });
+
+    it('should protect against spurious collapse from healthy height to min-height', () => {
+      const host = document.createElement('div');
+      const controller = new MediaHeightController(host, 'div');
+
+      const root = document.createElement('div');
+      const child = document.createElement('div');
+      child.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 400,
+      });
+      root.appendChild(child);
+      controller.setRoot(root);
+      controller.setSelected(0);
+
+      vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+      expect(host.style.maxHeight).toBe('400px');
+
+      // Video temporarily collapses to min-height (e.g. 100px) during reconnect
+      child.getBoundingClientRect = vi.fn().mockReturnValue({
+        height: 100,
+      });
+
+      controller.recalculate();
+      vi.advanceTimersByTime(SET_HEIGHT_DEBOUNCE_SECONDS * 1000);
+
+      // Height should be preserved at 400px rather than collapsing
+      expect(host.style.maxHeight).toBe('400px');
+    });
+  });
 });

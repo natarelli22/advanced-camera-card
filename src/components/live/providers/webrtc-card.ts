@@ -181,7 +181,7 @@ export class AdvancedCameraCardLiveWebRTCCard extends LitElement implements Medi
       const video = this._getVideo();
       if (video) {
         setControlsOnVideo(video, this.controls);
-        video.onloadeddata = () => {
+        const handleLoaded = () => {
           if (this.controls) {
             hideMediaControlsTemporarily(video, MEDIA_LOAD_CONTROLS_HIDE_SECONDS);
           }
@@ -199,6 +199,12 @@ export class AdvancedCameraCardLiveWebRTCCard extends LitElement implements Medi
             this._mediaLoadedInfoSourceController.set(info);
           }
         };
+
+        video.onloadeddata = handleLoaded;
+        if (video.readyState >= 2 && video.videoWidth > 0 && video.videoHeight > 0) {
+          handleLoaded();
+        }
+
         video.onplay = () => dispatchMediaPlayEvent(this);
         video.onpause = () => dispatchMediaPauseEvent(this);
         video.onvolumechange = () => dispatchMediaVolumeChangeEvent(this);
