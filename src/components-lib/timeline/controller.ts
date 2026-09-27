@@ -42,6 +42,7 @@ import {
 } from '../../utils/basic';
 import { findBestMediaTimeIndex } from '../../utils/find-best-media-time-index';
 import { fireAdvancedCameraCardEvent } from '../../utils/fire-advanced-camera-card-event';
+import { syncGridResultsForTargetTime } from '../../utils/grid-sync.js';
 import type { ViewMedia } from '../../view/item';
 import { ViewItemClassifier } from '../../view/item-classifier';
 import { QueryResults } from '../../view/query-results';
@@ -903,6 +904,22 @@ export class TimelineController {
         }
       }
     }
+
+    const targetTime =
+      seekTime ??
+      clickTime ??
+      (selectedItem && canMediaBeShownAsTimelineItem(selectedItem)
+        ? selectedItem.getStartTime()
+        : null);
+    if (view.isGrid() && targetTime && newResults) {
+      newResults = await syncGridResultsForTargetTime(newResults, {
+        cameraManager: this._cameraManager ?? undefined,
+        targetTime,
+        selectedCameraID: cameraID || undefined,
+        selectedItemID: id,
+      });
+    }
+
     const context: ViewContext = mergeViewContext(this._getTimelineContext(), {
       ...(seekTime && { mediaViewer: { seek: seekTime } }),
     });
@@ -919,6 +936,7 @@ export class TimelineController {
           view: 'media',
           query: item.query,
           queryResults: newResults,
+          ...(cameraID && { camera: cameraID }),
         },
         modifiers,
       });
@@ -927,6 +945,7 @@ export class TimelineController {
         params: {
           queryResults: newResults,
           view: this._itemClickAction === 'play' ? 'media' : view.view,
+          ...(cameraID && { camera: cameraID }),
         },
         modifiers,
       });

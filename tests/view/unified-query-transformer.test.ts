@@ -172,4 +172,39 @@ describe('UnifiedQueryTransformer', () => {
       expect(node.folder.id).toBe('f1');
     });
   });
+
+  describe('filterByCamera', () => {
+    it('should filter camera queries to the specified camera and isolate cameraIDs', () => {
+      const { cameraManager, foldersManager } = createMocks();
+      const builder = new UnifiedQueryBuilder(cameraManager, foldersManager);
+      const query = builder.buildClipsQuery(new Set(['camera.office', 'camera.hall']));
+      assert(query);
+
+      const filtered = UnifiedQueryTransformer.filterByCamera(query, 'camera.office');
+      const nodes = filtered.getNodes();
+      expect(nodes.length).toBe(1);
+      assert(isEventQuery(nodes[0]));
+      expect(nodes[0].cameraIDs).toEqual(new Set(['camera.office']));
+    });
+
+    it('should return empty nodes if camera is not present in query', () => {
+      const { cameraManager, foldersManager } = createMocks();
+      const builder = new UnifiedQueryBuilder(cameraManager, foldersManager);
+      const query = builder.buildClipsQuery(new Set(['camera.hall']));
+      assert(query);
+
+      const filtered = UnifiedQueryTransformer.filterByCamera(query, 'camera.office');
+      expect(filtered.getNodes().length).toBe(0);
+    });
+
+    it('should exclude non-camera queries from camera-filtered result', () => {
+      const { cameraManager, foldersManager } = createMocks();
+      const builder = new UnifiedQueryBuilder(cameraManager, foldersManager);
+      const folder = createFolder({ id: 'f1', title: 'Test' });
+      const query = builder.buildFolderQueryWithPath(folder, [{ ha: { id: 'Root' } }]);
+
+      const filtered = UnifiedQueryTransformer.filterByCamera(query, 'camera.office');
+      expect(filtered.getNodes().length).toBe(0);
+    });
+  });
 });

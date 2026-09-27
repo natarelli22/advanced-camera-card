@@ -1,4 +1,3 @@
-import { add, sub } from 'date-fns';
 import {
   html,
   LitElement,
@@ -13,7 +12,6 @@ import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 
 import type { CameraManager } from '../camera-manager/manager.js';
 import type { DateRange } from '../camera-manager/range.js';
-import { QueryType, type RecordingQuery } from '../camera-manager/types.js';
 import { convertRangeToCacheFriendlyTimes } from '../camera-manager/utils/range-to-cache-friendly.js';
 import type { FoldersManager } from '../card-controller/folders/manager.js';
 import type { ViewItemManager } from '../card-controller/view/item-manager.js';
@@ -32,7 +30,6 @@ import type { ConditionStateManagerReadonlyInterface } from '../condition-trigge
 import type { ThumbnailsControlConfig } from '../config/schema/common/controls/thumbnails.js';
 import type { CardWideConfig } from '../config/schema/types.js';
 import type { HomeAssistant } from '../ha/types.js';
-import { QuerySource } from '../query-source.js';
 import thumbnailCarouselStyle from '../scss/thumbnail-carousel.scss?inline';
 import { stopEventFromActivatingCardWideActions } from '../utils/action.js';
 import { errorToConsole } from '../utils/basic.js';
@@ -40,8 +37,8 @@ import type {
   CarouselDirection,
   CarouselSelected,
 } from '../utils/embla/carousel-controller.js';
-import { findBestMediaTimeIndex } from '../utils/find-best-media-time-index.js';
 import { fireAdvancedCameraCardEvent } from '../utils/fire-advanced-camera-card-event.js';
+import { syncGridResultsForTargetTime } from '../utils/grid-sync.js';
 import { ViewItemClassifier } from '../view/item-classifier.js';
 import type { ViewItem, ViewMedia } from '../view/item.js';
 import { QueryResults } from '../view/query-results.js';
@@ -224,7 +221,10 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       refTime = new Date();
     }
 
-    const cameraKey = view.isGrid() ? 'grid' : view.camera ?? 'default';
+    const cameraForQuery = view.camera ?? undefined;
+    const cameraKey = view.isGrid()
+      ? `grid_${cameraForQuery ?? 'default'}`
+      : cameraForQuery ?? 'default';
     if (
       this._currentChunk &&
       this._lastCameraKey === cameraKey &&
@@ -235,12 +235,30 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       return;
     }
 
-    if (
+    if (this._lastCameraKey !== cameraKey) {
+      this._currentChunk = null;
+      if (view.queryResults && view.queryResults.getResultsCount() > 0) {
+        const allResults = view.queryResults.getResults() ?? [];
+        this._items = cameraForQuery
+          ? allResults.filter(
+              (it) => ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
+            )
+          : allResults;
+      } else {
+        this._items = [];
+      }
+      this._thumbnails = this._renderThumbnails();
+    } else if (
       !this._items.length &&
       view.queryResults &&
       view.queryResults.getResultsCount() > 0
     ) {
-      this._items = view.queryResults.getResults() ?? [];
+      const allResults = view.queryResults.getResults() ?? [];
+      this._items = cameraForQuery
+        ? allResults.filter(
+            (it) => ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
+          )
+        : allResults;
       this._thumbnails = this._renderThumbnails();
     }
 
@@ -287,8 +305,11 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       }
 
       let baseQuery = view.query;
+      const cameraForQuery = view.camera ?? undefined;
+      if (baseQuery && cameraForQuery) {
+        baseQuery = UnifiedQueryTransformer.filterByCamera(baseQuery, cameraForQuery);
+      }
       if (!baseQuery || !baseQuery.hasNodes()) {
-        const cameraForQuery = view.isGrid() ? undefined : view.camera ?? undefined;
         baseQuery = this._builder?.buildDefaultCameraQuery(cameraForQuery) ?? null;
       }
 
@@ -488,51 +509,11 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
         .selectResultIfFound((result) => result.getID() === item.getID());
 
       if (isGrid && targetTime) {
-        const gridCameraIDs =
-          this.cameraManager?.getStore().getCameraIDsWithCapability('recordings') ??
-          new Set<string>();
-
-        let additionalMedia: ViewMedia[] = [];
-        for (const camID of gridCameraIDs) {
-          if (camID === cameraID) {
-            continue;
-          }
-          const existingSelected = newResults.getSelectedResult(camID);
-          const hasCovering =
-            existingSelected &&
-            ViewItemClassifier.isMedia(existingSelected) &&
-            existingSelected.includesTime(targetTime);
-
-          if (!hasCovering && this.cameraManager) {
-            const recordingQuery: RecordingQuery = {
-              source: QuerySource.Camera,
-              type: QueryType.Recording,
-              cameraIDs: new Set([camID]),
-              start: sub(targetTime, { hours: 1 }),
-              end: add(targetTime, { hours: 1 }),
-            };
-            const queriedMedia = await this.cameraManager.executeMediaQueries(
-              [recordingQuery],
-              { useCache: true },
-            );
-            if (queriedMedia?.length) {
-              additionalMedia = [...additionalMedia, ...queriedMedia];
-            }
-          }
-        }
-
-        if (additionalMedia.length) {
-          const combinedItems = [...(newResults.getResults() ?? []), ...additionalMedia];
-          newResults = new QueryResults({ results: combinedItems });
-        }
-
-        newResults.selectBestResult(
-          (mediaArray) => findBestMediaTimeIndex(mediaArray, targetTime),
-          { allCameras: true },
-        );
-        newResults.selectResultIfFound((result) => result.getID() === item.getID(), {
-          main: true,
-          cameraID: cameraID ?? undefined,
+        newResults = await syncGridResultsForTargetTime(newResults, {
+          cameraManager: this.cameraManager,
+          targetTime,
+          selectedCameraID: cameraID ?? undefined,
+          selectedItemID: item.getID(),
         });
       }
 
