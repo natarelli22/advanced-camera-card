@@ -58,6 +58,11 @@ import {
   type TPLinkRecordingSegmentsQueryResults,
 } from './types';
 
+const cleanFolder = (folder?: string | null): string | undefined => {
+  const cleaned = folder?.trim().replace(/^\/+|\/+$/g, '').toLowerCase();
+  return cleaned && cleaned.length > 0 ? cleaned : undefined;
+};
+
 export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
   private _camerasCache = new BrowseMediaCache<BrowseMediaTPLinkCameraMetadata>();
   private _cache = new BrowseMediaCache<BrowseMediaMetadata>();
@@ -452,22 +457,34 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const isEvents = category === 'events';
     const isContinuous = category === 'continuous';
 
-    if (isContinuous && !tplinkConfig?.continuous_folder) {
+    const continuousFolder = cleanFolder(tplinkConfig?.continuous_folder);
+    const eventsFolder = cleanFolder(tplinkConfig?.events_folder);
+
+    if (isContinuous && !continuousFolder) {
       return null;
     }
 
-    const customFolderName = isEvents
-      ? tplinkConfig?.events_folder?.toLowerCase()
-      : isContinuous
-        ? tplinkConfig?.continuous_folder?.toLowerCase()
-        : undefined;
-
-    const targetCategoryNames = customFolderName ? [customFolderName] : [];
+    const targetCategoryNames: string[] = [];
+    if (isEvents && eventsFolder) {
+      targetCategoryNames.push(eventsFolder);
+    } else if (isContinuous && continuousFolder) {
+      targetCategoryNames.push(continuousFolder);
+    } else if (!category) {
+      if (eventsFolder) {
+        targetCategoryNames.push(eventsFolder);
+      }
+      if (continuousFolder) {
+        targetCategoryNames.push(continuousFolder);
+      }
+    }
 
     const storagePath = camera.getStoragePath(hass);
 
     if (storagePath && storagePath.startsWith('/media')) {
       const relPath = storagePath.replace(/^\/media\/?/, '').replace(/\/+$/, '');
+      if (relPath.includes('..') || relPath.includes('\\')) {
+        return null;
+      }
       const targetUri = relPath
         ? `media-source://media_source/local/${relPath}`
         : 'media-source://media_source/local';
@@ -536,8 +553,8 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
             },
           );
 
-          const matchedCategoryFolder = targetCategoryNames.length
-            ? videosChildren.find(
+          const matchedCategoryFolders = targetCategoryNames.length
+            ? videosChildren.filter(
                 (c) =>
                   c.can_expand &&
                   targetCategoryNames.some(
@@ -545,14 +562,14 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
                       c.title.toLowerCase() === n || c.title.toLowerCase().includes(n),
                   ),
               )
-            : null;
+            : [];
 
-          if (matchedCategoryFolder) {
+          if (matchedCategoryFolders.length > 0) {
             const dateDirectories = await this._browseMediaWalker.walk(
               hass,
               [
                 {
-                  targets: [matchedCategoryFolder.media_content_id],
+                  targets: matchedCategoryFolders.map((f) => f.media_content_id),
                   metadataGenerator: (media: BrowseMedia) =>
                     this._tplinkDirectoryMetadataGenerator(camera.getID(), media),
                   matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) =>
@@ -567,7 +584,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
               },
             );
             if (dateDirectories?.length) {
-              return dateDirectories;
+              return sortMostRecentFirst(dateDirectories);
             }
             return null;
           }
@@ -625,6 +642,42 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
             ];
           }
         } else {
+          const matchedCategoryFolders = targetCategoryNames.length
+            ? cameraFoldersContent.filter(
+                (c) =>
+                  c.can_expand &&
+                  targetCategoryNames.some(
+                    (n) =>
+                      c.title.toLowerCase() === n || c.title.toLowerCase().includes(n),
+                  ),
+              )
+            : [];
+
+          if (matchedCategoryFolders.length > 0) {
+            const dateDirectories = await this._browseMediaWalker.walk(
+              hass,
+              [
+                {
+                  targets: matchedCategoryFolders.map((f) => f.media_content_id),
+                  metadataGenerator: (media: BrowseMedia) =>
+                    this._tplinkDirectoryMetadataGenerator(camera.getID(), media),
+                  matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) =>
+                    media.can_expand &&
+                    isMediaWithinDates(media, matchOptions?.start, matchOptions?.end),
+                  sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) =>
+                    sortMostRecentFirst(media),
+                },
+              ],
+              {
+                ...(engineOptions?.useCache !== false && { cache: this._cache }),
+              },
+            );
+            if (dateDirectories?.length) {
+              return sortMostRecentFirst(dateDirectories);
+            }
+            return null;
+          }
+
           if (isContinuous || targetCategoryNames.length > 0) {
             return null;
           }
@@ -799,7 +852,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const filteredCameraIDs = new Set(
       Array.from(cameraIDs).filter((cameraID) => {
         const camera = store.getCamera(cameraID);
-        return !camera || !!camera.getConfig()?.tplink?.continuous_folder;
+        return !camera || !!cleanFolder(camera.getConfig()?.tplink?.continuous_folder);
       }),
     );
     if (!filteredCameraIDs.size) {
@@ -828,8 +881,8 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const output: RecordingQueryResultsMap = new Map();
     const getRecordingsForCamera = async (cameraID: string): Promise<void> => {
       const camera = store.getCamera(cameraID);
-      const tplinkConfig = camera?.getConfig()?.tplink;
-      if (camera && !tplinkConfig?.continuous_folder) {
+      const continuousFolder = cleanFolder(camera?.getConfig()?.tplink?.continuous_folder);
+      if (camera && !continuousFolder) {
         return;
       }
 
@@ -894,7 +947,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const filteredCameraIDs = new Set(
       Array.from(cameraIDs).filter((cameraID) => {
         const camera = store.getCamera(cameraID);
-        return !camera || !!camera.getConfig()?.tplink?.continuous_folder;
+        return !camera || !!cleanFolder(camera.getConfig()?.tplink?.continuous_folder);
       }),
     );
     if (!filteredCameraIDs.size) {
@@ -920,8 +973,8 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const output: RecordingSegmentsQueryResultsMap = new Map();
     const getSegmentsForCamera = async (cameraID: string): Promise<void> => {
       const camera = store.getCamera(cameraID);
-      const tplinkConfig = camera?.getConfig()?.tplink;
-      if (camera && !tplinkConfig?.continuous_folder) {
+      const continuousFolder = cleanFolder(camera?.getConfig()?.tplink?.continuous_folder);
+      if (camera && !continuousFolder) {
         return;
       }
 
@@ -1012,14 +1065,17 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     const isEvents = category === 'events';
     const isContinuous = category === 'continuous';
 
-    if (camera && isContinuous && !tplinkConfig?.continuous_folder) {
+    const continuousFolder = cleanFolder(tplinkConfig?.continuous_folder);
+    const eventsFolder = cleanFolder(tplinkConfig?.events_folder);
+
+    if (camera && isContinuous && !continuousFolder) {
       return [];
     }
 
     const customFolderName = isEvents
-      ? tplinkConfig?.events_folder?.toLowerCase()
+      ? eventsFolder
       : isContinuous
-        ? tplinkConfig?.continuous_folder?.toLowerCase()
+        ? continuousFolder
         : undefined;
 
     const targetCategoryNames = customFolderName ? [customFolderName] : [];

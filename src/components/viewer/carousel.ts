@@ -548,17 +548,29 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
 
   public async play(): Promise<void> {
     const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
-    await controller?.playback?.play();
+    try {
+      await controller?.playback?.play();
+    } catch {
+      // Ignore autoplay or playback interruption errors
+    }
   }
 
   public async pause(): Promise<void> {
     const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
-    await controller?.playback?.pause();
+    try {
+      await controller?.playback?.pause();
+    } catch {
+      // Ignore pause errors
+    }
   }
 
   public async seek(seconds: number): Promise<void> {
     const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
-    await controller?.seek?.(seconds);
+    try {
+      await controller?.seek?.(seconds);
+    } catch {
+      // Ignore seek errors
+    }
   }
 
   public getSelectedMedia(): ViewMedia | null {

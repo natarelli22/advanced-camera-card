@@ -1129,6 +1129,227 @@ describe('TPLinkCameraManagerEngine', () => {
       const firstResult = Array.from(metadata?.values() ?? [])[0];
       expect(firstResult?.metadata?.days).toBeUndefined();
     });
+
+    it('should return days from both continuous_folder and events_folder in Cold Storage', async () => {
+      const entity = createRegistryEntity({
+        entity_id: 'camera.cozinha_hd_stream',
+        platform: 'tplink',
+        config_entry_id: 'cozinha_entry',
+        device_id: 'cozinha_device',
+      });
+      const engine = createEngine({
+        entityRegistryManager: new EntityRegistryManagerMock([entity]),
+      });
+      const camera = await engine.createCamera(
+        createCameraConfig({
+          camera_entity: 'camera.cozinha_hd_stream',
+          id: 'cozinha',
+          title: 'Cozinha HD Stream',
+          tplink: {
+            continuous_folder: ' continuous ',
+            events_folder: '/events/',
+          },
+        }),
+      );
+      const store = new CameraManagerStore();
+      store.addCamera(camera);
+
+      const COZINHA_ROOT: BrowseMedia = {
+        title: 'Cozinha',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://media_source/local/tapo/Cozinha',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: 'videos',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id: 'media-source://media_source/local/tapo/Cozinha/videos',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const VIDEOS_DIR: BrowseMedia = {
+        title: 'videos',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://media_source/local/tapo/Cozinha/videos',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: 'continuous',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Cozinha/videos/continuous',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+          {
+            title: 'events',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Cozinha/videos/events',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const CONTINUOUS_DATES: BrowseMedia = {
+        title: 'continuous',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id:
+          'media-source://media_source/local/tapo/Cozinha/videos/continuous',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: '2026-09-15',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Cozinha/videos/continuous/2026-09-15',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const EVENTS_DATES: BrowseMedia = {
+        title: 'events',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id:
+          'media-source://media_source/local/tapo/Cozinha/videos/events',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: '2026-09-16',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Cozinha/videos/events/2026-09-16',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const hass = createHASS({
+        'camera.cozinha_hd_stream': createStateEntity({
+          entity_id: 'camera.cozinha_hd_stream',
+          state: 'idle',
+          attributes: {
+            storage_path: '/media/tapo/Cozinha',
+          },
+        }),
+      });
+
+      vi.mocked(homeAssistantWSRequest).mockImplementation(async (...args: unknown[]) => {
+        const request = (args[2] ?? args[1]) as { media_content_id?: string } | undefined;
+        const id = request?.media_content_id;
+        if (id === 'media-source://media_source/local/tapo/Cozinha') {
+          return COZINHA_ROOT;
+        }
+        if (id === 'media-source://media_source/local/tapo/Cozinha/videos') {
+          return VIDEOS_DIR;
+        }
+        if (id === 'media-source://media_source/local/tapo/Cozinha/videos/continuous') {
+          return CONTINUOUS_DATES;
+        }
+        if (id === 'media-source://media_source/local/tapo/Cozinha/videos/events') {
+          return EVENTS_DATES;
+        }
+        return null;
+      });
+
+      const metadata = await engine.getMediaMetadata(
+        hass,
+        store,
+        {
+          type: QueryType.MediaMetadata,
+          cameraIDs: new Set(['cozinha']),
+        },
+        { useCache: false },
+      );
+
+      const firstResult = Array.from(metadata?.values() ?? [])[0];
+      expect(firstResult?.metadata?.days).toEqual(new Set(['2026-09-15', '2026-09-16']));
+    });
+
+    it('should reject storage_path containing path traversal tokens', async () => {
+      const entity = createRegistryEntity({
+        entity_id: 'camera.cozinha_hd_stream',
+        platform: 'tplink',
+        config_entry_id: 'cozinha_entry',
+        device_id: 'cozinha_device',
+      });
+      const engine = createEngine({
+        entityRegistryManager: new EntityRegistryManagerMock([entity]),
+      });
+      const camera = await engine.createCamera(
+        createCameraConfig({
+          camera_entity: 'camera.cozinha_hd_stream',
+          id: 'cozinha',
+          title: 'Cozinha HD Stream',
+        }),
+      );
+      const store = new CameraManagerStore();
+      store.addCamera(camera);
+
+      const hass = createHASS({
+        'camera.cozinha_hd_stream': createStateEntity({
+          entity_id: 'camera.cozinha_hd_stream',
+          state: 'idle',
+          attributes: {
+            storage_path: '/media/../etc/passwd',
+          },
+        }),
+      });
+
+      vi.mocked(homeAssistantWSRequest).mockReset();
+
+      const metadata = await engine.getMediaMetadata(
+        hass,
+        store,
+        {
+          type: QueryType.MediaMetadata,
+          cameraIDs: new Set(['cozinha']),
+        },
+        { useCache: false },
+      );
+
+      const firstResult = Array.from(metadata?.values() ?? [])[0];
+      expect(firstResult?.metadata?.days).toBeUndefined();
+      expect(homeAssistantWSRequest).not.toHaveBeenCalled();
+    });
   });
 
   describe('_tplinkCameraMetadataGenerator', () => {
