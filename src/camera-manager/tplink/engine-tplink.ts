@@ -179,8 +179,8 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     if (
       media.media_class !== MEDIA_CLASS_VIDEO &&
       (media.can_play ||
-        media.media_content_type === 'video' ||
-        media.title.toLowerCase().endsWith('.mp4'))
+        media.title.toLowerCase().endsWith('.mp4') ||
+        (!media.can_expand && media.media_content_type === 'video'))
     ) {
       media.media_class = MEDIA_CLASS_VIDEO;
       media.can_expand = false;
@@ -468,20 +468,224 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     }
 
     const targetCategoryNames: string[] = [];
-    if (isEvents && eventsFolder) {
-      targetCategoryNames.push(eventsFolder);
-    } else if (isContinuous && continuousFolder) {
-      targetCategoryNames.push(continuousFolder);
-    } else if (!category) {
+    if (isEvents) {
       if (eventsFolder) {
         targetCategoryNames.push(eventsFolder);
       }
+      targetCategoryNames.push('events', 'detection');
+    } else if (isContinuous && continuousFolder) {
+      targetCategoryNames.push(continuousFolder);
+      targetCategoryNames.push('continuous');
+    } else if (!category) {
+      if (eventsFolder) {
+        targetCategoryNames.push(eventsFolder);
+      } else {
+        targetCategoryNames.push('events', 'detection');
+      }
       if (continuousFolder) {
         targetCategoryNames.push(continuousFolder);
+      } else {
+        targetCategoryNames.push('continuous');
       }
     }
 
     const storagePath = camera.getStoragePath(hass);
+
+    const resolveDirectoriesFromItems = async (
+      items: BrowseMedia[],
+      fallbackUri: string,
+    ): Promise<RichBrowseMedia<BrowseMediaMetadata>[] | null> => {
+      const matchedCategoryFolders = targetCategoryNames.length
+        ? items.filter(
+            (c) =>
+              c.can_expand &&
+              targetCategoryNames.some(
+                (n) => c.title.toLowerCase() === n || c.title.toLowerCase().includes(n),
+              ),
+          )
+        : [];
+
+      if (matchedCategoryFolders.length > 0) {
+        const categoryChildren = await this._browseMediaWalker.walk(
+          hass,
+          [
+            {
+              targets: matchedCategoryFolders.map((f) => f.media_content_id),
+            },
+          ],
+          {
+            ...(engineOptions?.useCache !== false && { cache: this._cache }),
+          },
+        );
+
+        const dateDirectories = (categoryChildren ?? [])
+          .map((c) => ({
+            ...c,
+            _metadata: this._tplinkDirectoryMetadataGenerator(camera.getID(), c),
+          }))
+          .filter(
+            (c) =>
+              c.can_expand &&
+              c._metadata &&
+              isMediaWithinDates(
+                c as RichBrowseMedia<BrowseMediaMetadata>,
+                matchOptions?.start,
+                matchOptions?.end,
+              ),
+          ) as RichBrowseMedia<BrowseMediaMetadata>[];
+
+        if (dateDirectories.length > 0) {
+          return sortMostRecentFirst(dateDirectories);
+        }
+
+        const directVideos = (categoryChildren ?? []).filter(
+          (c) =>
+            !c.can_expand &&
+            (c.media_class === MEDIA_CLASS_VIDEO ||
+              c.can_play ||
+              c.media_content_type === 'video' ||
+              c.title.toLowerCase().endsWith('.mp4')),
+        );
+
+        if (directVideos.length > 0) {
+          if (!matchOptions) {
+            const daysMap = new Map<string, Date>();
+            for (const v of directVideos) {
+              const meta = this._tplinkFileMetadataGenerator(camera.getID(), v);
+              if (meta?.startDate && isValidDate(meta.startDate)) {
+                const dayStr = formatDate(meta.startDate);
+                if (!daysMap.has(dayStr)) {
+                  daysMap.set(dayStr, meta.startDate);
+                }
+              }
+            }
+            if (daysMap.size > 0) {
+              return Array.from(daysMap.entries()).map(
+                ([dayStr, date]) =>
+                  ({
+                    title: dayStr,
+                    media_class: 'directory',
+                    media_content_type: 'video',
+                    media_content_id: matchedCategoryFolders[0].media_content_id,
+                    children_media_class: 'directory',
+                    can_play: false,
+                    can_expand: true,
+                    _metadata: {
+                      cameraID: camera.getID(),
+                      startDate: startOfDay(date),
+                      endDate: endOfDay(date),
+                    },
+                  }) as RichBrowseMedia<BrowseMediaMetadata>,
+              );
+            }
+          }
+
+          return matchedCategoryFolders.map(
+            (f) =>
+              ({
+                title: f.title,
+                media_class: 'directory',
+                media_content_type: 'video',
+                media_content_id: f.media_content_id,
+                children_media_class: 'directory',
+                can_play: false,
+                can_expand: true,
+                _metadata: {
+                  cameraID: camera.getID(),
+                  startDate: new Date(0),
+                  endDate: new Date(8640000000000000),
+                },
+              }) as RichBrowseMedia<BrowseMediaMetadata>,
+          );
+        }
+      }
+
+      if (isContinuous) {
+        return null;
+      }
+
+      const dateFoldersDirect = items
+        .map((c) => ({
+          ...c,
+          _metadata: this._tplinkDirectoryMetadataGenerator(camera.getID(), c),
+        }))
+        .filter(
+          (c) =>
+            c.can_expand &&
+            c._metadata &&
+            isMediaWithinDates(
+              c as RichBrowseMedia<BrowseMediaMetadata>,
+              matchOptions?.start,
+              matchOptions?.end,
+            ),
+        ) as RichBrowseMedia<BrowseMediaMetadata>[];
+
+      if (dateFoldersDirect.length > 0) {
+        return sortMostRecentFirst(dateFoldersDirect);
+      }
+
+      const hasDirectVideosInVideos = items.some(
+        (c) =>
+          !c.can_expand &&
+          (c.media_class === MEDIA_CLASS_VIDEO ||
+            c.can_play ||
+            c.media_content_type === 'video' ||
+            c.title.toLowerCase().endsWith('.mp4')),
+      );
+
+      if (hasDirectVideosInVideos) {
+        if (!matchOptions) {
+          const daysMap = new Map<string, Date>();
+          for (const v of items) {
+            const meta = this._tplinkFileMetadataGenerator(camera.getID(), v);
+            if (meta?.startDate && isValidDate(meta.startDate)) {
+              const dayStr = formatDate(meta.startDate);
+              if (!daysMap.has(dayStr)) {
+                daysMap.set(dayStr, meta.startDate);
+              }
+            }
+          }
+          if (daysMap.size > 0) {
+            return Array.from(daysMap.entries()).map(
+              ([dayStr, date]) =>
+                ({
+                  title: dayStr,
+                  media_class: 'directory',
+                  media_content_type: 'video',
+                  media_content_id: fallbackUri,
+                  children_media_class: 'directory',
+                  can_play: false,
+                  can_expand: true,
+                  _metadata: {
+                    cameraID: camera.getID(),
+                    startDate: startOfDay(date),
+                    endDate: endOfDay(date),
+                  },
+                }) as RichBrowseMedia<BrowseMediaMetadata>,
+            );
+          }
+        }
+
+        return [
+          {
+            title: cameraTitle ?? cameraID,
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id: fallbackUri,
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            _metadata: {
+              cameraID: camera.getID(),
+              startDate: new Date(0),
+              endDate: new Date(8640000000000000),
+            },
+          } as RichBrowseMedia<BrowseMediaMetadata>,
+        ];
+      }
+
+      return null;
+    };
 
     if (storagePath && storagePath.startsWith('/media')) {
       const relPath = storagePath.replace(/^\/media\/?/, '').replace(/\/+$/, '');
@@ -556,184 +760,22 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
             },
           );
 
-          const matchedCategoryFolders = targetCategoryNames.length
-            ? videosChildren.filter(
-                (c) =>
-                  c.can_expand &&
-                  targetCategoryNames.some(
-                    (n) =>
-                      c.title.toLowerCase() === n || c.title.toLowerCase().includes(n),
-                  ),
-              )
-            : [];
-
-          if (matchedCategoryFolders.length > 0) {
-            const dateDirectories = await this._browseMediaWalker.walk(
-              hass,
-              [
-                {
-                  targets: matchedCategoryFolders.map((f) => f.media_content_id),
-                  metadataGenerator: (media: BrowseMedia) =>
-                    this._tplinkDirectoryMetadataGenerator(camera.getID(), media),
-                  matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) =>
-                    media.can_expand &&
-                    isMediaWithinDates(media, matchOptions?.start, matchOptions?.end),
-                  sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) =>
-                    sortMostRecentFirst(media),
-                },
-              ],
-              {
-                ...(engineOptions?.useCache !== false && { cache: this._cache }),
-              },
+          if (videosChildren?.length) {
+            const resolved = await resolveDirectoriesFromItems(
+              videosChildren,
+              videoFolder.media_content_id,
             );
-            if (dateDirectories?.length) {
-              return sortMostRecentFirst(dateDirectories);
+            if (resolved?.length) {
+              return resolved;
             }
-            return null;
           }
-
-          if (isContinuous || targetCategoryNames.length > 0) {
-            return null;
-          }
-
-          // Legacy layout: videosChildren are already the date folders (or flat files)
-          const dateFoldersDirect = videosChildren
-            .map((c) => ({
-              ...c,
-              _metadata: this._tplinkDirectoryMetadataGenerator(camera.getID(), c),
-            }))
-            .filter(
-              (c) =>
-                c.can_expand &&
-                c._metadata &&
-                isMediaWithinDates(
-                  c as RichBrowseMedia<BrowseMediaMetadata>,
-                  matchOptions?.start,
-                  matchOptions?.end,
-                ),
-            ) as RichBrowseMedia<BrowseMediaMetadata>[];
-
-          if (dateFoldersDirect.length > 0) {
-            return sortMostRecentFirst(dateFoldersDirect);
-          }
-
-          const hasDirectVideosInVideos = videosChildren.some(
-            (c) =>
-              !c.can_expand &&
-              (c.media_class === MEDIA_CLASS_VIDEO ||
-                c.can_play ||
-                c.media_content_type === 'video' ||
-                c.title.toLowerCase().endsWith('.mp4')),
+        } else if (cameraFoldersContent?.length) {
+          const resolved = await resolveDirectoriesFromItems(
+            cameraFoldersContent,
+            cameraFolderUris[0] ?? targetUri,
           );
-
-          if (hasDirectVideosInVideos) {
-            return [
-              {
-                title: cameraTitle ?? cameraID,
-                media_class: 'directory',
-                media_content_type: 'video',
-                media_content_id: videoFolder.media_content_id,
-                children_media_class: 'directory',
-                can_play: false,
-                can_expand: true,
-                _metadata: {
-                  cameraID: camera.getID(),
-                  startDate: new Date(0),
-                  endDate: new Date(8640000000000000),
-                },
-              } as RichBrowseMedia<BrowseMediaMetadata>,
-            ];
-          }
-        } else {
-          const matchedCategoryFolders = targetCategoryNames.length
-            ? cameraFoldersContent.filter(
-                (c) =>
-                  c.can_expand &&
-                  targetCategoryNames.some(
-                    (n) =>
-                      c.title.toLowerCase() === n || c.title.toLowerCase().includes(n),
-                  ),
-              )
-            : [];
-
-          if (matchedCategoryFolders.length > 0) {
-            const dateDirectories = await this._browseMediaWalker.walk(
-              hass,
-              [
-                {
-                  targets: matchedCategoryFolders.map((f) => f.media_content_id),
-                  metadataGenerator: (media: BrowseMedia) =>
-                    this._tplinkDirectoryMetadataGenerator(camera.getID(), media),
-                  matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) =>
-                    media.can_expand &&
-                    isMediaWithinDates(media, matchOptions?.start, matchOptions?.end),
-                  sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) =>
-                    sortMostRecentFirst(media),
-                },
-              ],
-              {
-                ...(engineOptions?.useCache !== false && { cache: this._cache }),
-              },
-            );
-            if (dateDirectories?.length) {
-              return sortMostRecentFirst(dateDirectories);
-            }
-            return null;
-          }
-
-          if (isContinuous || targetCategoryNames.length > 0) {
-            return null;
-          }
-
-          // If no 'videos' subfolder, check if cameraFoldersContent already contains date folders
-          const dateFoldersDirect = cameraFoldersContent
-            .map((c) => ({
-              ...c,
-              _metadata: this._tplinkDirectoryMetadataGenerator(camera.getID(), c),
-            }))
-            .filter(
-              (c) =>
-                c.can_expand &&
-                c._metadata &&
-                isMediaWithinDates(
-                  c as RichBrowseMedia<BrowseMediaMetadata>,
-                  matchOptions?.start,
-                  matchOptions?.end,
-                ),
-            ) as RichBrowseMedia<BrowseMediaMetadata>[];
-
-          if (dateFoldersDirect.length > 0) {
-            return sortMostRecentFirst(dateFoldersDirect);
-          }
-
-          // Check if cameraFoldersContent already contains direct videos (flat storage)
-          const hasDirectVideos = cameraFoldersContent.some(
-            (c) =>
-              !c.can_expand &&
-              (c.media_class === MEDIA_CLASS_VIDEO ||
-                c.can_play ||
-                c.media_content_type === 'video' ||
-                c.title.toLowerCase().endsWith('.mp4')),
-          );
-
-          if (hasDirectVideos) {
-            return cameraFolderUris.map(
-              (uri) =>
-                ({
-                  title: cameraTitle ?? cameraID,
-                  media_class: 'directory',
-                  media_content_type: 'video',
-                  media_content_id: uri,
-                  children_media_class: 'directory',
-                  can_play: false,
-                  can_expand: true,
-                  _metadata: {
-                    cameraID: camera.getID(),
-                    startDate: new Date(0),
-                    endDate: new Date(8640000000000000),
-                  },
-                }) as RichBrowseMedia<BrowseMediaMetadata>,
-            );
+          if (resolved?.length) {
+            return resolved;
           }
         }
       }
@@ -1085,7 +1127,11 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
         ? continuousFolder
         : undefined;
 
-    const targetCategoryNames = customFolderName ? [customFolderName] : [];
+    const targetCategoryNames = [
+      ...(customFolderName ? [customFolderName] : []),
+      ...(isEvents ? ['events', 'detection'] : []),
+      ...(isContinuous ? ['continuous'] : []),
+    ];
 
     if (directories?.length) {
       media = await this._browseMediaWalker.walk(

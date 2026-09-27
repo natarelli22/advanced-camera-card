@@ -2305,4 +2305,591 @@ describe('TPLinkCameraManagerEngine', () => {
       );
     });
   });
+
+  describe('cold storage flat file structure and fallback resilience', () => {
+    it('should detect days and query events from flat video files in videos/events', async () => {
+      const entity = createRegistryEntity({
+        entity_id: 'camera.sala_01_hd_stream',
+        platform: 'tplink',
+        config_entry_id: 'sala01_entry',
+        device_id: 'sala01_device',
+      });
+      const engine = createEngine({
+        entityRegistryManager: new EntityRegistryManagerMock([entity]),
+      });
+      const camera = await engine.createCamera(
+        createCameraConfig({
+          camera_entity: 'camera.sala_01_hd_stream',
+          id: 'sala_01',
+          title: 'Sala 01 HD Stream',
+          tplink: {
+            events_folder: 'events',
+            continuous_folder: 'continuous',
+          },
+        }),
+      );
+      const store = new CameraManagerStore();
+      store.addCamera(camera);
+
+      const hass = createHASS({
+        'camera.sala_01_hd_stream': createStateEntity({
+          entity_id: 'camera.sala_01_hd_stream',
+          state: 'idle',
+          attributes: {
+            storage_path: '/media/tapo/Sala_01',
+          },
+        }),
+      });
+
+      const SALA01_ROOT: BrowseMedia = {
+        title: 'Sala_01',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://media_source/local/tapo/Sala_01',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: 'videos',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id: 'media-source://media_source/local/tapo/Sala_01/videos',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const SALA01_VIDEOS: BrowseMedia = {
+        title: 'videos',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://media_source/local/tapo/Sala_01/videos',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: 'events',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Sala_01/videos/events',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+          {
+            title: 'continuous',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Sala_01/videos/continuous',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const SALA01_EVENTS: BrowseMedia = {
+        title: 'events',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://media_source/local/tapo/Sala_01/videos/events',
+        children_media_class: 'video',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: '2026-09-27_10-00-00_0_abcdef1234.mp4',
+            media_class: 'video',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Sala_01/videos/events/2026-09-27_10-00-00_0_abcdef1234.mp4',
+            children_media_class: null,
+            can_play: true,
+            can_expand: false,
+            thumbnail: null,
+          },
+          {
+            title: '2026-09-27_10-30-00_0_fedcba4321.mp4',
+            media_class: 'video',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Sala_01/videos/events/2026-09-27_10-30-00_0_fedcba4321.mp4',
+            children_media_class: null,
+            can_play: true,
+            can_expand: false,
+            thumbnail: null,
+          },
+          {
+            title: 'unparseable_file.mp4',
+            media_class: 'video',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Sala_01/videos/events/unparseable_file.mp4',
+            children_media_class: null,
+            can_play: true,
+            can_expand: false,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const SALA01_CONTINUOUS: BrowseMedia = {
+        title: 'continuous',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id:
+          'media-source://media_source/local/tapo/Sala_01/videos/continuous',
+        children_media_class: 'video',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: '2026-09-27_11-00-00_0_cont123456.mp4',
+            media_class: 'video',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Sala_01/videos/continuous/2026-09-27_11-00-00_0_cont123456.mp4',
+            children_media_class: null,
+            can_play: true,
+            can_expand: false,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      // 1. Test getMediaMetadata extracts dates from flat files
+      vi.mocked(homeAssistantWSRequest)
+        .mockResolvedValueOnce(SALA01_ROOT)
+        .mockResolvedValueOnce(SALA01_VIDEOS)
+        .mockResolvedValueOnce(SALA01_EVENTS)
+        .mockResolvedValueOnce(SALA01_CONTINUOUS);
+
+      const metadata = await engine.getMediaMetadata(
+        hass,
+        store,
+        {
+          type: QueryType.MediaMetadata,
+          cameraIDs: new Set(['sala_01']),
+        },
+        { useCache: false },
+      );
+
+      const metaResult = Array.from(metadata?.values() ?? [])[0];
+      expect(metaResult.metadata.days).toEqual(new Set(['2026-09-27']));
+
+      // 2. Test getEvents extracts events from flat files in events/
+      vi.mocked(homeAssistantWSRequest)
+        .mockResolvedValueOnce(SALA01_ROOT)
+        .mockResolvedValueOnce(SALA01_VIDEOS)
+        .mockResolvedValueOnce(SALA01_EVENTS)
+        .mockResolvedValueOnce(SALA01_EVENTS);
+
+      const eventQuery: EventQuery = {
+        source: QuerySource.Camera,
+        type: QueryType.Event,
+        cameraIDs: new Set(['sala_01']),
+      };
+      const eventResults = await engine.getEvents(hass, store, eventQuery, {
+        useCache: false,
+      });
+      const firstEventResult = Array.from(
+        eventResults?.values() ?? [],
+      )[0] as TPLinkEventQueryResults;
+
+      expect(firstEventResult.browseMedia.length).toBe(2);
+      expect(firstEventResult.browseMedia[0]._metadata?.startDate).toEqual(
+        new Date(2026, 8, 27, 10, 30, 0),
+      );
+      expect(firstEventResult.browseMedia[1]._metadata?.startDate).toEqual(
+        new Date(2026, 8, 27, 10, 0, 0),
+      );
+
+      // 3. Test getRecordings extracts recordings from flat files in continuous/
+      vi.mocked(homeAssistantWSRequest)
+        .mockResolvedValueOnce(SALA01_ROOT)
+        .mockResolvedValueOnce(SALA01_VIDEOS)
+        .mockResolvedValueOnce(SALA01_CONTINUOUS)
+        .mockResolvedValueOnce(SALA01_CONTINUOUS);
+
+      const recordingQuery: RecordingQuery = {
+        source: QuerySource.Camera,
+        type: QueryType.Recording,
+        cameraIDs: new Set(['sala_01']),
+      };
+      const recResults = await engine.getRecordings(hass, store, recordingQuery, {
+        useCache: false,
+      });
+      const firstRecResult = Array.from(
+        recResults?.values() ?? [],
+      )[0] as TPLinkRecordingQueryResults;
+
+      expect(firstRecResult.browseMedia.length).toBe(1);
+      expect(firstRecResult.browseMedia[0]._metadata?.startDate).toEqual(
+        new Date(2026, 8, 27, 11, 0, 0),
+      );
+    });
+
+    it('should fall back to videos folder directly when events folder does not exist', async () => {
+      const entity = createRegistryEntity({
+        entity_id: 'camera.sala_fallback_hd_stream',
+        platform: 'tplink',
+        config_entry_id: 'fallback_entry',
+      });
+      const engine = createEngine({
+        entityRegistryManager: new EntityRegistryManagerMock([entity]),
+      });
+      const camera = await engine.createCamera(
+        createCameraConfig({
+          camera_entity: 'camera.sala_fallback_hd_stream',
+          id: 'sala_fallback',
+          title: 'Sala Fallback',
+        }),
+      );
+      const store = new CameraManagerStore();
+      store.addCamera(camera);
+
+      const hass = createHASS({
+        'camera.sala_fallback_hd_stream': createStateEntity({
+          entity_id: 'camera.sala_fallback_hd_stream',
+          state: 'idle',
+          attributes: {
+            storage_path: '/media/tapo/Sala_Fallback',
+          },
+        }),
+      });
+
+      const FALLBACK_ROOT: BrowseMedia = {
+        title: 'Sala_Fallback',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://media_source/local/tapo/Sala_Fallback',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: 'videos',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Sala_Fallback/videos',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const FALLBACK_VIDEOS: BrowseMedia = {
+        title: 'videos',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://media_source/local/tapo/Sala_Fallback/videos',
+        children_media_class: 'video',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: '2026-09-27_08-15-00_0_fallback.mp4',
+            media_class: 'video',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://media_source/local/tapo/Sala_Fallback/videos/2026-09-27_08-15-00_0_fallback.mp4',
+            children_media_class: null,
+            can_play: true,
+            can_expand: false,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      // getMediaMetadata: checks videos/ -> finds direct videos
+      vi.mocked(homeAssistantWSRequest)
+        .mockResolvedValueOnce(FALLBACK_ROOT)
+        .mockResolvedValueOnce(FALLBACK_VIDEOS);
+
+      const metadata = await engine.getMediaMetadata(
+        hass,
+        store,
+        {
+          type: QueryType.MediaMetadata,
+          cameraIDs: new Set(['sala_fallback']),
+        },
+        { useCache: false },
+      );
+
+      const metaResult = Array.from(metadata?.values() ?? [])[0];
+      expect(metaResult.metadata.days).toEqual(new Set(['2026-09-27']));
+
+      // getEvents: finds direct videos under videos/
+      vi.mocked(homeAssistantWSRequest)
+        .mockResolvedValueOnce(FALLBACK_ROOT)
+        .mockResolvedValueOnce(FALLBACK_VIDEOS)
+        .mockResolvedValueOnce(FALLBACK_VIDEOS);
+
+      const eventQuery: EventQuery = {
+        source: QuerySource.Camera,
+        type: QueryType.Event,
+        cameraIDs: new Set(['sala_fallback']),
+      };
+      const eventResults = await engine.getEvents(hass, store, eventQuery, {
+        useCache: false,
+      });
+      const firstEventResult = Array.from(
+        eventResults?.values() ?? [],
+      )[0] as TPLinkEventQueryResults;
+
+      expect(firstEventResult.browseMedia.length).toBe(1);
+      expect(firstEventResult.browseMedia[0]._metadata?.startDate).toEqual(
+        new Date(2026, 8, 27, 8, 15, 0),
+      );
+    });
+
+    it('should fall back to media-source://tapo_control if cold storage is empty', async () => {
+      const entity = createRegistryEntity({
+        entity_id: 'camera.sala_empty_cold',
+        platform: 'tplink',
+        config_entry_id: 'empty_cold_entry',
+      });
+      const engine = createEngine({
+        entityRegistryManager: new EntityRegistryManagerMock([entity]),
+      });
+      const camera = await engine.createCamera(
+        createCameraConfig({
+          camera_entity: 'camera.sala_empty_cold',
+          id: 'sala_empty_cold',
+          title: 'Sala Empty Cold',
+          tplink: {
+            continuous_folder: 'continuous',
+          },
+        }),
+      );
+      const store = new CameraManagerStore();
+      store.addCamera(camera);
+
+      const hass = createHASS({
+        'camera.sala_empty_cold': createStateEntity({
+          entity_id: 'camera.sala_empty_cold',
+          state: 'idle',
+          attributes: {
+            storage_path: '/media/tapo/Sala_Empty_Cold',
+          },
+        }),
+      });
+
+      // Cold storage returns empty children
+      const EMPTY_COLD: BrowseMedia = {
+        title: 'Sala_Empty_Cold',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://media_source/local/tapo/Sala_Empty_Cold',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [],
+      };
+
+      // Strategy 2 returns Tapo: Recordings -> Camera -> Date -> Detection Events & Continuous Recording
+      const TAPO_CAMERAS: BrowseMedia = {
+        title: 'Tapo: Recordings',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://tapo_control',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: 'Sala Empty Cold',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://tapo_control/tapo_control/?entry=empty_cold_entry',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const TAPO_DATES: BrowseMedia = {
+        title: 'Sala Empty Cold',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id:
+          'media-source://tapo_control/tapo_control/?entry=empty_cold_entry',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: '2026-09-27',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://tapo_control/tapo_control/?date=2026-09-27',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const TAPO_DATE_SUBFOLDERS: BrowseMedia = {
+        title: '2026-09-27',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id: 'media-source://tapo_control/tapo_control/?date=2026-09-27',
+        children_media_class: 'directory',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: 'Detection Events',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://tapo_control/tapo_control/?date=2026-09-27&category=events',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+          {
+            title: 'Continuous Recording',
+            media_class: 'directory',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://tapo_control/tapo_control/?date=2026-09-27&category=continuous',
+            children_media_class: 'directory',
+            can_play: false,
+            can_expand: true,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const TAPO_EVENTS_FILES: BrowseMedia = {
+        title: 'Detection Events',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id:
+          'media-source://tapo_control/tapo_control/?date=2026-09-27&category=events',
+        children_media_class: 'video',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: '2026-09-27_12-00-00_0_tapo_det.mp4',
+            media_class: 'video',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://tapo_control/tapo_control/?date=2026-09-27&category=events&video=2026-09-27_12-00-00_0_tapo_det.mp4',
+            children_media_class: null,
+            can_play: true,
+            can_expand: false,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      const TAPO_CONT_FILES: BrowseMedia = {
+        title: 'Continuous Recording',
+        media_class: 'directory',
+        media_content_type: 'video',
+        media_content_id:
+          'media-source://tapo_control/tapo_control/?date=2026-09-27&category=continuous',
+        children_media_class: 'video',
+        can_play: false,
+        can_expand: true,
+        thumbnail: null,
+        children: [
+          {
+            title: '2026-09-27_12-30-00_0_tapo_cont.mp4',
+            media_class: 'video',
+            media_content_type: 'video',
+            media_content_id:
+              'media-source://tapo_control/tapo_control/?date=2026-09-27&category=continuous&video=2026-09-27_12-30-00_0_tapo_cont.mp4',
+            children_media_class: null,
+            can_play: true,
+            can_expand: false,
+            thumbnail: null,
+          },
+        ],
+      };
+
+      // getEvents: Cold fails -> falls back to tapo_control -> date -> Detection Events -> files
+      vi.mocked(homeAssistantWSRequest)
+        .mockResolvedValueOnce(EMPTY_COLD) // cold root returns empty
+        .mockResolvedValueOnce(TAPO_CAMERAS) // strategy 2 root
+        .mockResolvedValueOnce(TAPO_DATES) // camera dates
+        .mockResolvedValueOnce(TAPO_DATE_SUBFOLDERS) // date children (Detection Events / Continuous Recording)
+        .mockResolvedValueOnce(TAPO_EVENTS_FILES); // inside Detection Events
+
+      const eventQuery: EventQuery = {
+        source: QuerySource.Camera,
+        type: QueryType.Event,
+        cameraIDs: new Set(['sala_empty_cold']),
+      };
+      const eventResults = await engine.getEvents(hass, store, eventQuery, {
+        useCache: false,
+      });
+      const firstEventResult = Array.from(
+        eventResults?.values() ?? [],
+      )[0] as TPLinkEventQueryResults;
+
+      expect(firstEventResult.browseMedia.length).toBe(1);
+      expect(firstEventResult.browseMedia[0]._metadata?.startDate).toEqual(
+        new Date(2026, 8, 27, 12, 0, 0),
+      );
+
+      // getRecordings: Cold fails -> falls back to tapo_control -> date -> Continuous Recording -> files
+      vi.mocked(homeAssistantWSRequest)
+        .mockResolvedValueOnce(EMPTY_COLD)
+        .mockResolvedValueOnce(TAPO_CAMERAS)
+        .mockResolvedValueOnce(TAPO_DATES)
+        .mockResolvedValueOnce(TAPO_DATE_SUBFOLDERS)
+        .mockResolvedValueOnce(TAPO_CONT_FILES);
+
+      const recQuery: RecordingQuery = {
+        source: QuerySource.Camera,
+        type: QueryType.Recording,
+        cameraIDs: new Set(['sala_empty_cold']),
+      };
+      const recResults = await engine.getRecordings(hass, store, recQuery, {
+        useCache: false,
+      });
+      const firstRecResult = Array.from(
+        recResults?.values() ?? [],
+      )[0] as TPLinkRecordingQueryResults;
+
+      expect(firstRecResult.browseMedia.length).toBe(1);
+      expect(firstRecResult.browseMedia[0]._metadata?.startDate).toEqual(
+        new Date(2026, 8, 27, 12, 30, 0),
+      );
+    });
+  });
 });
