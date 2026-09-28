@@ -12,6 +12,7 @@ import type { AdvancedCameraCardViewerCarousel } from '../../../src/components/v
 import type { AdvancedCameraCardViewerGrid } from '../../../src/components/viewer/grid';
 import type { ViewerConfig } from '../../../src/config/schema/viewer';
 import type { ViewMedia } from '../../../src/view/item';
+import type { QueryResults } from '../../../src/view/query-results';
 import type { View } from '../../../src/view/view';
 
 // @vitest-environment jsdom
@@ -115,6 +116,7 @@ describe('AdvancedCameraCardViewerGrid', () => {
     expect(carousel1.pause).toHaveBeenCalled();
     expect(carousel2.pause).toHaveBeenCalled();
     expect(carousel2.seek).toHaveBeenCalledWith(1000);
+    expect(carousel1.seek).toHaveBeenCalledWith(0);
   });
 
   it('should not pause carousels on media:ended if sync_playback is false', () => {
@@ -174,21 +176,155 @@ describe('AdvancedCameraCardViewerGrid', () => {
     expect(carousel1.pause).not.toHaveBeenCalled();
   });
 
-  it('should ignore play/pause from non-selected camera', () => {
+  it('should synchronize play from non-selected camera to other carousels', async () => {
     const { grid, carousel1, carousel2 } = createGrid({
       syncPlayback: true,
       camera: 'camera1',
     });
 
+    const media1 = mock<ViewMedia>();
+    media1.getStartTime.mockReturnValue(new Date(0));
+    media1.includesTime.mockReturnValue(true);
+    carousel1.getSelectedMedia = vi.fn().mockReturnValue(media1);
+
+    const media2 = mock<ViewMedia>();
+    media2.getStartTime.mockReturnValue(new Date(1000 * 1000));
+    carousel2.getSelectedMedia = vi.fn().mockReturnValue(media2);
+
     const targetEl = document.createElement('video');
     carousel2.appendChild(targetEl);
 
-    (grid as unknown as { _handleMediaPlay: (ev: Event) => void })._handleMediaPlay({
+    await (
+      grid as unknown as {
+        _handleMediaPlay: (ev: CustomEvent<{ currentTime?: number }>) => Promise<void>;
+      }
+    )._handleMediaPlay({
+      target: targetEl,
+      detail: { currentTime: 0 },
+    } as unknown as CustomEvent<{ currentTime?: number }>);
+
+    expect(carousel1.seek).toHaveBeenCalledWith(1000);
+    expect(carousel1.play).toHaveBeenCalled();
+    expect(carousel2.play).not.toHaveBeenCalled();
+  });
+
+  it('should synchronize media:ended from non-selected camera and rewind', () => {
+    const { grid, carousel1, carousel2 } = createGrid({
+      syncPlayback: true,
+      camera: 'camera1',
+    });
+
+    const media1 = mock<ViewMedia>();
+    media1.getStartTime.mockReturnValue(new Date(0));
+    media1.includesTime.mockReturnValue(true);
+    carousel1.getSelectedMedia = vi.fn().mockReturnValue(media1);
+
+    const media2 = mock<ViewMedia>();
+    media2.getStartTime.mockReturnValue(new Date(1000 * 1000));
+    carousel2.getSelectedMedia = vi.fn().mockReturnValue(media2);
+
+    const targetEl = document.createElement('video');
+    carousel2.appendChild(targetEl);
+
+    (grid as unknown as { _handleMediaEnded: (ev: Event) => void })._handleMediaEnded({
       target: targetEl,
     } as unknown as Event);
 
+    expect(carousel1.pause).toHaveBeenCalled();
+    expect(carousel2.pause).toHaveBeenCalled();
+    expect(carousel1.seek).toHaveBeenCalledWith(1000);
+    expect(carousel2.seek).toHaveBeenCalledWith(0);
+  });
+
+  it('should suppress echo events when synchronizing playback', async () => {
+    const { grid, carousel1, carousel2 } = createGrid({
+      syncPlayback: true,
+      camera: 'camera1',
+    });
+
+    const media1 = mock<ViewMedia>();
+    media1.getStartTime.mockReturnValue(new Date(1000 * 1000));
+    carousel1.getSelectedMedia = vi.fn().mockReturnValue(media1);
+
+    const media2 = mock<ViewMedia>();
+    media2.getStartTime.mockReturnValue(new Date(0));
+    media2.includesTime.mockReturnValue(true);
+    carousel2.getSelectedMedia = vi.fn().mockReturnValue(media2);
+
+    const targetEl1 = document.createElement('video');
+    carousel1.appendChild(targetEl1);
+    const targetEl2 = document.createElement('video');
+    carousel2.appendChild(targetEl2);
+
+    // 1. Carousel1 plays -> commands Carousel2
+    await (
+      grid as unknown as {
+        _handleMediaPlay: (ev: CustomEvent<{ currentTime?: number }>) => Promise<void>;
+      }
+    )._handleMediaPlay({
+      target: targetEl1,
+      detail: { currentTime: 0 },
+    } as unknown as CustomEvent<{ currentTime?: number }>);
+
+    expect(carousel2.play).toHaveBeenCalledTimes(1);
+
+    // 2. Carousel2 responds with its echo play event
+    await (
+      grid as unknown as {
+        _handleMediaPlay: (ev: CustomEvent<{ currentTime?: number }>) => Promise<void>;
+      }
+    )._handleMediaPlay({
+      target: targetEl2,
+      detail: { currentTime: 1000 },
+    } as unknown as CustomEvent<{ currentTime?: number }>);
+
+    // Carousel1 should NOT have been called in echo
     expect(carousel1.play).not.toHaveBeenCalled();
-    expect(carousel2.play).not.toHaveBeenCalled();
+  });
+
+  it('should hide controls on continuous recording when an event is in the grid', () => {
+    const grid = document.createElement(
+      'advanced-camera-card-viewer-grid',
+    ) as AdvancedCameraCardViewerGrid;
+
+    const recordingMedia = mock<ViewMedia>();
+    recordingMedia.getMediaType.mockReturnValue('recording');
+
+    const eventMedia = mock<ViewMedia>();
+    eventMedia.getMediaType.mockReturnValue('clip');
+
+    const queryResults = mock<QueryResults>();
+    queryResults.getSelectedResult.mockImplementation((camID?: string) => {
+      if (camID === 'camera1') return recordingMedia;
+      if (camID === 'camera2') return eventMedia;
+      return null;
+    });
+
+    const view = mock<View>();
+    view.camera = 'camera1';
+    view.queryResults = queryResults;
+
+    const epoch: ViewManagerEpoch = {
+      manager: {
+        getView: () => view,
+      } as unknown as ViewManagerEpoch['manager'],
+    };
+
+    grid.viewManagerEpoch = epoch;
+    vi.spyOn(
+      grid as unknown as { _getGridCameraIDs: () => Set<string> },
+      '_getGridCameraIDs',
+    ).mockReturnValue(new Set(['camera1', 'camera2']));
+
+    const shouldShow1 = (
+      grid as unknown as { _shouldShowControls: (c?: string) => boolean }
+    )._shouldShowControls('camera1');
+    const shouldShow2 = (
+      grid as unknown as { _shouldShowControls: (c?: string) => boolean }
+    )._shouldShowControls('camera2');
+
+    expect(shouldShow1).toBe(false);
+    expect(shouldShow2).toBe(true);
   });
 
   it('should synchronize seeked time to other carousels covering the target time', () => {
