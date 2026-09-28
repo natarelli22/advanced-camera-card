@@ -380,7 +380,14 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
 
   protected render(): TemplateResult | void {
     const mediaCount = this._media?.length ?? 0;
+    const isGrid =
+      !!this.viewFilterCameraID ||
+      !!this.viewManagerEpoch?.manager.getView()?.isGrid();
+
     if (!this._media || !mediaCount) {
+      if (isGrid) {
+        return;
+      }
       return renderNoMediaNotification(
         {
           cameraID:

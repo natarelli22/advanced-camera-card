@@ -960,10 +960,11 @@ export class TimelineController {
     }
 
     const id = String(item.id);
-    const cameraID =
+    const rawCameraID =
       item.media?.getCameraID() ||
       (group && group !== 'undefined' ? group : '') ||
       (item.group ? String(item.group) : '');
+    const cameraID = rawCameraID.replace(/^camera\//, '');
     const criteria = {
       main: true,
       ...(cameraID && view.isGrid() && { cameraID: cameraID }),
