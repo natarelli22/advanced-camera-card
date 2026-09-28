@@ -6,6 +6,7 @@ import type { CameraManagerStore } from '../../src/camera-manager/store.js';
 import { QueryType } from '../../src/camera-manager/types.js';
 import { QuerySource } from '../../src/query-source.js';
 import { syncGridResultsForTargetTime } from '../../src/utils/grid-sync.js';
+import { ViewMediaType } from '../../src/view/item.js';
 import { QueryResults } from '../../src/view/query-results.js';
 import { TestViewMedia } from '../view/test-utils.js';
 
@@ -23,6 +24,7 @@ describe('syncGridResultsForTargetTime', () => {
     const mediaCam2 = new TestViewMedia({
       id: 'media-2',
       cameraID: 'camera2',
+      mediaType: ViewMediaType.Recording,
       startTime: new Date('2024-01-01T10:00:00Z'),
       endTime: new Date('2024-01-01T10:30:00Z'),
     });
@@ -54,6 +56,7 @@ describe('syncGridResultsForTargetTime', () => {
     const mediaCam2 = new TestViewMedia({
       id: 'media-2',
       cameraID: 'camera2',
+      mediaType: ViewMediaType.Recording,
       startTime: new Date('2024-01-01T10:00:00Z'),
       endTime: new Date('2024-01-01T10:30:00Z'),
     });
@@ -197,6 +200,7 @@ describe('syncGridResultsForTargetTime', () => {
     const mediaCam2 = new TestViewMedia({
       id: 'media-2',
       cameraID: 'camera2',
+      mediaType: ViewMediaType.Recording,
       startTime: new Date('2024-01-01T10:00:00Z'),
       endTime: new Date('2024-01-01T10:30:00Z'),
     });
@@ -246,6 +250,7 @@ describe('syncGridResultsForTargetTime', () => {
     const newMediaCam2 = new TestViewMedia({
       id: 'media-new-2',
       cameraID: 'camera2',
+      mediaType: ViewMediaType.Recording,
       startTime: new Date('2024-01-01T10:00:00Z'),
       endTime: new Date('2024-01-01T10:30:00Z'),
     });
@@ -348,4 +353,36 @@ describe('syncGridResultsForTargetTime', () => {
     expect(synced.getSelectedResult('camera1')?.getID()).toBe('media-1');
     expect(synced.getSelectedResult('camera2')).toBeNull();
   });
+
+  it('should not select event for secondary camera even if it covers targetTime', async () => {
+    const targetTime = new Date('2024-01-01T10:15:00Z');
+
+    const mediaCam1 = new TestViewMedia({
+      id: 'media-1',
+      cameraID: 'camera1',
+      startTime: new Date('2024-01-01T10:00:00Z'),
+      endTime: new Date('2024-01-01T10:30:00Z'),
+    });
+
+    const eventCam2 = new TestViewMedia({
+      id: 'event-cam-2',
+      cameraID: 'camera2',
+      mediaType: ViewMediaType.Clip,
+      startTime: new Date('2024-01-01T10:00:00Z'),
+      endTime: new Date('2024-01-01T10:30:00Z'),
+    });
+
+    const results = new QueryResults({ results: [mediaCam1, eventCam2] });
+
+    const synced = await syncGridResultsForTargetTime(results, {
+      targetTime,
+      selectedCameraID: 'camera1',
+      selectedItemID: 'media-1',
+      gridCameraIDs: new Set(['camera1', 'camera2']),
+    });
+
+    expect(synced.getSelectedResult('camera1')?.getID()).toBe('media-1');
+    expect(synced.getSelectedResult('camera2')).toBeNull();
+  });
 });
+

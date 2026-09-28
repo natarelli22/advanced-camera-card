@@ -508,7 +508,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
 
     const modifiers: ViewModifier[] = [
       new RemoveContextViewModifier(['timeline']),
-      ...(targetTime && !isEvent
+      ...(targetTime && (!isEvent || isGrid)
         ? [new MergeContextViewModifier({ mediaViewer: { seek: targetTime } })]
         : [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]),
     ];

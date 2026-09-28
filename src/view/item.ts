@@ -15,6 +15,7 @@ export interface ViewMediaSourceOptions {
   cameraID?: string;
   folder?: FolderConfig;
   path?: readonly FolderPathComponent[];
+  mediaType?: ViewMediaType;
 }
 
 export class ViewMedia {

@@ -812,6 +812,42 @@ describe('TimelineController', () => {
       expect(view.context?.mediaViewer?.seek).toBeUndefined();
     });
 
+    it('should set seek to targetTime when clicking on an event media (clip) in grid mode', async () => {
+      const event = createEventMedia();
+      const harness = await createHarness({ media: [event] });
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          displayMode: 'grid',
+          camera: CAMERA_ID,
+          queryResults: new QueryResults({
+            results: [event],
+            selectedIndex: 0,
+          }),
+        }),
+      );
+      const clickTime = add(WINDOW.start, { minutes: 30 });
+
+      harness.trigger('click', {
+        what: 'item',
+        item: 'event-1',
+        group: CAMERA_ID,
+        time: clickTime,
+        event: new Event('click'),
+      });
+
+      await vi.waitFor(() => {
+        expect(harness.manager.setViewByParameters).toHaveBeenCalled();
+      });
+
+      const parameters = vi.mocked(harness.manager.setViewByParameters).mock
+        .calls[0]?.[0];
+      const view = createView({ displayMode: 'grid' });
+      parameters?.modifiers?.forEach((modifier) => modifier.modify(view));
+
+      expect(view.context?.mediaViewer?.seek).toEqual(clickTime);
+    });
+
     it('should do nothing and restore selection when clicked on background or axis', async () => {
       const review = createReviewMedia();
       const harness = await createHarness({ media: [review] });
@@ -1174,6 +1210,40 @@ describe('TimelineController', () => {
           }),
         }),
       );
+    });
+
+    it('should do nothing when in grid mode and selected camera has no current media or id', async () => {
+      const cam1Media = new TestViewMedia({
+        mediaType: ViewMediaType.Clip,
+        cameraID: 'camera-1',
+        id: 'cam1-clip-1',
+        startTime: add(WINDOW.start, { minutes: 10 }),
+      });
+      const harness = await createHarness({
+        media: [cam1Media],
+      });
+
+      vi.mocked(harness.timeline.getSelection).mockReturnValue([]);
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          displayMode: 'grid',
+          camera: 'camera-2',
+          queryResults: new QueryResults({
+            results: [cam1Media],
+            selectedIndex: null,
+          }),
+        }),
+      );
+      vi.mocked(harness.timeline.setSelection).mockClear();
+      vi.mocked(harness.timeline.moveTo).mockClear();
+
+      await harness.controller.navigateMedia('next');
+      await harness.controller.navigateMedia('previous');
+
+      expect(harness.timeline.moveTo).not.toHaveBeenCalled();
+      expect(harness.timeline.setSelection).not.toHaveBeenCalled();
+      expect(harness.manager.setViewByParameters).not.toHaveBeenCalled();
     });
   });
 

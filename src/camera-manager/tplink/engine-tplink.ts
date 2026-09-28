@@ -20,7 +20,7 @@ import type { ResolvedMediaCache } from '../../ha/resolved-media';
 import type { HomeAssistant } from '../../ha/types';
 import { hasUnsupportedFilters, QuerySource } from '../../query-source.js';
 import { allPromises, formatDate, isValidDate } from '../../utils/basic';
-import type { ViewMedia } from '../../view/item';
+import { ViewMediaType, type ViewMedia } from '../../view/item';
 import { BrowseMediaCameraManagerEngine } from '../browse-media/engine-browse-media';
 import type { Camera } from '../camera';
 import { CAMERA_MANAGER_ENGINE_EVENT_LIMIT_DEFAULT } from '../engine';
@@ -980,7 +980,9 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     if (!TPLinkQueryResultsClassifier.isTPLinkRecordingQueryResults(results)) {
       return null;
     }
-    return getViewMediaFromBrowseMediaArray(results.browseMedia);
+    return getViewMediaFromBrowseMediaArray(results.browseMedia, {
+      mediaType: ViewMediaType.Recording,
+    });
   }
 
   public generateDefaultRecordingSegmentsQuery(

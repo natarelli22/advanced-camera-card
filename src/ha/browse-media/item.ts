@@ -6,9 +6,10 @@ import { formatDateAndTime } from '../../utils/basic';
 import {
   ViewFolder,
   ViewMedia,
+  ViewMediaType,
   type EventViewMedia,
+  type RecordingViewMedia,
   type ViewMediaSourceOptions,
-  type ViewMediaType,
 } from '../../view/item';
 import type { BrowseMediaMetadata, RichBrowseMedia } from './types';
 
@@ -100,6 +101,61 @@ export class BrowseMediaEventViewMedia extends ViewMedia implements EventViewMed
     return null;
   }
   public getTags(): string[] | null {
+    return null;
+  }
+}
+
+export class BrowseMediaRecordingViewMedia
+  extends ViewMedia
+  implements RecordingViewMedia
+{
+  private _browseMedia: RichBrowseMedia<BrowseMediaMetadata | undefined>;
+  private _id: string;
+  private _icon: string | null;
+
+  constructor(
+    browseMedia: RichBrowseMedia<BrowseMediaMetadata | undefined>,
+    options?: ViewMediaSourceOptions,
+  ) {
+    super(ViewMediaType.Recording, {
+      cameraID: options?.cameraID ?? browseMedia._metadata?.cameraID,
+      ...options,
+    });
+    this._browseMedia = browseMedia;
+    this._icon = getIcon(browseMedia.media_class);
+
+    this._id =
+      browseMedia._metadata?.startDate && this._cameraID
+        ? `${this._cameraID}/${format(
+            browseMedia._metadata.startDate,
+            'yyyy-MM-dd HH:mm:ss',
+          )}`
+        : browseMedia.media_content_id;
+  }
+
+  public getStartTime(): Date | null {
+    return this._browseMedia._metadata?.startDate ?? null;
+  }
+  public getEndTime(): Date | null {
+    return this._browseMedia._metadata?.endDate ?? null;
+  }
+  public getID(): string {
+    return this._id;
+  }
+  public getContentID(): string {
+    return this._browseMedia.media_content_id;
+  }
+  public getTitle(): string | null {
+    const startTime = this.getStartTime();
+    return startTime ? formatDateAndTime(startTime) : this._browseMedia.title;
+  }
+  public getThumbnail(): string | null {
+    return this._browseMedia._metadata?.thumbnailOverride ?? this._browseMedia.thumbnail;
+  }
+  public getIcon(): string | null {
+    return this._icon;
+  }
+  public getEventCount(): number | null {
     return null;
   }
 }

@@ -23,12 +23,21 @@ export const syncGridResultsForTargetTime = async (
   const {
     cameraManager,
     targetTime,
-    selectedCameraID,
+    selectedCameraID: explicitSelectedCameraID,
     selectedItemID,
     gridCameraIDs: overrideGridCameraIDs,
   } = options;
 
   let newResults = currentResults.clone();
+
+  const selectedCameraID =
+    explicitSelectedCameraID ??
+    (selectedItemID
+      ? (newResults.getResult(selectedItemID) as ViewMedia)?.getCameraID()
+      : newResults.getSelectedResult()?.getCameraID()) ??
+    newResults.getResults()[0]?.getCameraID() ??
+    undefined;
+
 
   const liveCameraIDs = cameraManager
     ? cameraManager.getStore().getCameraIDsWithCapability('live')
@@ -81,7 +90,16 @@ export const syncGridResultsForTargetTime = async (
   }
 
   newResults.selectBestResult(
-    (mediaArray) => findBestMediaTimeIndex(mediaArray, targetTime),
+    (mediaArray) => {
+      const recordings = mediaArray.filter((m) => ViewItemClassifier.isRecording(m));
+      if (recordings.length > 0) {
+        const recIndex = findBestMediaTimeIndex(recordings, targetTime);
+        if (recIndex !== null) {
+          return mediaArray.indexOf(recordings[recIndex]);
+        }
+      }
+      return findBestMediaTimeIndex(mediaArray, targetTime);
+    },
     { allCameras: true },
   );
 
@@ -93,6 +111,7 @@ export const syncGridResultsForTargetTime = async (
     if (
       !camSelected ||
       !ViewItemClassifier.isMedia(camSelected) ||
+      !ViewItemClassifier.isRecording(camSelected) ||
       !camSelected.includesTime(targetTime)
     ) {
       newResults.resetSelectedResult(camID);

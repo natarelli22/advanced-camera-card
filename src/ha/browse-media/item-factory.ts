@@ -3,7 +3,11 @@ import {
   type ViewItem,
   type ViewMediaSourceOptions,
 } from '../../view/item';
-import { BrowseMediaEventViewMedia, BrowseMediaViewFolder } from './item';
+import {
+  BrowseMediaEventViewMedia,
+  BrowseMediaRecordingViewMedia,
+  BrowseMediaViewFolder,
+} from './item';
 import {
   MEDIA_CLASS_IMAGE,
   MEDIA_CLASS_VIDEO,
@@ -22,12 +26,17 @@ export class BrowseMediaViewItemFactory {
         : null;
     }
 
+    if (options?.mediaType === ViewMediaType.Recording) {
+      return new BrowseMediaRecordingViewMedia(browseMedia, options);
+    }
+
     const mediaType =
-      browseMedia.media_class === MEDIA_CLASS_VIDEO
+      options?.mediaType ??
+      (browseMedia.media_class === MEDIA_CLASS_VIDEO
         ? ViewMediaType.Clip
         : browseMedia.media_class === MEDIA_CLASS_IMAGE
           ? ViewMediaType.Snapshot
-          : null;
+          : null);
 
     return mediaType
       ? new BrowseMediaEventViewMedia(mediaType, browseMedia, options)

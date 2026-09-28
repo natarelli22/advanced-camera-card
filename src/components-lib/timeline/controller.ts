@@ -704,7 +704,7 @@ export class TimelineController {
       }
     }
 
-    if (!currentMedia && !currentId && !view.isGrid()) {
+    if (!currentMedia && !currentId) {
       return;
     }
 
@@ -960,7 +960,10 @@ export class TimelineController {
     }
 
     const id = String(item.id);
-    const cameraID = group || (item.group ? String(item.group) : '');
+    const cameraID =
+      item.media?.getCameraID() ||
+      (group && group !== 'undefined' ? group : '') ||
+      (item.group ? String(item.group) : '');
     const criteria = {
       main: true,
       ...(cameraID && view.isGrid() && { cameraID: cameraID }),
@@ -1009,11 +1012,14 @@ export class TimelineController {
       });
     }
 
+    const effectiveSeekTime =
+      seekTime ?? (view.isGrid() && targetTime ? targetTime : null);
+
     const context: ViewContext = mergeViewContext(this._getTimelineContext(), {
-      ...(seekTime && { mediaViewer: { seek: seekTime } }),
+      ...(effectiveSeekTime && { mediaViewer: { seek: effectiveSeekTime } }),
     });
     const modifiers = [
-      ...(!seekTime
+      ...(!effectiveSeekTime
         ? [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]
         : []),
       new MergeContextViewModifier(context),
