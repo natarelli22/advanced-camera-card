@@ -30,13 +30,14 @@ export const syncGridResultsForTargetTime = async (
 
   let newResults = currentResults.clone();
 
-  const selectedCameraID =
+  const rawSelectedCameraID =
     explicitSelectedCameraID ??
     (selectedItemID
       ? (newResults.getResult(selectedItemID) as ViewMedia)?.getCameraID()
       : newResults.getSelectedResult()?.getCameraID()) ??
     newResults.getResults()[0]?.getCameraID() ??
     undefined;
+  const selectedCameraID = rawSelectedCameraID?.replace(/^camera\//, '');
 
 
   const liveCameraIDs = cameraManager

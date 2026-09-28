@@ -60,8 +60,11 @@ export function dispatchMediaVolumeChangeEvent(target: HTMLElement): void {
   fireAdvancedCameraCardEvent(target, 'media:volumechange');
 }
 
-export function dispatchMediaPlayEvent(target: HTMLElement): void {
-  fireAdvancedCameraCardEvent(target, 'media:play');
+export function dispatchMediaPlayEvent(
+  target: HTMLElement,
+  detail?: { currentTime?: number },
+): void {
+  fireAdvancedCameraCardEvent(target, 'media:play', detail);
 }
 
 export function dispatchMediaPauseEvent(target: HTMLElement): void {

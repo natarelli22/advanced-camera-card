@@ -33,6 +33,7 @@ import {
   hideMediaControlsTemporarily,
   MEDIA_LOAD_CONTROLS_HIDE_SECONDS,
 } from '../utils/controls.js';
+import { fireAdvancedCameraCardEvent } from '../utils/fire-advanced-camera-card-event.js';
 import {
   createMediaLoadedInfo,
   dispatchMediaPauseEvent,
@@ -121,8 +122,18 @@ void customElements.whenDefined('ha-hls-player').then(() => {
           }}
           @loadeddata=${(ev: Event) => this._loadedDataHandler(ev)}
           @volumechange=${() => dispatchMediaVolumeChangeEvent(this)}
-          @play=${() => dispatchMediaPlayEvent(this)}
+          @play=${() =>
+            dispatchMediaPlayEvent(this, {
+              currentTime: this._video?.currentTime,
+            })}
           @pause=${() => dispatchMediaPauseEvent(this)}
+          @seeked=${() => {
+            if (this._video) {
+              fireAdvancedCameraCardEvent(this, 'media:seeked', {
+                currentTime: this._video.currentTime,
+              });
+            }
+          }}
         ></video>
       `;
     }

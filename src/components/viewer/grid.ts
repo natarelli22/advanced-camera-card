@@ -115,23 +115,36 @@ export class AdvancedCameraCardViewerGrid extends LitElement {
       'advanced-camera-card-viewer-carousel',
     ) as AdvancedCameraCardViewerCarousel | null;
     const selectedCameraID = this.viewManagerEpoch?.manager.getView()?.camera;
+    const normalizedSelectedCameraID = selectedCameraID?.replace(/^camera\//, '');
+    const normalizedOriginCameraID = originCarousel?.viewFilterCameraID?.replace(/^camera\//, '');
     if (
-      originCarousel?.viewFilterCameraID &&
-      selectedCameraID &&
-      originCarousel.viewFilterCameraID !== selectedCameraID
+      normalizedOriginCameraID &&
+      normalizedSelectedCameraID &&
+      normalizedOriginCameraID !== normalizedSelectedCameraID
     ) {
       return;
     }
+
+    const originMedia = originCarousel?.getSelectedMedia();
+    const originStartTime = originMedia?.getStartTime();
 
     const carousels = this.renderRoot.querySelectorAll<AdvancedCameraCardViewerCarousel>(
       'advanced-camera-card-viewer-carousel',
     );
     for (const carousel of carousels) {
       void carousel.pause();
+      if (carousel !== originCarousel && originStartTime) {
+        const otherMedia = carousel.getSelectedMedia();
+        const otherStartTime = otherMedia?.getStartTime();
+        if (otherMedia && otherStartTime && otherMedia.includesTime(originStartTime)) {
+          const offsetSec = (originStartTime.getTime() - otherStartTime.getTime()) / 1000;
+          void carousel.seek(offsetSec);
+        }
+      }
     }
   }
 
-  private _handleMediaPlay(ev: Event): void {
+  private async _handleMediaPlay(ev: CustomEvent<{ currentTime?: number }>): Promise<void> {
     if (this._isSyncing || this.viewerConfig?.grid?.sync_playback === false) {
       return;
     }
@@ -139,13 +152,19 @@ export class AdvancedCameraCardViewerGrid extends LitElement {
       'advanced-camera-card-viewer-carousel',
     ) as AdvancedCameraCardViewerCarousel | null;
     const selectedCameraID = this.viewManagerEpoch?.manager.getView()?.camera;
+    const normalizedSelectedCameraID = selectedCameraID?.replace(/^camera\//, '');
+    const normalizedOriginCameraID = originCarousel?.viewFilterCameraID?.replace(/^camera\//, '');
     if (
-      originCarousel?.viewFilterCameraID &&
-      selectedCameraID &&
-      originCarousel.viewFilterCameraID !== selectedCameraID
+      normalizedOriginCameraID &&
+      normalizedSelectedCameraID &&
+      normalizedOriginCameraID !== normalizedSelectedCameraID
     ) {
       return;
     }
+
+    const currentTime = ev.detail?.currentTime;
+    const originMedia = originCarousel?.getSelectedMedia();
+    const originStartTime = originMedia?.getStartTime();
 
     this._isSyncing = true;
     try {
@@ -155,6 +174,16 @@ export class AdvancedCameraCardViewerGrid extends LitElement {
         );
       for (const carousel of carousels) {
         if (carousel !== originCarousel) {
+          if (typeof currentTime === 'number' && originStartTime) {
+            const targetRealTime = new Date(originStartTime.getTime() + currentTime * 1000);
+            const otherMedia = carousel.getSelectedMedia();
+            const otherStartTime = otherMedia?.getStartTime();
+            if (otherMedia && otherStartTime && otherMedia.includesTime(targetRealTime)) {
+              const offsetSec =
+                (targetRealTime.getTime() - otherStartTime.getTime()) / 1000;
+              await carousel.seek(offsetSec);
+            }
+          }
           void carousel.play();
         }
       }
@@ -171,10 +200,12 @@ export class AdvancedCameraCardViewerGrid extends LitElement {
       'advanced-camera-card-viewer-carousel',
     ) as AdvancedCameraCardViewerCarousel | null;
     const selectedCameraID = this.viewManagerEpoch?.manager.getView()?.camera;
+    const normalizedSelectedCameraID = selectedCameraID?.replace(/^camera\//, '');
+    const normalizedOriginCameraID = originCarousel?.viewFilterCameraID?.replace(/^camera\//, '');
     if (
-      originCarousel?.viewFilterCameraID &&
-      selectedCameraID &&
-      originCarousel.viewFilterCameraID !== selectedCameraID
+      normalizedOriginCameraID &&
+      normalizedSelectedCameraID &&
+      normalizedOriginCameraID !== normalizedSelectedCameraID
     ) {
       return;
     }
@@ -203,10 +234,12 @@ export class AdvancedCameraCardViewerGrid extends LitElement {
       'advanced-camera-card-viewer-carousel',
     ) as AdvancedCameraCardViewerCarousel | null;
     const selectedCameraID = this.viewManagerEpoch?.manager.getView()?.camera;
+    const normalizedSelectedCameraID = selectedCameraID?.replace(/^camera\//, '');
+    const normalizedOriginCameraID = originCarousel?.viewFilterCameraID?.replace(/^camera\//, '');
     if (
-      originCarousel?.viewFilterCameraID &&
-      selectedCameraID &&
-      originCarousel.viewFilterCameraID !== selectedCameraID
+      normalizedOriginCameraID &&
+      normalizedSelectedCameraID &&
+      normalizedOriginCameraID !== normalizedSelectedCameraID
     ) {
       return;
     }
@@ -255,7 +288,9 @@ export class AdvancedCameraCardViewerGrid extends LitElement {
           ev: CustomEvent<MediaGridSelected>,
         ) => this._gridSelectCamera(ev.detail.selected)}
         @advanced-camera-card:media:ended=${(ev: Event) => this._handleMediaEnded(ev)}
-        @advanced-camera-card:media:play=${(ev: Event) => this._handleMediaPlay(ev)}
+        @advanced-camera-card:media:play=${(
+          ev: CustomEvent<{ currentTime?: number }>,
+        ) => this._handleMediaPlay(ev)}
         @advanced-camera-card:media:pause=${(ev: Event) => this._handleMediaPause(ev)}
         @advanced-camera-card:media:seeked=${(
           ev: CustomEvent<{ currentTime?: number }>,

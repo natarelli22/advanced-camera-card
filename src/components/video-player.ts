@@ -144,7 +144,10 @@ export class AdvancedCameraCardVideoPlayer extends LitElement implements MediaPl
         @playing=${() => {
           this._isPlaying = true;
         }}
-        @play=${() => dispatchMediaPlayEvent(this)}
+        @play=${() =>
+          dispatchMediaPlayEvent(this, {
+            currentTime: this._refVideo.value?.currentTime,
+          })}
         @pause=${() => dispatchMediaPauseEvent(this)}
         @ended=${() => dispatchMediaEndedEvent(this)}
         @timeupdate=${() => {

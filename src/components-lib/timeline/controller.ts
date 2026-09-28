@@ -931,6 +931,17 @@ export class TimelineController {
           })
         : view.query ?? undefined);
 
+    const context: ViewContext = mergeViewContext(this._getTimelineContext(), {
+      ...(targetStart && { mediaViewer: { seek: targetStart } }),
+    });
+    const modifiers = [
+      new RemoveContextViewModifier(['timeline']),
+      ...(!targetStart
+        ? [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]
+        : []),
+      new MergeContextViewModifier(context),
+    ];
+
     this._viewManagerEpoch?.manager.setViewByParameters({
       params: {
         view: desiredView,
@@ -938,10 +949,7 @@ export class TimelineController {
         queryResults: newResults,
         ...(cameraID && { camera: cameraID }),
       },
-      modifiers: [
-        new RemoveContextPropertyViewModifier('mediaViewer', 'seek'),
-        new RemoveContextViewModifier(['timeline']),
-      ],
+      modifiers,
     });
 
     if (this._itemClickAction === 'select') {

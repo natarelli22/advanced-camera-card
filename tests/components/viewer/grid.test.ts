@@ -89,6 +89,15 @@ describe('AdvancedCameraCardViewerGrid', () => {
   it('should pause all carousels on media:ended', () => {
     const { grid, carousel1, carousel2 } = createGrid({ syncPlayback: true });
 
+    const media1 = mock<ViewMedia>();
+    media1.getStartTime.mockReturnValue(new Date(1000 * 1000));
+    carousel1.getSelectedMedia = vi.fn().mockReturnValue(media1);
+
+    const media2 = mock<ViewMedia>();
+    media2.getStartTime.mockReturnValue(new Date(0));
+    media2.includesTime.mockReturnValue(true);
+    carousel2.getSelectedMedia = vi.fn().mockReturnValue(media2);
+
     const targetEl = document.createElement('video');
     carousel1.appendChild(targetEl);
 
@@ -105,6 +114,7 @@ describe('AdvancedCameraCardViewerGrid', () => {
 
     expect(carousel1.pause).toHaveBeenCalled();
     expect(carousel2.pause).toHaveBeenCalled();
+    expect(carousel2.seek).toHaveBeenCalledWith(1000);
   });
 
   it('should not pause carousels on media:ended if sync_playback is false', () => {
@@ -121,16 +131,31 @@ describe('AdvancedCameraCardViewerGrid', () => {
     expect(carousel2.pause).not.toHaveBeenCalled();
   });
 
-  it('should synchronize play from selected camera to other carousels', () => {
+  it('should synchronize play from selected camera to other carousels with seek', async () => {
     const { grid, carousel1, carousel2 } = createGrid({ syncPlayback: true });
+
+    const media1 = mock<ViewMedia>();
+    media1.getStartTime.mockReturnValue(new Date(1000 * 1000));
+    carousel1.getSelectedMedia = vi.fn().mockReturnValue(media1);
+
+    const media2 = mock<ViewMedia>();
+    media2.getStartTime.mockReturnValue(new Date(0));
+    media2.includesTime.mockReturnValue(true);
+    carousel2.getSelectedMedia = vi.fn().mockReturnValue(media2);
 
     const targetEl = document.createElement('video');
     carousel1.appendChild(targetEl);
 
-    (grid as unknown as { _handleMediaPlay: (ev: Event) => void })._handleMediaPlay({
+    await (
+      grid as unknown as {
+        _handleMediaPlay: (ev: CustomEvent<{ currentTime?: number }>) => Promise<void>;
+      }
+    )._handleMediaPlay({
       target: targetEl,
-    } as unknown as Event);
+      detail: { currentTime: 0 },
+    } as unknown as CustomEvent<{ currentTime?: number }>);
 
+    expect(carousel2.seek).toHaveBeenCalledWith(1000);
     expect(carousel2.play).toHaveBeenCalled();
     expect(carousel1.play).not.toHaveBeenCalled();
   });
