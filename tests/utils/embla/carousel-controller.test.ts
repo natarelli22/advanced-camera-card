@@ -208,6 +208,61 @@ describe('CarouselController', () => {
     );
   });
 
+  it('should dispatch select event with slideRegistry when canScrollNext is true and false', () => {
+    const children = createTestSlideNodes({ n: 10 });
+    const parent = createParent({ children: children });
+    new CarouselController(createRoot(), parent);
+
+    const selectHandler = vi.fn();
+    parent.addEventListener('advanced-camera-card:carousel:select', selectHandler);
+
+    const api = getEmblaApi();
+    api?.slideNodes.mockReturnValue(children);
+    api?.internalEngine.mockReturnValue({
+      slideRegistry: [[0, 1, 2], [3, 4, 5]],
+    } as any);
+
+    // Can scroll next is true -> slideIndex is first slide in snap
+    api?.selectedScrollSnap.mockReturnValue(1);
+    api?.canScrollNext.mockReturnValue(true);
+    callEmblaHandler(api, 'select');
+    expect(selectHandler).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        detail: expect.objectContaining({
+          index: 1,
+          slideIndex: 3,
+        }),
+      }),
+    );
+
+    // Can scroll next is false -> slideIndex is last slide in snap
+    api?.canScrollNext.mockReturnValue(false);
+    callEmblaHandler(api, 'select');
+    expect(selectHandler).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        detail: expect.objectContaining({
+          index: 1,
+          slideIndex: 5,
+        }),
+      }),
+    );
+  });
+
+  it('should handle selectSlide when index is not found in slideRegistry', () => {
+    const children = createTestSlideNodes({ n: 10 });
+    const parent = createParent({ children: children });
+    const carousel = new CarouselController(createRoot(), parent);
+
+    const api = getEmblaApi();
+    api?.slideNodes.mockReturnValue(children);
+    api?.internalEngine.mockReturnValue({
+      slideRegistry: [[0, 1]], // index 5 is not in slideRegistry
+    } as any);
+
+    carousel.selectSlide(5);
+    expect(api?.scrollTo).toHaveBeenCalledWith(5, false);
+  });
+
   it('should not dispatch anything with an invalid scroll snap', () => {
     const children = createTestSlideNodes();
     const parent = createParent({ children: children });
@@ -443,5 +498,81 @@ describe('CarouselController', () => {
     api?.selectedScrollSnap.mockReturnValue(4);
     api?.canScrollNext.mockReturnValue(false);
     expect(carousel.getSelectedIndex()).toBe(19);
+
+    // getSelectedSnapIndex
+    expect(carousel.getSelectedSnapIndex()).toBe(4);
+  });
+
+  it('should handle isSlideInCurrentSnap without slideRegistry', () => {
+    const children = createTestSlideNodes({ n: 5 });
+    const parent = createParent({ children: children });
+    const carousel = new CarouselController(createRoot(), parent);
+
+    const api = getEmblaApi();
+    api?.internalEngine.mockReturnValue({} as any);
+    api?.selectedScrollSnap.mockReturnValue(2);
+
+    expect(carousel.isSlideInCurrentSnap(2)).toBe(true);
+    expect(carousel.isSlideInCurrentSnap(1)).toBe(false);
+  });
+
+  it('should call translate.to on jump when engine supports it', () => {
+    const children = createTestSlideNodes({ n: 5 });
+    const parent = createParent({ children: children });
+    const carousel = new CarouselController(createRoot(), parent);
+
+    const api = getEmblaApi();
+    api?.slideNodes.mockReturnValue(children);
+    const mockTo = vi.fn();
+    const mockGet = vi.fn().mockReturnValue(123);
+    api?.internalEngine.mockReturnValue({
+      translate: { to: mockTo },
+      location: { get: mockGet },
+    } as any);
+
+    carousel.selectSlide(2, true);
+    expect(mockGet).toHaveBeenCalled();
+    expect(mockTo).toHaveBeenCalledWith(123);
+  });
+
+  it('should handle canScrollNext and canScrollPrev', () => {
+    const children = createTestSlideNodes({ n: 5 });
+    const parent = createParent({ children: children });
+    const carousel = new CarouselController(createRoot(), parent);
+
+    const api = getEmblaApi();
+    api?.canScrollNext.mockReturnValue(true);
+    api?.canScrollPrev.mockReturnValue(false);
+
+    expect(carousel.canScrollNext()).toBe(true);
+    expect(carousel.canScrollPrev()).toBe(false);
+  });
+
+  it('should handle isDragging states', () => {
+    const children = createTestSlideNodes({ n: 5 });
+    const parent = createParent({ children: children });
+    const carousel = new CarouselController(createRoot(), parent);
+
+    const api = getEmblaApi();
+    api?.internalEngine.mockReturnValue(undefined as any);
+    expect(carousel.isDragging()).toBe(false);
+
+    api?.internalEngine.mockReturnValue({
+      dragHandler: { pointerDown: vi.fn().mockReturnValue(true) },
+      scrollBody: { settled: vi.fn().mockReturnValue(true) },
+    } as any);
+    expect(carousel.isDragging()).toBe(true);
+
+    api?.internalEngine.mockReturnValue({
+      dragHandler: { pointerDown: vi.fn().mockReturnValue(false) },
+      scrollBody: { settled: vi.fn().mockReturnValue(false) },
+    } as any);
+    expect(carousel.isDragging()).toBe(true);
+
+    api?.internalEngine.mockReturnValue({
+      dragHandler: { pointerDown: vi.fn().mockReturnValue(false) },
+      scrollBody: { settled: vi.fn().mockReturnValue(true) },
+    } as any);
+    expect(carousel.isDragging()).toBe(false);
   });
 });

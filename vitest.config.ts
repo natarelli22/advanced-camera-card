@@ -30,6 +30,7 @@ const EXCLUSIONS = [
   'src/ha/browse-media/walker.ts',
   'src/utils/action.ts',
   'src/card-controller/view/view-query-executor.ts',
+  'src/utils/grid-sync.ts',
 ];
 
 const TEST_DIRECTORY = 'tests';

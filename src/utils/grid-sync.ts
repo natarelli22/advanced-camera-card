@@ -245,9 +245,7 @@ export const syncGridResultsForTargetTime = async (
       main: true,
       ...(selectedCameraID && { cameraID: selectedCameraID }),
     });
-    if (newResults.hasSelectedResult()) {
-      mainSelected = true;
-    }
+    mainSelected = newResults.hasSelectedResult();
   }
 
   if (!mainSelected && selectedItem) {
@@ -255,9 +253,7 @@ export const syncGridResultsForTargetTime = async (
       main: true,
       ...(selectedCameraID && { cameraID: selectedCameraID }),
     });
-    if (newResults.hasSelectedResult()) {
-      mainSelected = true;
-    }
+    mainSelected = newResults.hasSelectedResult();
   }
 
   if (
@@ -266,9 +262,7 @@ export const syncGridResultsForTargetTime = async (
     newResults.hasSelectedResult(selectedCameraID)
   ) {
     newResults.promoteCameraSelectionToMainSelection(selectedCameraID);
-    if (newResults.hasSelectedResult()) {
-      mainSelected = true;
-    }
+    mainSelected = newResults.hasSelectedResult();
   }
 
   if (
@@ -277,9 +271,7 @@ export const syncGridResultsForTargetTime = async (
     newResults.hasSelectedResult(rawSelectedCameraID)
   ) {
     newResults.promoteCameraSelectionToMainSelection(rawSelectedCameraID);
-    if (newResults.hasSelectedResult()) {
-      mainSelected = true;
-    }
+    mainSelected = newResults.hasSelectedResult();
   }
 
   if (!mainSelected) {

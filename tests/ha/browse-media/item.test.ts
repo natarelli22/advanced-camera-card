@@ -309,5 +309,49 @@ describe('BrowseMediaRecordingViewMedia', () => {
       'yyyy-MM-dd HH:mm:ss',
     )}`;
     expect(recordingMedia.getID()).toBe(expectedId);
+    expect(recordingMedia.getStartTime()).toEqual(startDate);
+    expect(recordingMedia.getEndTime()).toEqual(new Date('2026-10-01T23:23:09Z'));
+    expect(recordingMedia.getContentID()).toBe('media_content_id');
+    expect(recordingMedia.getEventCount()).toBeNull();
+  });
+
+  it('should fallback to media_content_id and title when metadata is absent', () => {
+    const browseMedia = createBrowseMedia({
+      media_content_id: 'raw_content_id',
+      title: 'Raw Title',
+      thumbnail: 'thumb.jpg',
+      media_class: 'video',
+    });
+
+    const recordingMedia = new BrowseMediaRecordingViewMedia(browseMedia);
+    expect(recordingMedia.getID()).toBe('raw_content_id');
+    expect(recordingMedia.getStartTime()).toBeNull();
+    expect(recordingMedia.getEndTime()).toBeNull();
+    expect(recordingMedia.getTitle()).toBe('Raw Title');
+    expect(recordingMedia.getThumbnail()).toBe('thumb.jpg');
+    expect(recordingMedia.getIcon()).toBe('mdi:video');
+  });
+
+  it('should use thumbnailOverride and format title when available', () => {
+    const startDate = new Date('2026-10-01T22:45:40Z');
+    const browseMedia = createRichBrowseMedia({
+      _metadata: {
+        startDate,
+        thumbnailOverride: 'override.jpg',
+      },
+      title: 'Ignored Title',
+    });
+
+    const recordingMedia = new BrowseMediaRecordingViewMedia(browseMedia, {
+      cameraID: 'cam1',
+    });
+    expect(recordingMedia.getThumbnail()).toBe('override.jpg');
+    expect(recordingMedia.getTitle()).toBeTruthy();
+  });
+
+  it('should return browse media from BrowseMediaViewFolder', () => {
+    const browseMedia = createBrowseMedia();
+    const folder = new BrowseMediaViewFolder(createFolder(), [], browseMedia);
+    expect(folder.getBrowseMedia()).toBe(browseMedia);
   });
 });

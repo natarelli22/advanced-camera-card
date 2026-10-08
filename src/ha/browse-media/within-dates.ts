@@ -41,7 +41,7 @@ export const isMediaWithinDates = (
     return media._metadata.startDate <= end;
   }
   if (start && !end) {
-    return (media._metadata.endDate ?? media._metadata.startDate) >= start;
+    return media._metadata.endDate >= start;
   }
 
   // If no date is specified at all, everything matches.

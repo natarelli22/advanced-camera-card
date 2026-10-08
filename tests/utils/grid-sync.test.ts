@@ -5,7 +5,11 @@ import type { CameraManager } from '../../src/camera-manager/manager.js';
 import type { CameraManagerStore } from '../../src/camera-manager/store.js';
 import { QueryType } from '../../src/camera-manager/types.js';
 import { QuerySource } from '../../src/query-source.js';
-import { syncGridResultsForTargetTime } from '../../src/utils/grid-sync.js';
+import {
+  isMediaCoveringWithTolerance,
+  findBestMediaTimeIndexWithTolerance,
+  syncGridResultsForTargetTime,
+} from '../../src/utils/grid-sync.js';
 import { ViewItemClassifier } from '../../src/view/item-classifier.js';
 import { ViewMediaType } from '../../src/view/item.js';
 import { QueryResults } from '../../src/view/query-results.js';
@@ -640,5 +644,435 @@ describe('syncGridResultsForTargetTime', () => {
     expect(ViewItemClassifier.isRecording(synced.getSelectedResult('camera2'))).toBe(
       true,
     );
+  });
+
+  describe('isMediaCoveringWithTolerance', () => {
+    it('should return false for non-media or media without start/end', () => {
+      expect(
+        isMediaCoveringWithTolerance({} as any, new Date('2024-01-01T10:00:00Z')),
+      ).toBe(false);
+
+      const mediaNoDates = new TestViewMedia({
+        id: 'no-dates',
+        cameraID: 'cam1',
+      });
+      expect(
+        isMediaCoveringWithTolerance(mediaNoDates, new Date('2024-01-01T10:00:00Z')),
+      ).toBe(false);
+    });
+
+    it('should return true when targetTime is within range or within tolerance', () => {
+      const media = new TestViewMedia({
+        id: 'm1',
+        cameraID: 'cam1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:10:00Z'),
+      });
+
+      // exact inside
+      expect(
+        isMediaCoveringWithTolerance(media, new Date('2024-01-01T10:05:00Z'), 10),
+      ).toBe(true);
+      // 5s before start (tolerance is 10s)
+      expect(
+        isMediaCoveringWithTolerance(media, new Date('2024-01-01T09:59:55Z'), 10),
+      ).toBe(true);
+      // 5s after end (tolerance is 10s)
+      expect(
+        isMediaCoveringWithTolerance(media, new Date('2024-01-01T10:10:05Z'), 10),
+      ).toBe(true);
+      // 15s after end (outside tolerance)
+      expect(
+        isMediaCoveringWithTolerance(media, new Date('2024-01-01T10:10:15Z'), 10),
+      ).toBe(false);
+    });
+  });
+
+  describe('findBestMediaTimeIndexWithTolerance', () => {
+    it('should skip non-media and media without dates', () => {
+      const nonMedia = {} as any;
+      const mediaNoDates = new TestViewMedia({ id: 'nodates', cameraID: 'cam1' });
+      expect(
+        findBestMediaTimeIndexWithTolerance(
+          [nonMedia, mediaNoDates],
+          new Date('2024-01-01T10:00:00Z'),
+        ),
+      ).toBeNull();
+    });
+
+    it('should find closest media when targetTime is before start or after end', () => {
+      const media1 = new TestViewMedia({
+        id: 'm1',
+        cameraID: 'cam1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:10:00Z'),
+      });
+      const media2 = new TestViewMedia({
+        id: 'm2',
+        cameraID: 'cam1',
+        startTime: new Date('2024-01-01T10:20:00Z'),
+        endTime: new Date('2024-01-01T10:30:00Z'),
+      });
+
+      // targetTime 10:10:04 is 4s after media1 end and 9m56s before media2 start
+      const idx = findBestMediaTimeIndexWithTolerance(
+        [media1, media2],
+        new Date('2024-01-01T10:10:04Z'),
+        10,
+      );
+      expect(idx).toBe(0);
+
+      // targetTime 10:19:57 is 3s before media2 start (s - t)
+      const idx2 = findBestMediaTimeIndexWithTolerance(
+        [media1, media2],
+        new Date('2024-01-01T10:19:57Z'),
+        10,
+      );
+      expect(idx2).toBe(1);
+    });
+  });
+
+  describe('syncGridResultsForTargetTime additional branches', () => {
+    it('should select follower recording matching exact time index', async () => {
+      const targetTime = new Date('2024-01-01T10:05:00Z');
+
+      const mediaCam1 = new TestViewMedia({
+        id: 'cam1-rec',
+        cameraID: 'camera1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:15:00Z'),
+      });
+
+      const mediaCam2 = new TestViewMedia({
+        id: 'cam2-rec',
+        cameraID: 'camera2',
+        mediaType: ViewMediaType.Recording,
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:10:00Z'),
+      });
+
+      const results = new QueryResults({
+        results: [mediaCam1, mediaCam2],
+        selectedIndex: null,
+      });
+      const synced = await syncGridResultsForTargetTime(results, {
+        targetTime,
+        selectedCameraID: 'camera1',
+        selectedItemID: 'cam1-rec',
+        gridCameraIDs: new Set(['camera1', 'camera2']),
+      });
+
+      expect(synced.getSelectedResult('camera2')?.getID()).toBe('cam2-rec');
+    });
+
+    it('should select follower recording matching tolerance when exact time index is null', async () => {
+      const targetTime = new Date('2024-01-01T10:10:04Z');
+
+      const mediaCam1 = new TestViewMedia({
+        id: 'cam1-rec',
+        cameraID: 'camera1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:15:00Z'),
+      });
+
+      // cam2 recording ended at 10:10:00, targetTime is 10:10:04 (within 10s tolerance)
+      const mediaCam2 = new TestViewMedia({
+        id: 'cam2-rec',
+        cameraID: 'camera2',
+        mediaType: ViewMediaType.Recording,
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:10:00Z'),
+      });
+
+      const results = new QueryResults({
+        results: [mediaCam1, mediaCam2],
+        selectedIndex: null,
+      });
+      const synced = await syncGridResultsForTargetTime(results, {
+        targetTime,
+        selectedCameraID: 'camera1',
+        selectedItemID: 'cam1-rec',
+        gridCameraIDs: new Set(['camera1', 'camera2']),
+      });
+
+      expect(synced.getSelectedResult('camera2')?.getID()).toBe('cam2-rec');
+    });
+
+    it('should promote camera selection to main when mainSelected is false', async () => {
+      const targetTime = new Date('2024-01-01T10:05:00Z');
+
+      const mediaCam1 = new TestViewMedia({
+        id: 'cam1-rec',
+        cameraID: 'camera1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:15:00Z'),
+      });
+
+      const results = new QueryResults({ results: [mediaCam1] });
+      results.selectResultIfFound((r) => r.getID() === 'cam1-rec', {
+        cameraID: 'camera1',
+      });
+
+      // Calling sync without selectedItemID and with selectedCameraID matching camera1
+      const synced = await syncGridResultsForTargetTime(results, {
+        targetTime,
+        selectedCameraID: 'camera1',
+        gridCameraIDs: new Set(['camera1']),
+      });
+
+      expect(synced.hasSelectedResult()).toBe(true);
+      expect(synced.getSelectedResult()?.getID()).toBe('cam1-rec');
+    });
+
+    it('should promote rawSelectedCameraID when normalized camera selection is missing', async () => {
+      const targetTime = new Date('2024-01-01T10:05:00Z');
+
+      const mediaRawCam = new TestViewMedia({
+        id: 'raw-cam-rec',
+        cameraID: 'camera/cam1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:15:00Z'),
+      });
+
+      const results = new QueryResults({
+        results: [mediaRawCam],
+        selectedIndex: null,
+      });
+      // Select for camera/cam1 only
+      results.selectResultIfFound((r) => r.getID() === 'raw-cam-rec', {
+        cameraID: 'camera/cam1',
+      });
+
+      const synced = await syncGridResultsForTargetTime(results, {
+        targetTime,
+        selectedCameraID: 'camera/cam1',
+      });
+
+      expect(synced.hasSelectedResult()).toBe(true);
+      expect(synced.getSelectedResult()?.getID()).toBe('raw-cam-rec');
+    });
+
+    it('should fallback to selectBestResult when no camera selection exists', async () => {
+      const targetTime = new Date('2024-01-01T10:05:00Z');
+
+      const mediaCam1 = new TestViewMedia({
+        id: 'cam1-rec',
+        cameraID: 'camera1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:15:00Z'),
+      });
+
+      const results = new QueryResults({
+        results: [mediaCam1],
+        selectedIndex: null,
+      });
+      const synced = await syncGridResultsForTargetTime(results, {
+        targetTime,
+        selectedCameraID: 'unmatched-cam',
+      });
+
+      expect(synced.hasSelectedResult()).toBe(true);
+      expect(synced.getSelectedResult()?.getID()).toBe('cam1-rec');
+    });
+
+    it('should try camID with camera/ prefix if normalizedCamID does not match', async () => {
+      const targetTime = new Date('2024-01-01T10:05:00Z');
+
+      const mediaCam1 = new TestViewMedia({
+        id: 'cam1-rec',
+        cameraID: 'cam1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:15:00Z'),
+      });
+
+      // Item stored with camera/cam2 as its cameraID
+      const mediaCam2 = new TestViewMedia({
+        id: 'cam2-rec',
+        cameraID: 'camera/cam2',
+        mediaType: ViewMediaType.Recording,
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:15:00Z'),
+      });
+
+      const results = new QueryResults({
+        results: [mediaCam1, mediaCam2],
+        selectedIndex: null,
+      });
+      const synced = await syncGridResultsForTargetTime(results, {
+        targetTime,
+        selectedCameraID: 'cam1',
+        selectedItemID: 'cam1-rec',
+        gridCameraIDs: new Set(['cam1', 'camera/cam2']),
+      });
+
+      expect(synced.getSelectedResult('camera/cam2')?.getID()).toBe('cam2-rec');
+    });
+
+    it('should promote normalized selectedCameraID when mainSelected is false', async () => {
+      const targetTime = new Date('2024-01-01T10:05:00Z');
+
+      const mediaCam = new TestViewMedia({
+        id: 'cam1-rec',
+        cameraID: 'cam1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:15:00Z'),
+      });
+
+      const results = new QueryResults({
+        results: [mediaCam],
+        selectedIndex: null,
+      });
+      // Select for cam1 only
+      results.selectResultIfFound((r) => r.getID() === 'cam1-rec', {
+        cameraID: 'cam1',
+      });
+
+      const synced = await syncGridResultsForTargetTime(results, {
+        targetTime,
+        selectedCameraID: 'cam1',
+      });
+
+      expect(synced.hasSelectedResult()).toBe(true);
+      expect(synced.getSelectedResult()?.getID()).toBe('cam1-rec');
+    });
+
+    it('should query recordingCameraID using camID if normalizedCamID is not present', async () => {
+      const targetTime = new Date('2024-01-01T10:15:00Z');
+
+      const mediaCam1 = new TestViewMedia({
+        id: 'media-1',
+        cameraID: 'cam1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:30:00Z'),
+      });
+
+      const mediaCam2 = new TestViewMedia({
+        id: 'media-2',
+        cameraID: 'camera/cam2',
+        mediaType: ViewMediaType.Recording,
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:30:00Z'),
+      });
+
+      const cameraManager = mock<CameraManager>();
+      const store = mock<CameraManagerStore>();
+      cameraManager.getStore.mockReturnValue(store);
+      store.getCameraIDsWithCapability.mockImplementation((cap) => {
+        if (cap === 'recordings' || cap === 'live') {
+          return new Set(['cam1', 'camera/cam2']);
+        }
+        return new Set();
+      });
+
+      cameraManager.executeMediaQueries.mockResolvedValue([mediaCam2]);
+
+      const results = new QueryResults({ results: [mediaCam1], selectedIndex: null });
+
+      const synced = await syncGridResultsForTargetTime(results, {
+        cameraManager,
+        targetTime,
+        selectedCameraID: 'cam1',
+        gridCameraIDs: new Set(['cam1', 'camera/cam2']),
+      });
+
+      expect(cameraManager.executeMediaQueries).toHaveBeenCalledWith(
+        [
+          expect.objectContaining({
+            cameraIDs: new Set(['camera/cam2']),
+          }),
+        ],
+        { useCache: true },
+      );
+      expect(synced.getSelectedResult('camera/cam2')?.getID()).toBe('media-2');
+    });
+
+    it('should handle additional media with items lacking ID and no selected result', async () => {
+      const targetTime = new Date('2024-01-01T10:15:00Z');
+
+      const mediaCam1 = new TestViewMedia({
+        id: 'media-1',
+        cameraID: 'cam1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:30:00Z'),
+      });
+
+      const mediaNoId = new TestViewMedia({
+        id: '',
+        cameraID: 'cam2',
+        mediaType: ViewMediaType.Recording,
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:30:00Z'),
+      });
+
+      const cameraManager = mock<CameraManager>();
+      const store = mock<CameraManagerStore>();
+      cameraManager.getStore.mockReturnValue(store);
+      store.getCameraIDsWithCapability.mockImplementation((cap) => {
+        if (cap === 'recordings' || cap === 'live') {
+          return new Set(['cam1', 'cam2']);
+        }
+        return new Set();
+      });
+
+      cameraManager.executeMediaQueries.mockResolvedValue([mediaNoId]);
+
+      const results = new QueryResults({ results: [mediaCam1], selectedIndex: null });
+
+      const synced = await syncGridResultsForTargetTime(results, {
+        cameraManager,
+        targetTime,
+        selectedCameraID: 'cam1',
+        gridCameraIDs: new Set(['cam1', 'cam2']),
+      });
+
+      expect(synced.hasResults()).toBe(true);
+    });
+
+    it('should handle additional media when all items already exist in current recordings', async () => {
+      const targetTime = new Date('2024-01-01T10:15:00Z');
+
+      const mediaCam1 = new TestViewMedia({
+        id: 'media-1',
+        cameraID: 'cam1',
+        startTime: new Date('2024-01-01T10:00:00Z'),
+        endTime: new Date('2024-01-01T10:30:00Z'),
+      });
+
+      const existingRec = new TestViewMedia({
+        id: 'rec-1',
+        cameraID: 'cam2',
+        mediaType: ViewMediaType.Recording,
+        startTime: new Date('2024-01-01T08:00:00Z'),
+        endTime: new Date('2024-01-01T08:30:00Z'),
+      });
+
+      const cameraManager = mock<CameraManager>();
+      const store = mock<CameraManagerStore>();
+      cameraManager.getStore.mockReturnValue(store);
+      store.getCameraIDsWithCapability.mockImplementation((cap) => {
+        if (cap === 'recordings' || cap === 'live') {
+          return new Set(['cam1', 'cam2']);
+        }
+        return new Set();
+      });
+
+      // executeMediaQueries returns existingRec which already exists
+      cameraManager.executeMediaQueries.mockResolvedValue([existingRec]);
+
+      const results = new QueryResults({
+        results: [mediaCam1, existingRec],
+        selectedIndex: null,
+      });
+
+      const synced = await syncGridResultsForTargetTime(results, {
+        cameraManager,
+        targetTime,
+        selectedCameraID: 'cam1',
+        selectedItemID: 'media-1',
+        gridCameraIDs: new Set(['cam1', 'cam2']),
+      });
+
+      expect(synced.hasResults()).toBe(true);
+    });
   });
 });
