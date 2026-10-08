@@ -120,6 +120,7 @@ describe('CarouselController', () => {
     const parent = createParent({ children: children });
 
     const carousel = new CarouselController(createRoot(), parent);
+    getEmblaApi()?.slideNodes.mockReturnValue(children);
 
     carousel.selectSlide(4);
 
@@ -131,13 +132,14 @@ describe('CarouselController', () => {
     const parent = createParent({ children: children });
 
     const carousel = new CarouselController(createRoot(), parent);
+    getEmblaApi()?.slideNodes.mockReturnValue(children);
 
     carousel.selectSlide(4, true);
 
     expect(getEmblaApi()?.scrollTo).toHaveBeenCalledWith(4, true);
   });
 
-  it('should call reInit on embla api', () => {
+  it('should call reInit on embla api with slides', () => {
     const children = createTestSlideNodes();
     const parent = createParent({ children: children });
 
@@ -145,7 +147,31 @@ describe('CarouselController', () => {
 
     carousel.reInit();
 
-    expect(getEmblaApi()?.reInit).toHaveBeenCalled();
+    expect(getEmblaApi()?.reInit).toHaveBeenCalledWith({ slides: children });
+  });
+
+  it('should reinit with new slides when selecting newly added slide', () => {
+    const children = createTestSlideNodes({ n: 5 });
+    const parent = createParent({ children: children });
+    const carousel = new CarouselController(createRoot(), parent);
+
+    const api = getEmblaApi();
+    expect(api).toBeTruthy();
+    api?.slideNodes.mockReturnValue(children);
+
+    const newChild = document.createElement('div');
+    parent.appendChild(newChild);
+
+    api?.reInit.mockImplementation(() => {
+      api.slideNodes.mockReturnValue([...children, newChild]);
+    });
+
+    carousel.selectSlide(5);
+
+    expect(api?.reInit).toHaveBeenCalledWith({
+      slides: [...children, newChild],
+    });
+    expect(api?.scrollTo).toHaveBeenCalledWith(5, true);
   });
 
   it('should not select non-existent slide', () => {
@@ -372,5 +398,50 @@ describe('CarouselController', () => {
 
     // Should still be same carousel instance (no new creation)
     expect(EmblaCarousel).toHaveBeenCalledTimes(1);
+  });
+
+  it('should map slide index to snap index when slideRegistry is present', () => {
+    const children = createTestSlideNodes({ n: 20 });
+    const parent = createParent({ children: children });
+    const carousel = new CarouselController(createRoot(), parent);
+
+    const api = getEmblaApi();
+    expect(api).toBeTruthy();
+    api?.slideNodes.mockReturnValue(children);
+    // 20 slides mapped into 5 snaps (4 slides each)
+    const slideRegistry = [
+      [0, 1, 2, 3],
+      [4, 5, 6, 7],
+      [8, 9, 10, 11],
+      [12, 13, 14, 15],
+      [16, 17, 18, 19],
+    ];
+    api?.internalEngine.mockReturnValue({
+      options: { axis: 'x' },
+      slideRegistry: slideRegistry,
+    } as any);
+
+    // Slide 9 belongs to snap 2
+    carousel.selectSlide(9);
+    expect(api?.scrollTo).toHaveBeenCalledWith(2, false);
+
+    // Slide 18 belongs to snap 4
+    carousel.selectSlide(18, true);
+    expect(api?.scrollTo).toHaveBeenCalledWith(4, true);
+
+    // isSlideInCurrentSnap
+    api?.selectedScrollSnap.mockReturnValue(2);
+    expect(carousel.isSlideInCurrentSnap(9)).toBe(true);
+    expect(carousel.isSlideInCurrentSnap(10)).toBe(true);
+    expect(carousel.isSlideInCurrentSnap(4)).toBe(false);
+
+    // getSelectedIndex returns primary slide of current snap
+    api?.canScrollNext.mockReturnValue(true);
+    expect(carousel.getSelectedIndex()).toBe(8);
+
+    // at end: getSelectedIndex returns last slide of end snap
+    api?.selectedScrollSnap.mockReturnValue(4);
+    api?.canScrollNext.mockReturnValue(false);
+    expect(carousel.getSelectedIndex()).toBe(19);
   });
 });

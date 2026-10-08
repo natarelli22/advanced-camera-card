@@ -11,7 +11,7 @@ import type { ViewManagerEpoch } from '../../../src/card-controller/view/types';
 import type { AdvancedCameraCardViewerCarousel } from '../../../src/components/viewer/carousel';
 import type { AdvancedCameraCardViewerGrid } from '../../../src/components/viewer/grid';
 import type { ViewerConfig } from '../../../src/config/schema/viewer';
-import type { ViewMedia } from '../../../src/view/item';
+import { ViewMediaType, type ViewMedia } from '../../../src/view/item';
 import type { QueryResults } from '../../../src/view/query-results';
 import type { View } from '../../../src/view/view';
 
@@ -288,10 +288,10 @@ describe('AdvancedCameraCardViewerGrid', () => {
     ) as AdvancedCameraCardViewerGrid;
 
     const recordingMedia = mock<ViewMedia>();
-    recordingMedia.getMediaType.mockReturnValue('recording');
+    recordingMedia.getMediaType.mockReturnValue(ViewMediaType.Recording);
 
     const eventMedia = mock<ViewMedia>();
-    eventMedia.getMediaType.mockReturnValue('clip');
+    eventMedia.getMediaType.mockReturnValue(ViewMediaType.Clip);
 
     const queryResults = mock<QueryResults>();
     queryResults.getSelectedResult.mockImplementation((camID?: string) => {

@@ -126,7 +126,7 @@ export class BrowseMediaRecordingViewMedia
 
     this._id =
       browseMedia._metadata?.startDate && this._cameraID
-        ? `${this._cameraID}/${format(
+        ? `${this._cameraID}/recording/${format(
             browseMedia._metadata.startDate,
             'yyyy-MM-dd HH:mm:ss',
           )}`

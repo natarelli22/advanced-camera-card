@@ -101,6 +101,7 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
   private _mediaActionsController = new MediaActionsController();
   private _mediaHeightController = new MediaHeightController(this, '.embla__slide');
   private _refCarousel: Ref<HTMLElement> = createRef();
+  private _isSeeking = false;
 
   private _mediaLoadedInfoSinkController = new MediaLoadedInfoSinkController(this, {
     getTargetID: () =>
@@ -288,7 +289,11 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
       if (oldSelectedItem !== newSelectedItem || resetMedia) {
         const newSelected =
           newSelectedItem && this._media
-            ? this._media.findIndex((item) => item === newSelectedItem)
+            ? this._media.findIndex(
+                (item) =>
+                  item === newSelectedItem ||
+                  (!!item.getID() && item.getID() === newSelectedItem.getID()),
+              )
             : null;
         const isGrid = newView?.isGrid();
 
@@ -381,8 +386,7 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
   protected render(): TemplateResult | void {
     const mediaCount = this._media?.length ?? 0;
     const isGrid =
-      !!this.viewFilterCameraID ||
-      !!this.viewManagerEpoch?.manager.getView()?.isGrid();
+      !!this.viewFilterCameraID || !!this.viewManagerEpoch?.manager.getView()?.isGrid();
 
     if (!this._media || !mediaCount) {
       if (isGrid) {
@@ -516,11 +520,15 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
     }
 
     const shouldAutoPlay = this.viewerConfig?.auto_play?.includes('selected') ?? true;
+    const view = this.viewManagerEpoch?.manager.getView();
 
     if (ViewItemClassifier.isEvent(selectedMedia)) {
       this.toggleAttribute('unseekable', false);
+      if (mediaPlayerController.seek) {
+        await this.seek(0);
+      }
       if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
-        void mediaPlayerController.playback?.play();
+        void this.play();
       }
       return;
     }
@@ -528,18 +536,17 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
     if (this.viewerConfig?.auto_seek === false) {
       this.toggleAttribute('unseekable', false);
       if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
-        void mediaPlayerController.playback?.play();
+        void this.play();
       }
       return;
     }
 
-    const view = this.viewManagerEpoch?.manager.getView();
     const requestedSeek = view?.context?.mediaViewer?.seek ?? null;
     const seek = requestedSeek ?? selectedMedia.getPlaybackStartTime();
 
     if (!seek) {
       if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
-        void mediaPlayerController.playback?.play();
+        void this.play();
       }
       return;
     }
@@ -559,12 +566,12 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
         (await this.cameraManager?.getMediaSeekTime(selectedMedia, targetSeek)) ?? null;
 
       if (seekTime !== null) {
-        await mediaPlayerController.seek?.(seekTime);
+        await this.seek(seekTime);
       }
     }
 
     if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
-      void mediaPlayerController.playback?.play();
+      void this.play();
     }
   }
 
@@ -604,6 +611,9 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
 
   public async play(): Promise<void> {
     const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
+    if (this._isSeeking) {
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
     try {
       await controller?.playback?.play();
     } catch {
@@ -622,11 +632,19 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
 
   public async seek(seconds: number): Promise<void> {
     const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
+    this._isSeeking = true;
     try {
       await controller?.seek?.(seconds);
     } catch {
       // Ignore seek errors
+    } finally {
+      this._isSeeking = false;
     }
+  }
+
+  public isPaused(): boolean {
+    const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
+    return controller?.playback?.isPaused() ?? true;
   }
 
   public getSelectedMedia(): ViewMedia | null {

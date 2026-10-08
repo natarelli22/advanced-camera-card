@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { sortMostRecentFirst } from '../../../src/ha/browse-media/sort';
+import { sortMostRecentFirst, sortOldestFirst } from '../../../src/ha/browse-media/sort';
 import type {
   BrowseMediaMetadata,
   RichBrowseMedia,
@@ -91,3 +91,43 @@ describe('sortMostRecentFirst', () => {
     expect(sortMostRecentFirst(media)).toEqual(expected);
   });
 });
+
+describe('sortOldestFirst', () => {
+  it('should return an empty array when given an empty array', () => {
+    const media: RichBrowseMedia<BrowseMediaMetadata>[] = [];
+    expect(sortOldestFirst(media)).toEqual([]);
+  });
+
+  it('should sort media by startDate in ascending order', () => {
+    const media: RichBrowseMedia<BrowseMediaMetadata>[] = [
+      createRichBrowseMedia({
+        title: 'Media 1',
+        _metadata: createMetadata({ startDate: new Date('2025-05-10T20:29:00.000Z') }),
+      }),
+      createRichBrowseMedia({
+        title: 'Media 2',
+        _metadata: createMetadata({ startDate: new Date('2025-05-12T20:29:00.000Z') }),
+      }),
+      createRichBrowseMedia({
+        title: 'Media 3',
+        _metadata: createMetadata({ startDate: new Date('2025-05-11T20:29:00.000Z') }),
+      }),
+    ];
+    const expected: RichBrowseMedia<BrowseMediaMetadata>[] = [
+      createRichBrowseMedia({
+        title: 'Media 1',
+        _metadata: createMetadata({ startDate: new Date('2025-05-10T20:29:00.000Z') }),
+      }),
+      createRichBrowseMedia({
+        title: 'Media 3',
+        _metadata: createMetadata({ startDate: new Date('2025-05-11T20:29:00.000Z') }),
+      }),
+      createRichBrowseMedia({
+        title: 'Media 2',
+        _metadata: createMetadata({ startDate: new Date('2025-05-12T20:29:00.000Z') }),
+      }),
+    ];
+    expect(sortOldestFirst(media)).toEqual(expected);
+  });
+});
+

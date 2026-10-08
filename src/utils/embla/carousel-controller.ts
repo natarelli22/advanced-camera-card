@@ -12,7 +12,10 @@ import type { TextDirection } from '../text-direction';
 
 export interface CarouselSelected {
   index: number;
+  slideIndex?: number;
   element: HTMLElement;
+  canScrollNext?: boolean;
+  canScrollPrev?: boolean;
 }
 
 export type EmblaCarouselPlugins = EmblaPluginType[];
@@ -99,18 +102,77 @@ export class CarouselController {
   }
 
   public getSelectedIndex(): number {
+    const selectedSnap = this._carousel.selectedScrollSnap();
+    const slideRegistry = this._carousel.internalEngine?.()?.slideRegistry;
+    const snapSlides = slideRegistry?.[selectedSnap];
+    if (snapSlides && snapSlides.length > 0) {
+      return !this._carousel.canScrollNext()
+        ? snapSlides[snapSlides.length - 1]
+        : snapSlides[0];
+    }
+    return selectedSnap;
+  }
+
+  public getSelectedSnapIndex(): number {
     return this._carousel.selectedScrollSnap();
   }
 
+  public isSlideInCurrentSnap(index: number): boolean {
+    const selectedSnap = this._carousel.selectedScrollSnap();
+    const slideRegistry = this._carousel.internalEngine?.()?.slideRegistry;
+    if (slideRegistry?.[selectedSnap]) {
+      return slideRegistry[selectedSnap].includes(index);
+    }
+    return selectedSnap === index;
+  }
+
   public selectSlide(index: number, jump?: boolean): void {
+    const slides = getChildrenFromElement(this._parent);
+    let nodesChanged = false;
+    if (!isEqual(this._carousel.slideNodes(), slides)) {
+      this._carousel.reInit({ slides });
+      nodesChanged = true;
+    }
     if (index < 0 || index >= this._carousel.slideNodes().length) {
       return;
     }
-    this._carousel.scrollTo(index, jump ?? this._transitionEffect === 'none');
+    const slideRegistry = this._carousel.internalEngine?.()?.slideRegistry;
+    let targetSnap = index;
+    if (slideRegistry) {
+      const snapIndex = slideRegistry.findIndex((slidesInSnap) =>
+        slidesInSnap.includes(index),
+      );
+      if (snapIndex !== -1) {
+        targetSnap = snapIndex;
+      }
+    }
+    const isJump = jump ?? (nodesChanged || this._transitionEffect === 'none');
+    this._carousel.scrollTo(targetSnap, isJump);
+    if (isJump) {
+      const engine = this._carousel.internalEngine?.();
+      if (engine?.translate?.to && engine?.location?.get) {
+        engine.translate.to(engine.location.get());
+      }
+    }
+  }
+
+  public canScrollNext(): boolean {
+    return this._carousel.canScrollNext();
+  }
+
+  public canScrollPrev(): boolean {
+    return this._carousel.canScrollPrev();
+  }
+
+  public isDragging(): boolean {
+    const engine = this._carousel.internalEngine?.();
+    if (!engine) return false;
+    return engine.dragHandler.pointerDown() || !engine.scrollBody.settled();
   }
 
   public reInit(): void {
-    this._carousel.reInit();
+    const slides = getChildrenFromElement(this._parent);
+    this._carousel.reInit({ slides });
   }
 
   // Toggle drag handling live, without rebuilding Embla (e.g. to avoid visual
@@ -171,11 +233,23 @@ export class CarouselController {
       // Caution: Must use methods/accessors of the new carousel, not the public
       // API of this controller which may use a different carousel.
       const selectedIndex = carousel.selectedScrollSnap();
-      const slide = carousel.slideNodes()[selectedIndex] ?? null;
+      const slideRegistry = carousel.internalEngine?.()?.slideRegistry;
+      const snapSlides = slideRegistry?.[selectedIndex];
+      const slideIndex =
+        snapSlides && snapSlides.length > 0
+          ? (!carousel.canScrollNext() ? snapSlides[snapSlides.length - 1] : snapSlides[0])
+          : undefined;
+      const slide =
+        carousel.slideNodes()[slideIndex ?? selectedIndex] ??
+        carousel.slideNodes()[selectedIndex] ??
+        null;
       if (slide) {
         return {
           index: selectedIndex,
+          ...(slideIndex !== undefined && { slideIndex }),
           element: slide,
+          canScrollNext: carousel.canScrollNext(),
+          canScrollPrev: carousel.canScrollPrev(),
         };
       }
       return null;

@@ -4,11 +4,20 @@
   width: 100%;
   height: 100%;
   display: block;
+
+  --ha-card-border-radius: var(--advanced-camera-card-border-radius-final, 0px);
+  --ha-card-box-shadow: none;
 }
 
 /* Don't drop shadow or have radius for nested webrtc card */
+#webrtc,
+webrtc-camera {
+  --ha-card-border-radius: var(--advanced-camera-card-border-radius-final, 0px);
+  --ha-card-box-shadow: none;
+}
+
 #webrtc ha-card {
-  border-radius: 0px;
+  border-radius: var(--advanced-camera-card-border-radius-final, 0px);
 
   // To get the WebRTC player to line up correctly with some themes.
   margin: 0px;

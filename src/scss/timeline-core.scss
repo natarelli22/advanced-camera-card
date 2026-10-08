@@ -52,6 +52,23 @@ div.timeline {
   color: var(--advanced-camera-card-timeline-text-color);
 }
 
+:host([ribbon][groups]) {
+  .vis-labelset .vis-label .vis-inner {
+    box-sizing: border-box;
+    height: var(--advanced-camera-card-timeline-ribbon-row-height, 32px);
+    min-height: var(--advanced-camera-card-timeline-ribbon-row-height, 32px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .vis-labelset .vis-label,
+  .vis-group {
+    height: var(--advanced-camera-card-timeline-ribbon-row-height, 32px);
+    min-height: var(--advanced-camera-card-timeline-ribbon-row-height, 32px);
+  }
+}
+
 :host([ribbon]:not([groups])) .vis-item:not(.vis-background) {
   // When a ribbon timeline is used without groups, we need to add extra margin
   // to the top to center the bar vertically within the mini-timeline.

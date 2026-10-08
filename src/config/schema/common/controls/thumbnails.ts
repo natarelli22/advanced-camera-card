@@ -50,6 +50,16 @@ export const thumbnailsControlBaseSchema = z.object({
     .pipe(z.number().min(1).max(24))
     .optional()
     .default(thumbnailControlsBaseDefaults.chunk_hours),
+  chunk_size: z
+    .union([
+      z.number(),
+      z
+        .string()
+        .regex(/^\s*\d+\s*$/)
+        .transform((val) => parseInt(val.trim(), 10)),
+    ])
+    .pipe(z.number().min(1).max(100))
+    .optional(),
 });
 export type ThumbnailsControlBaseConfig = z.infer<typeof thumbnailsControlBaseSchema>;
 

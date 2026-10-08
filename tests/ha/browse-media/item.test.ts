@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   BrowseMediaEventViewMedia,
+  BrowseMediaRecordingViewMedia,
   BrowseMediaViewFolder,
 } from '../../../src/ha/browse-media/item';
 import { formatDateAndTime } from '../../../src/utils/basic';
@@ -287,5 +288,26 @@ describe('BrowseMediaViewFolder', () => {
       const viewMedia = new BrowseMediaViewFolder(createFolder(), [], browseMedia);
       expect(viewMedia.getIcon()).toBeNull();
     });
+  });
+});
+
+describe('BrowseMediaRecordingViewMedia', () => {
+  it('should set id with /recording/ discriminator from metadata', () => {
+    const startDate = new Date('2026-10-01T22:45:40Z');
+    const browseMedia = createRichBrowseMedia({
+      media_content_id: 'media_content_id',
+      _metadata: {
+        startDate,
+        endDate: new Date('2026-10-01T23:23:09Z'),
+        cameraID: 'camera.sala_sala_01_hd_stream',
+      },
+    });
+
+    const recordingMedia = new BrowseMediaRecordingViewMedia(browseMedia);
+    const expectedId = `camera.sala_sala_01_hd_stream/recording/${format(
+      startDate,
+      'yyyy-MM-dd HH:mm:ss',
+    )}`;
+    expect(recordingMedia.getID()).toBe(expectedId);
   });
 });

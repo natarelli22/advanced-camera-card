@@ -4,7 +4,7 @@ import { orderBy } from 'lodash-es';
 import type { HASSManagerReadonlyInterface } from '../../card-controller/hass/types';
 import type { CameraConfig } from '../../config/schema/cameras';
 import { getViewMediaFromBrowseMediaArray } from '../../ha/browse-media/browse-media-to-view-media';
-import { sortMostRecentFirst } from '../../ha/browse-media/sort';
+import { sortMostRecentFirst, sortOldestFirst } from '../../ha/browse-media/sort';
 import {
   BROWSE_MEDIA_CACHE_SECONDS,
   BrowseMediaCache,
@@ -535,7 +535,10 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
           ) as RichBrowseMedia<BrowseMediaMetadata>[];
 
         if (dateDirectories.length > 0) {
-          return sortMostRecentFirst(dateDirectories);
+          const isForward = !!(matchOptions?.start && !matchOptions?.end);
+          return isForward
+            ? sortOldestFirst(dateDirectories)
+            : sortMostRecentFirst(dateDirectories);
         }
 
         const directVideos = (categoryChildren ?? []).filter(
@@ -621,7 +624,10 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
         ) as RichBrowseMedia<BrowseMediaMetadata>[];
 
       if (dateFoldersDirect.length > 0) {
-        return sortMostRecentFirst(dateFoldersDirect);
+        const isForward = !!(matchOptions?.start && !matchOptions?.end);
+        return isForward
+          ? sortOldestFirst(dateFoldersDirect)
+          : sortMostRecentFirst(dateFoldersDirect);
       }
 
       const hasDirectVideosInVideos = items.some(
@@ -814,8 +820,10 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
             matcher: (media: RichBrowseMedia<BrowseMediaMetadata>) =>
               media.can_expand &&
               isMediaWithinDates(media, matchOptions?.start, matchOptions?.end),
-            sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) =>
-              sortMostRecentFirst(media),
+            sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) => {
+              const isForward = !!(matchOptions?.start && !matchOptions?.end);
+              return isForward ? sortOldestFirst(media) : sortMostRecentFirst(media);
+            },
           },
         ],
         {
@@ -1135,6 +1143,10 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
       ...(isContinuous ? ['continuous'] : []),
     ];
 
+    const isForwardQuery = !!(query.start && !query.end);
+    const mediaSorter = (items: RichBrowseMedia<BrowseMediaMetadata>[]) =>
+      isForwardQuery ? sortOldestFirst(items) : sortMostRecentFirst(items);
+
     if (directories?.length) {
       media = await this._browseMediaWalker.walk(
         hass,
@@ -1161,7 +1173,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
               return isMediaWithinDates(media, query.start, query.end);
             },
             sorter: (media: RichBrowseMedia<BrowseMediaMetadata>[]) =>
-              sortMostRecentFirst(media),
+              mediaSorter(media),
             advance: (media: RichBrowseMedia<BrowseMediaMetadata>[]) => {
               const categoryDirs = media.filter((m) => m.can_expand);
               if (!categoryDirs.length) {
@@ -1179,7 +1191,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
                   matcher: (m: RichBrowseMedia<BrowseMediaMetadata>) =>
                     !m.can_expand && isMediaWithinDates(m, query.start, query.end),
                   sorter: (m: RichBrowseMedia<BrowseMediaMetadata>[]) =>
-                    sortMostRecentFirst(m),
+                    mediaSorter(m),
                 },
               ];
             },
@@ -1194,7 +1206,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
     return orderBy(
       media.filter((m) => !m.can_expand),
       (media: RichBrowseMedia<BrowseMediaMetadata>) => media._metadata?.startDate,
-      'desc',
+      isForwardQuery ? 'asc' : 'desc',
     ).slice(0, limit);
   }
 

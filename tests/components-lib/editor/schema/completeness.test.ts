@@ -112,6 +112,12 @@ const EDITOR_EXCLUDED = [
 
   // Grid playback synchronization (text-editor / YAML only)
   'media_viewer.grid.sync_playback',
+
+  // Thumbnail drawer chunk size (text-editor / YAML only)
+  'live.controls.thumbnails.chunk_size',
+  'media_gallery.controls.thumbnails.chunk_size',
+  'media_viewer.controls.thumbnails.chunk_size',
+  'timeline.controls.thumbnails.chunk_size',
 ];
 
 // Every section's forms, keyed by section, so the harness walks the full

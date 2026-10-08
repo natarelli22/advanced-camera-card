@@ -130,6 +130,7 @@ export class TimelineController {
     | (TimelineEventPropertiesResult & { window?: TimelineWindow })
     | null = null;
   private _ignoreClick = false;
+  private _isSelectingItem = false;
 
   constructor(host: LitElement) {
     this._host = host;
@@ -917,6 +918,14 @@ export class TimelineController {
         selectedCameraID: cameraID || undefined,
         selectedItemID: targetId ?? undefined,
       });
+      if (
+        newResults &&
+        !newResults.hasSelectedResult() &&
+        cameraID &&
+        newResults.hasSelectedResult(cameraID)
+      ) {
+        newResults.promoteCameraSelectionToMainSelection(cameraID);
+      }
     }
 
     const desiredView: AdvancedCameraCardView =
@@ -962,97 +971,119 @@ export class TimelineController {
     clickTime?: Date | null,
     group?: string,
   ): Promise<void> {
-    const view = this._viewManagerEpoch?.manager.getView();
-    if (!view || !this._viewManagerEpoch) {
+    if (this._isSelectingItem) {
       return;
     }
+    this._isSelectingItem = true;
 
-    const id = String(item.id);
-    const rawCameraID =
-      item.media?.getCameraID() ||
-      (group && group !== 'undefined' ? group : '') ||
-      (item.group ? String(item.group) : '');
-    const cameraID = rawCameraID.replace(/^camera\//, '');
-    const criteria = {
-      main: true,
-      ...(cameraID && view.isGrid() && { cameraID: cameraID }),
-    };
-    let newResults = view.queryResults
-      ?.clone()
-      .resetSelectedResult()
-      .selectResultIfFound((media) => media.getID() === id, criteria);
-
-    let isBuiltFromItem = false;
-    if (!newResults || !newResults.hasSelectedResult()) {
-      const queryResults = this._buildQueryResultsFromExistingItem(item);
-      if (item && item.query && queryResults) {
-        newResults = queryResults;
-        isBuiltFromItem = true;
+    try {
+      const view = this._viewManagerEpoch?.manager.getView();
+      if (!view || !this._viewManagerEpoch) {
+        return;
       }
-    }
 
-    const selectedItem = newResults?.getSelectedResult();
-    let seekTime: Date | null = null;
-    const isEvent = ViewItemClassifier.isEvent(selectedItem);
-    if (!isEvent && canMediaBeShownAsTimelineItem(selectedItem)) {
-      const start = selectedItem.getStartTime();
-      const end = selectedItem.getEndTime() ?? selectedItem.getUsableEndTime();
-      if (start && end && end > start && clickTime) {
-        if (clickTime < start || clickTime > end) {
-          seekTime = start;
-        } else {
-          seekTime = clickTime;
+      const id = String(item.id);
+      const rawCameraID =
+        item.media?.getCameraID() ||
+        (group && group !== 'undefined' ? group : '') ||
+        (item.group ? String(item.group) : '');
+      const cameraID = rawCameraID.replace(/^camera\//, '');
+      const criteria = {
+        main: true,
+        ...(cameraID && view.isGrid() && { cameraID: cameraID }),
+      };
+      let newResults = view.queryResults
+        ?.clone()
+        .resetSelectedResult()
+        .selectResultIfFound((media) => media.getID() === id, criteria);
+
+      let isBuiltFromItem = false;
+      if (!newResults || !newResults.hasSelectedResult()) {
+        let queryResults = this._buildQueryResultsFromExistingItem(item);
+        if (!queryResults && item.media) {
+          queryResults = new QueryResults({ results: [item.media], selectedIndex: 0 });
+        }
+        if (queryResults) {
+          newResults = queryResults;
+          isBuiltFromItem = true;
         }
       }
-    }
 
-    const targetTime =
-      seekTime ??
-      clickTime ??
-      (selectedItem && canMediaBeShownAsTimelineItem(selectedItem)
-        ? selectedItem.getStartTime()
-        : null);
-    if (view.isGrid() && targetTime && newResults) {
-      newResults = await syncGridResultsForTargetTime(newResults, {
-        cameraManager: this._cameraManager ?? undefined,
-        targetTime,
-        selectedCameraID: cameraID || undefined,
-        selectedItemID: id,
+      const selectedItem = newResults?.getSelectedResult();
+      let seekTime: Date | null = null;
+      const isEvent = ViewItemClassifier.isEvent(selectedItem);
+      if (!isEvent && canMediaBeShownAsTimelineItem(selectedItem)) {
+        const start = selectedItem.getStartTime();
+        const end = selectedItem.getEndTime() ?? selectedItem.getUsableEndTime();
+        if (start && end && end > start && clickTime) {
+          if (clickTime < start || clickTime > end) {
+            seekTime = start;
+          } else {
+            seekTime = clickTime;
+          }
+        }
+      }
+
+      const targetTime =
+        seekTime ??
+        (isEvent && selectedItem ? selectedItem.getStartTime() : null) ??
+        clickTime ??
+        (selectedItem && canMediaBeShownAsTimelineItem(selectedItem)
+          ? selectedItem.getStartTime()
+          : null);
+      if (view.isGrid() && targetTime && newResults) {
+        newResults = await syncGridResultsForTargetTime(newResults, {
+          cameraManager: this._cameraManager ?? undefined,
+          targetTime,
+          selectedCameraID: cameraID || undefined,
+          selectedItemID: id,
+        });
+      }
+
+      const effectiveSeekTime =
+        seekTime ?? (view.isGrid() && targetTime ? targetTime : null);
+
+      const context: ViewContext = mergeViewContext(this._getTimelineContext(), {
+        ...(effectiveSeekTime && { mediaViewer: { seek: effectiveSeekTime } }),
       });
-    }
+      const modifiers = [
+        ...(!effectiveSeekTime
+          ? [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]
+          : []),
+        new MergeContextViewModifier(context),
+      ];
 
-    const effectiveSeekTime =
-      seekTime ?? (view.isGrid() && targetTime ? targetTime : null);
+      if (
+        newResults &&
+        !newResults.hasSelectedResult() &&
+        cameraID &&
+        newResults.hasSelectedResult(cameraID)
+      ) {
+        newResults.promoteCameraSelectionToMainSelection(cameraID);
+      }
 
-    const context: ViewContext = mergeViewContext(this._getTimelineContext(), {
-      ...(effectiveSeekTime && { mediaViewer: { seek: effectiveSeekTime } }),
-    });
-    const modifiers = [
-      ...(!effectiveSeekTime
-        ? [new RemoveContextPropertyViewModifier('mediaViewer', 'seek')]
-        : []),
-      new MergeContextViewModifier(context),
-    ];
-
-    if (isBuiltFromItem && item && item.query && newResults) {
-      this._viewManagerEpoch.manager.setViewByParameters({
-        params: {
-          view: 'media',
-          query: item.query,
-          queryResults: newResults,
-          ...(cameraID && { camera: cameraID }),
-        },
-        modifiers,
-      });
-    } else if (newResults?.hasSelectedResult()) {
-      this._viewManagerEpoch.manager.setViewByParameters({
-        params: {
-          queryResults: newResults,
-          view: this._itemClickAction === 'play' ? 'media' : view.view,
-          ...(cameraID && { camera: cameraID }),
-        },
-        modifiers,
-      });
+      if (isBuiltFromItem && item && newResults) {
+        this._viewManagerEpoch.manager.setViewByParameters({
+          params: {
+            view: 'media',
+            query: view.isGrid() ? view.query ?? undefined : item.query ?? undefined,
+            queryResults: newResults,
+            ...(cameraID && { camera: cameraID }),
+          },
+          modifiers,
+        });
+      } else if (newResults?.hasSelectedResult()) {
+        this._viewManagerEpoch.manager.setViewByParameters({
+          params: {
+            queryResults: newResults,
+            view: this._itemClickAction === 'play' ? 'media' : view.view,
+            ...(cameraID && { camera: cameraID }),
+          },
+          modifiers,
+        });
+      }
+    } finally {
+      this._isSelectingItem = false;
     }
   }
 
@@ -1215,6 +1246,12 @@ export class TimelineController {
       (!mediaWindow || rangesOverlap(mediaWindow, context.window))
     ) {
       desiredWindow = context.window;
+    } else if (
+      timelineWindow &&
+      mediaWindow &&
+      rangesOverlap(mediaWindow, timelineWindow)
+    ) {
+      desiredWindow = timelineWindow;
     } else if (mediaWindow) {
       const perfectMediaWindow = this._getPerfectWindowFromMediaStartAndEndTime(
         mediaIsEvent,
@@ -1378,42 +1415,36 @@ export class TimelineController {
   }
 
   private _getPerfectWindowFromMediaStartAndEndTime(
-    isEvent: boolean,
+    _isEvent: boolean,
     startTime: Date | null,
     endTime: Date | null,
   ): TimelineWindow | null {
-    if (isEvent) {
-      const windowSeconds = this._getConfiguredWindowSeconds();
+    const windowSeconds = this._getConfiguredWindowSeconds();
 
-      if (startTime && endTime) {
-        if (endTime.getTime() - startTime.getTime() > windowSeconds * 1000) {
-          // If the event is larger than the configured window, only show the most
-          // recent portion of the event that fits in the window.
-          return {
-            start: sub(endTime, { seconds: windowSeconds }),
-            end: endTime,
-          };
-        } else {
-          // If the event is shorter than the configured window, center the event
-          // in the window.
-          const gap = windowSeconds - (endTime.getTime() - startTime.getTime()) / 1000;
-          return {
-            start: sub(startTime, { seconds: gap / 2 }),
-            end: add(endTime, { seconds: gap / 2 }),
-          };
-        }
-      } else if (startTime) {
-        // If there's no end-time yet, place the start-time in the center of the
-        // time window.
+    if (startTime && endTime) {
+      const durationSeconds = (endTime.getTime() - startTime.getTime()) / 1000;
+      if (durationSeconds > windowSeconds) {
+        // If the media is larger than the configured window, only show the most
+        // recent portion of the media that fits in the window.
         return {
-          start: sub(startTime, { seconds: windowSeconds / 2 }),
-          end: add(startTime, { seconds: windowSeconds / 2 }),
+          start: sub(endTime, { seconds: windowSeconds }),
+          end: endTime,
+        };
+      } else {
+        // If the media is shorter than the configured window, center the media
+        // in the window.
+        const gap = windowSeconds - durationSeconds;
+        return {
+          start: sub(startTime, { seconds: gap / 2 }),
+          end: add(endTime, { seconds: gap / 2 }),
         };
       }
-    } else if (startTime && endTime) {
+    } else if (startTime) {
+      // If there's no end-time yet, place the start-time in the center of the
+      // time window.
       return {
-        start: startTime,
-        end: endTime,
+        start: sub(startTime, { seconds: windowSeconds / 2 }),
+        end: add(startTime, { seconds: windowSeconds / 2 }),
       };
     }
     return null;
@@ -1521,6 +1552,7 @@ export class TimelineController {
       zoomMax: 1 * 24 * 60 * 60 * 1000,
       zoomMin: 1 * 1000,
       margin: {
+        axis: stack ? 20 : 12,
         item: {
           // In ribbon mode, a 20px item is reduced to 6px, so need to add a
           // 14px margin to ensure items line up with subgroups.

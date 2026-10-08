@@ -83,6 +83,11 @@ export class WebRTCCardController implements ReactiveController {
     this._destroy();
 
     const element = document.createElement(WEBRTC_CARD_ELEMENT_NAME);
+    element.style.setProperty(
+      '--ha-card-border-radius',
+      'var(--advanced-camera-card-border-radius-final, 0px)',
+    );
+    element.style.setProperty('--ha-card-box-shadow', 'none');
 
     element.setConfig(config);
     element.hass = hass;

@@ -14,3 +14,10 @@ export const sortMostRecentFirst = (
 ): RichBrowseMedia<BrowseMediaMetadata>[] => {
   return orderBy(media, (media) => media._metadata?.startDate, 'desc');
 };
+
+export const sortOldestFirst = (
+  media: RichBrowseMedia<BrowseMediaMetadata>[],
+): RichBrowseMedia<BrowseMediaMetadata>[] => {
+  return orderBy(media, (media) => media._metadata?.startDate, 'asc');
+};
+

@@ -44,6 +44,22 @@ describe('thumbnailsControlBaseSchema', () => {
       thumbnailsControlBaseSchema.parse({ chunk_hours: 'invalid' }),
     ).toThrow();
   });
+
+  it('should accept number chunk_size', () => {
+    const parsed = thumbnailsControlBaseSchema.parse({ chunk_size: 20 });
+    expect(parsed.chunk_size).toBe(20);
+  });
+
+  it('should accept string chunk_size', () => {
+    const parsed = thumbnailsControlBaseSchema.parse({ chunk_size: ' 30 ' });
+    expect(parsed.chunk_size).toBe(30);
+  });
+
+  it('should reject out of range chunk_size', () => {
+    expect(() => thumbnailsControlBaseSchema.parse({ chunk_size: 0 })).toThrow();
+    expect(() => thumbnailsControlBaseSchema.parse({ chunk_size: 101 })).toThrow();
+    expect(() => thumbnailsControlBaseSchema.parse({ chunk_size: 'abc' })).toThrow();
+  });
 });
 
 describe('thumbnailsControlSchema', () => {

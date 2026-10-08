@@ -40,4 +40,33 @@ describe('isMediaWithinDates', () => {
       ),
     ).toBe(false);
   });
+
+  it('should match a folder/media when start is provided without end and media ends after start', () => {
+    const folderMedia = createRichBrowseMedia({
+      _metadata: {
+        startDate: new Date('2024-11-19T00:00:00'),
+        endDate: new Date('2024-11-19T23:59:59'),
+      },
+    });
+    // Querying after 12:00 should match today's folder because endDate >= 12:00
+    expect(isMediaWithinDates(folderMedia, new Date('2024-11-19T12:00:00'), undefined)).toBe(
+      true,
+    );
+    // Querying tomorrow should not match
+    expect(isMediaWithinDates(folderMedia, new Date('2024-11-20T00:00:00'), undefined)).toBe(
+      false,
+    );
+  });
+
+  it('should not match when media ended before start date', () => {
+    const clipMedia = createRichBrowseMedia({
+      _metadata: {
+        startDate: new Date('2024-11-19T08:00:00'),
+        endDate: new Date('2024-11-19T08:05:00'),
+      },
+    });
+    expect(isMediaWithinDates(clipMedia, new Date('2024-11-19T08:10:00'), undefined)).toBe(
+      false,
+    );
+  });
 });

@@ -116,6 +116,12 @@ export class StyleManager {
       '--advanced-camera-card-border-radius-override',
       '0px',
     );
+    setOrRemoveStyleProperty(
+      element,
+      !styles.border_radius,
+      '--ha-card-border-radius',
+      '0px',
+    );
   }
 
   private _isAspectRatioEnforced(

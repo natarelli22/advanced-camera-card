@@ -214,6 +214,40 @@ describe('TimelineController', () => {
     );
   });
 
+  it('should configure margin with axis equal to half item vertical in ribbon mode', async () => {
+    await createHarness({ style: 'ribbon' });
+
+    const options = timelineConstructor.mock.calls[0]?.at(-1);
+
+    expect(options).toEqual(
+      expect.objectContaining({
+        margin: {
+          axis: 12,
+          item: {
+            vertical: 24,
+          },
+        },
+      }),
+    );
+  });
+
+  it('should configure margin with axis 20 and vertical 10 in stack mode', async () => {
+    await createHarness({ style: 'stack' });
+
+    const options = timelineConstructor.mock.calls[0]?.at(-1);
+
+    expect(options).toEqual(
+      expect.objectContaining({
+        margin: {
+          axis: 20,
+          item: {
+            vertical: 10,
+          },
+        },
+      }),
+    );
+  });
+
   it('should reset view epoch on destroyTimeline and reload with force', async () => {
     const harness = await createHarness();
     const epoch = mock<ViewManagerEpoch>({ manager: harness.manager });
@@ -350,6 +384,26 @@ describe('TimelineController', () => {
     if (windowStart !== undefined && windowEnd !== undefined) {
       const windowDurationSeconds = (Number(windowEnd) - Number(windowStart)) / 1000;
       // The window must be close to 3600 s (window_seconds), not 15 s (review duration).
+      expect(windowDurationSeconds).toBeGreaterThan(3500);
+      expect(windowDurationSeconds).toBeLessThanOrEqual(3600);
+    }
+  });
+
+  it('should use window_seconds window for a recording (not the recording duration)', async () => {
+    const recStart = add(WINDOW.start, { minutes: 10 });
+    const recEnd = add(WINDOW.start, { minutes: 20 });
+    const recording = new TestViewMedia({
+      mediaType: ViewMediaType.Recording,
+      cameraID: CAMERA_ID,
+      startTime: recStart,
+      endTime: recEnd,
+    });
+    const harness = await createHarness({ media: [recording] });
+
+    const [windowStart, windowEnd] =
+      vi.mocked(harness.timeline.setWindow).mock.calls[0] ?? [];
+    if (windowStart !== undefined && windowEnd !== undefined) {
+      const windowDurationSeconds = (Number(windowEnd) - Number(windowStart)) / 1000;
       expect(windowDurationSeconds).toBeGreaterThan(3500);
       expect(windowDurationSeconds).toBeLessThanOrEqual(3600);
     }
@@ -845,7 +899,83 @@ describe('TimelineController', () => {
       const view = createView({ displayMode: 'grid' });
       parameters?.modifiers?.forEach((modifier) => modifier.modify(view));
 
-      expect(view.context?.mediaViewer?.seek).toEqual(clickTime);
+      expect(view.context?.mediaViewer?.seek).toEqual(event.getStartTime());
+    });
+
+    it('should select event and sync grid recordings when clicking an item outside queryResults', async () => {
+      const event = createEventMedia({ id: 'event-outside' });
+      const harness = await createHarness({ media: [event] });
+
+      // View queryResults has NO results for event-outside (simulating timeline moved outside chunk_hours)
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          displayMode: 'grid',
+          camera: CAMERA_ID,
+          queryResults: new QueryResults({
+            results: [],
+          }),
+        }),
+      );
+
+      const clickTime = add(WINDOW.start, { minutes: 30 });
+
+      harness.trigger('click', {
+        what: 'item',
+        item: 'event-outside',
+        group: CAMERA_ID,
+        time: clickTime,
+        event: new Event('click'),
+      });
+
+      await vi.waitFor(() => {
+        expect(harness.manager.setViewByParameters).toHaveBeenCalled();
+      });
+
+      const call = vi.mocked(harness.manager.setViewByParameters).mock.calls[0]?.[0];
+      expect(call?.params?.view).toBe('media');
+      expect(call?.params?.queryResults?.getSelectedResult()?.getID()).toBe(
+        'event-outside',
+      );
+
+      const view = createView({ displayMode: 'grid' });
+      call?.modifiers?.forEach((modifier) => modifier.modify(view));
+
+      expect(view.context?.mediaViewer?.seek).toEqual(event.getStartTime());
+    });
+
+    it('should switch between events and invoke setViewByParameters in grid mode', async () => {
+      const event1 = createEventMedia({ id: 'event-1' });
+      const event2 = createEventMedia({ id: 'event-2' });
+
+      const harness = await createHarness({ media: [event1, event2] });
+
+      vi.mocked(harness.manager.getView).mockReturnValue(
+        createView({
+          view: 'media',
+          displayMode: 'grid',
+          camera: CAMERA_ID,
+          queryResults: new QueryResults({
+            results: [event1, event2],
+            selectedIndex: 0,
+          }),
+        }),
+      );
+
+      harness.trigger('click', {
+        what: 'item',
+        item: 'event-2',
+        group: CAMERA_ID,
+        time: event2.getStartTime(),
+        event: new Event('click'),
+      });
+
+      await vi.waitFor(() => {
+        expect(harness.manager.setViewByParameters).toHaveBeenCalled();
+      });
+
+      const call = vi.mocked(harness.manager.setViewByParameters).mock.calls[0]?.[0];
+      expect(call?.params?.queryResults?.getSelectedResult()?.getID()).toBe('event-2');
     });
 
     it('should do nothing and restore selection when clicked on background or axis', async () => {
