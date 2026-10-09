@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import EmblaCarousel, { type EmblaCarouselType } from 'embla-carousel';
 import {
   beforeAll,
@@ -219,7 +220,10 @@ describe('CarouselController', () => {
     const api = getEmblaApi();
     api?.slideNodes.mockReturnValue(children);
     api?.internalEngine.mockReturnValue({
-      slideRegistry: [[0, 1, 2], [3, 4, 5]],
+      slideRegistry: [
+        [0, 1, 2],
+        [3, 4, 5],
+      ],
     } as any);
 
     // Can scroll next is true -> slideIndex is first slide in snap

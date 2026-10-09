@@ -166,7 +166,9 @@ export class CarouselController {
 
   public isDragging(): boolean {
     const engine = this._carousel.internalEngine?.();
-    if (!engine) return false;
+    if (!engine) {
+      return false;
+    }
     return engine.dragHandler.pointerDown() || !engine.scrollBody.settled();
   }
 
@@ -237,7 +239,9 @@ export class CarouselController {
       const snapSlides = slideRegistry?.[selectedIndex];
       const slideIndex =
         snapSlides && snapSlides.length > 0
-          ? (!carousel.canScrollNext() ? snapSlides[snapSlides.length - 1] : snapSlides[0])
+          ? !carousel.canScrollNext()
+            ? snapSlides[snapSlides.length - 1]
+            : snapSlides[0]
           : undefined;
       const slide =
         carousel.slideNodes()[slideIndex ?? selectedIndex] ??

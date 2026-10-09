@@ -32,6 +32,7 @@ import type { ConditionStateManagerReadonlyInterface } from '../condition-trigge
 import type { ThumbnailsControlConfig } from '../config/schema/common/controls/thumbnails.js';
 import type { CardWideConfig } from '../config/schema/types.js';
 import type { HomeAssistant } from '../ha/types.js';
+import { QuerySource } from '../query-source.js';
 import thumbnailCarouselStyle from '../scss/thumbnail-carousel.scss?inline';
 import { stopEventFromActivatingCardWideActions } from '../utils/action.js';
 import { errorToConsole } from '../utils/basic.js';
@@ -41,7 +42,7 @@ import type {
 } from '../utils/embla/carousel-controller.js';
 import { fireAdvancedCameraCardEvent } from '../utils/fire-advanced-camera-card-event.js';
 import { syncGridResultsForTargetTime } from '../utils/grid-sync.js';
-import { QuerySource } from '../query-source.js';
+import { Timer } from '../utils/timer.js';
 import { ViewItemClassifier } from '../view/item-classifier.js';
 import type { ViewItem, ViewMedia } from '../view/item.js';
 import { QueryResults } from '../view/query-results.js';
@@ -279,14 +280,19 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       } else if (this._items.length > 0) {
         const oldestItem = this._items[0];
         const newestItem = this._items[this._items.length - 1];
-        const oldestTime = ViewItemClassifier.isMedia(oldestItem) ? oldestItem.getStartTime() : null;
-        const newestTime = ViewItemClassifier.isMedia(newestItem) ? newestItem.getStartTime() : null;
-        
+        const oldestTime = ViewItemClassifier.isMedia(oldestItem)
+          ? oldestItem.getStartTime()
+          : null;
+        const newestTime = ViewItemClassifier.isMedia(newestItem)
+          ? newestItem.getStartTime()
+          : null;
+
         if (oldestTime && newestTime && refTime >= oldestTime && refTime <= newestTime) {
-          this._targetSlideIndex = this._getSelectedSlide(this._items) ?? this._previousSelectedIndex;
+          this._targetSlideIndex =
+            this._getSelectedSlide(this._items) ?? this._previousSelectedIndex;
           this._thumbnails = this._renderThumbnails();
           this.requestUpdate();
-          this.updateComplete.then(() => {
+          void this.updateComplete.then(() => {
             this._targetSlideIndex = null;
           });
           return;
@@ -362,8 +368,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
             )
           : allResults.filter(
               (it) =>
-                ViewItemClassifier.isMedia(it) &&
-                !ViewItemClassifier.isRecording(it),
+                ViewItemClassifier.isMedia(it) && !ViewItemClassifier.isRecording(it),
             );
       } else {
         this._items = [];
@@ -384,8 +389,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
           )
         : allResults.filter(
             (it) =>
-              ViewItemClassifier.isMedia(it) &&
-              !ViewItemClassifier.isRecording(it),
+              ViewItemClassifier.isMedia(it) && !ViewItemClassifier.isRecording(it),
           );
       this._thumbnails = this._renderThumbnails();
     }
@@ -398,10 +402,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     void this._loadChunk(chunk);
   }
 
-  private async _loadInitialChunkSize(
-    refTime: Date,
-    chunkSize: number,
-  ): Promise<void> {
+  private async _loadInitialChunkSize(refTime: Date, chunkSize: number): Promise<void> {
     const view = this.viewManagerEpoch?.manager.getView();
     if (!this.cameraManager || !this.foldersManager || !view || this._isLoadingChunk) {
       return;
@@ -427,7 +428,8 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
         const rawResults = view.queryResults?.getResults() ?? [];
         this._items = cameraForQuery
           ? rawResults.filter(
-              (it) => ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
+              (it) =>
+                ViewItemClassifier.isMedia(it) && it.getCameraID() === cameraForQuery,
             )
           : rawResults;
         this._query = view.query ?? null;
@@ -464,14 +466,14 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
             )
           : existingResults.filter(
               (it) =>
-                ViewItemClassifier.isMedia(it) &&
-                !ViewItemClassifier.isRecording(it),
+                ViewItemClassifier.isMedia(it) && !ViewItemClassifier.isRecording(it),
             );
 
         if (filtered.length > 0) {
-          let selIndex = selectedResult && !ViewItemClassifier.isRecording(selectedResult)
-            ? filtered.findIndex((it) => it.getID() === selectedResult.getID())
-            : -1;
+          let selIndex =
+            selectedResult && !ViewItemClassifier.isRecording(selectedResult)
+              ? filtered.findIndex((it) => it.getID() === selectedResult.getID())
+              : -1;
           if (selIndex === -1) {
             selIndex = filtered.findIndex((it) => {
               const st = ViewItemClassifier.isMedia(it) ? it.getStartTime() : null;
@@ -493,7 +495,10 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
           this._queryResults = new QueryResults({ results: this._items });
           this._hasOlder = true;
           this._hasNewer = true;
-          this._previousSelectedIndex = Math.min(selIndex - start, Math.max(0, this._items.length - 1));
+          this._previousSelectedIndex = Math.min(
+            selIndex - start,
+            Math.max(0, this._items.length - 1),
+          );
           this._thumbnails = this._renderThumbnails();
           this.requestUpdate();
 
@@ -556,8 +561,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
         targetIndex = closestIndex + (hasUpFolder ? 1 : 0);
       }
 
-      this._targetSlideIndex =
-        targetIndex ?? Math.max(0, items.length - 1);
+      this._targetSlideIndex = targetIndex ?? Math.max(0, items.length - 1);
       this._previousSelectedIndex = this._targetSlideIndex;
       this._thumbnails = this._renderThumbnails();
       this.requestUpdate();
@@ -593,15 +597,14 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
             it.getCameraID() === cameraForQuery,
         )
       : this._items.filter(
-          (it) =>
-            ViewItemClassifier.isMedia(it) &&
-            !ViewItemClassifier.isRecording(it),
+          (it) => ViewItemClassifier.isMedia(it) && !ViewItemClassifier.isRecording(it),
         );
 
     const oldestItem = mediaItems[0];
-    const oldestTime = oldestItem && ViewItemClassifier.isMedia(oldestItem)
-      ? oldestItem.getStartTime()
-      : null;
+    const oldestTime =
+      oldestItem && ViewItemClassifier.isMedia(oldestItem)
+        ? oldestItem.getStartTime()
+        : null;
     if (!oldestTime) {
       return;
     }
@@ -628,10 +631,10 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
         return;
       }
 
-      let olderQuery = UnifiedQueryTransformer.stripTimeRange(
+      const olderQuery = UnifiedQueryTransformer.stripTimeRange(
         UnifiedQueryTransformer.stripLimits(baseQuery),
       );
-      
+
       const chunkHours = this.config?.chunk_hours ?? 24;
       let rawItems: ViewItem[] = [];
       let currentEnd = new Date(oldestTime.getTime() - 1);
@@ -640,7 +643,9 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
 
       while (rawItems.length === 0 && attempts < maxAttempts) {
         attempts++;
-        const currentStart = new Date(currentEnd.getTime() - chunkHours * 60 * 60 * 1000);
+        const currentStart = new Date(
+          currentEnd.getTime() - chunkHours * 60 * 60 * 1000,
+        );
         const loopQuery = UnifiedQueryTransformer.rebuildQuery(olderQuery, {
           start: currentStart,
           end: currentEnd,
@@ -667,7 +672,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       // Modifying DOM nodes while Embla is actively moving requires a reInit
       // which instantly kills the drag momentum, causing a perceived "stutter".
       while (this._refCarousel.value?.isDragging()) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise<void>((resolve) => new Timer().start(0.05, resolve));
       }
 
       const sortedOlder = sortItems(uniqueOlder);
@@ -722,15 +727,14 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
             it.getCameraID() === cameraForQuery,
         )
       : this._items.filter(
-          (it) =>
-            ViewItemClassifier.isMedia(it) &&
-            !ViewItemClassifier.isRecording(it),
+          (it) => ViewItemClassifier.isMedia(it) && !ViewItemClassifier.isRecording(it),
         );
 
     const newestItem = mediaItems[mediaItems.length - 1];
-    const newestTime = newestItem && ViewItemClassifier.isMedia(newestItem)
-      ? newestItem.getStartTime()
-      : null;
+    const newestTime =
+      newestItem && ViewItemClassifier.isMedia(newestItem)
+        ? newestItem.getStartTime()
+        : null;
     if (!newestTime) {
       return;
     }
@@ -757,10 +761,10 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
         return;
       }
 
-      let newerQuery = UnifiedQueryTransformer.stripTimeRange(
+      const newerQuery = UnifiedQueryTransformer.stripTimeRange(
         UnifiedQueryTransformer.stripLimits(baseQuery),
       );
-      
+
       const chunkHours = this.config?.chunk_hours ?? 24;
       let rawItems: ViewItem[] = [];
       let currentStart = new Date(newestTime.getTime() + 1);
@@ -770,7 +774,9 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
 
       while (rawItems.length === 0 && currentStart < now && attempts < maxAttempts) {
         attempts++;
-        const currentEnd = new Date(currentStart.getTime() + chunkHours * 60 * 60 * 1000);
+        const currentEnd = new Date(
+          currentStart.getTime() + chunkHours * 60 * 60 * 1000,
+        );
         const endToUse = currentEnd > now ? now : currentEnd;
 
         const loopQuery = UnifiedQueryTransformer.rebuildQuery(newerQuery, {
@@ -800,7 +806,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
 
       // Wait until the user has stopped dragging/scrolling before injecting nodes.
       while (this._refCarousel.value?.isDragging()) {
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        await new Promise<void>((resolve) => new Timer().start(0.05, resolve));
       }
 
       this._items = [...this._items, ...toAppend];
@@ -879,8 +885,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
             )
           : allResults.filter(
               (it) =>
-                ViewItemClassifier.isMedia(it) &&
-                !ViewItemClassifier.isRecording(it),
+                ViewItemClassifier.isMedia(it) && !ViewItemClassifier.isRecording(it),
             );
         this._query = view.query ?? null;
         this._queryResults = view.queryResults ?? null;
@@ -1021,7 +1026,9 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
         return;
       }
 
-      const hasUpFolder = !!getUpFolderItem(this.viewManagerEpoch?.manager.getView()?.query);
+      const hasUpFolder = !!getUpFolderItem(
+        this.viewManagerEpoch?.manager.getView()?.query,
+      );
       const offset = hasUpFolder ? 1 : 0;
       const itemIndex = slideIndex - offset;
 
@@ -1060,7 +1067,9 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       return;
     }
 
-    const hasUpFolder = !!getUpFolderItem(this.viewManagerEpoch?.manager.getView()?.query);
+    const hasUpFolder = !!getUpFolderItem(
+      this.viewManagerEpoch?.manager.getView()?.query,
+    );
     const offset = hasUpFolder ? 1 : 0;
     const totalItems = this._items.length + offset;
 
@@ -1125,7 +1134,9 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
   private async _handleMediaClick(item: ViewMedia): Promise<void> {
     const clickedIndex = this._items.findIndex((it) => it.getID() === item.getID());
     if (clickedIndex !== -1) {
-      const hasUpFolder = !!getUpFolderItem(this.viewManagerEpoch?.manager.getView()?.query);
+      const hasUpFolder = !!getUpFolderItem(
+        this.viewManagerEpoch?.manager.getView()?.query,
+      );
       this._previousSelectedIndex = clickedIndex + (hasUpFolder ? 1 : 0);
     }
 
@@ -1241,11 +1252,9 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
             it.getCameraID() === cameraForQuery,
         )
       : rawItems.filter(
-          (it) =>
-            ViewItemClassifier.isMedia(it) &&
-            !ViewItemClassifier.isRecording(it),
+          (it) => ViewItemClassifier.isMedia(it) && !ViewItemClassifier.isRecording(it),
         );
-      
+
     if (!upFolderItem && items.length === 0) {
       return null;
     }
@@ -1254,27 +1263,37 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     const offset = upFolderItem ? 1 : 0;
 
     return html`
-      ${upFolderItem ? this._renderThumbnail(upFolderItem, selectedIndex === 0, (_item: ViewItem, ev: Event) => {
-        stopEventFromActivatingCardWideActions(ev);
-        navigateUp(this._getFolderNavOptions());
-      }) : ''}
-      ${repeat(items, (item) => item.getID(), (item, index) => {
-        const clickHandler = (item: ViewItem, ev: Event) => {
-          stopEventFromActivatingCardWideActions(ev);
-          if (ViewItemClassifier.isMedia(item)) {
-            void this._handleMediaClick(item);
-          } else if (ViewItemClassifier.isFolder(item)) {
-            navigateToFolder(item, this._getFolderNavOptions());
-          }
-        };
-        return this._renderThumbnail(
-          item,
-          selectedIndex === index + offset,
-          clickHandler,
-          view?.context?.mediaViewer?.seek,
-          getReviewedQueryFilterFromQuery(view?.query, item),
-        );
-      })}
+      ${upFolderItem
+        ? this._renderThumbnail(
+            upFolderItem,
+            selectedIndex === 0,
+            (_item: ViewItem, ev: Event) => {
+              stopEventFromActivatingCardWideActions(ev);
+              navigateUp(this._getFolderNavOptions());
+            },
+          )
+        : ''}
+      ${repeat(
+        items,
+        (item) => item.getID(),
+        (item, index) => {
+          const clickHandler = (item: ViewItem, ev: Event) => {
+            stopEventFromActivatingCardWideActions(ev);
+            if (ViewItemClassifier.isMedia(item)) {
+              void this._handleMediaClick(item);
+            } else if (ViewItemClassifier.isFolder(item)) {
+              navigateToFolder(item, this._getFolderNavOptions());
+            }
+          };
+          return this._renderThumbnail(
+            item,
+            selectedIndex === index + offset,
+            clickHandler,
+            view?.context?.mediaViewer?.seek,
+            getReviewedQueryFilterFromQuery(view?.query, item),
+          );
+        },
+      )}
     `;
   }
 

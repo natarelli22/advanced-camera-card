@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 import { describe, expect, it, vi } from 'vitest';
 
 import { QueryType } from '../../src/camera-manager/types';
 import { AdvancedCameraCardThumbnailCarousel } from '../../src/components/thumbnail-carousel';
 import type { ThumbnailsControlConfig } from '../../src/config/schema/common/controls/thumbnails';
 import { QuerySource } from '../../src/query-source';
-import { ViewItemClassifier } from '../../src/view/item-classifier';
 import { ViewMediaType } from '../../src/view/item';
+import { ViewItemClassifier } from '../../src/view/item-classifier';
 import { QueryResults } from '../../src/view/query-results';
 import { UnifiedQuery } from '../../src/view/unified-query';
 import { UnifiedQueryRunner } from '../../src/view/unified-query-runner';
@@ -88,42 +89,53 @@ describe('AdvancedCameraCardThumbnailCarousel sliding window buffer', () => {
     } as any;
 
     // Override runner execution in methods
-    vi.spyOn(carousel as any, '_loadOlderChunk').mockImplementation(async (chunkSize: any) => {
-      const oldestItem = carousel['_items'][0];
-      const oldestTime = ViewItemClassifier.isMedia(oldestItem)
-        ? oldestItem.getStartTime()
-        : null;
-      if (!oldestTime) return;
+    vi.spyOn(carousel as any, '_loadOlderChunk').mockImplementation(
+      async (chunkSize: any) => {
+        const oldestItem = carousel['_items'][0];
+        const oldestTime = ViewItemClassifier.isMedia(oldestItem)
+          ? oldestItem.getStartTime()
+          : null;
+        if (!oldestTime) {
+          return;
+        }
 
-      const olderQuery = {
-        getNodes: () => [{ end: new Date(oldestTime.getTime() - 1) }],
-      };
-      const olderItems = await mockExecute(olderQuery);
-      const toPrepend = olderItems.slice(-chunkSize);
-      carousel['_items'] = [...toPrepend, ...carousel['_items']];
-      if (carousel['_items'].length > chunkSize * 2) {
-        carousel['_items'] = carousel['_items'].slice(0, chunkSize * 2);
-      }
-      carousel['_previousSelectedIndex'] = (carousel['_previousSelectedIndex'] ?? 0) + toPrepend.length;
-    });
+        const olderQuery = {
+          getNodes: () => [{ end: new Date(oldestTime.getTime() - 1) }],
+        };
+        const olderItems = await mockExecute(olderQuery);
+        const toPrepend = olderItems.slice(-chunkSize);
+        carousel['_items'] = [...toPrepend, ...carousel['_items']];
+        if (carousel['_items'].length > chunkSize * 2) {
+          carousel['_items'] = carousel['_items'].slice(0, chunkSize * 2);
+        }
+        carousel['_previousSelectedIndex'] =
+          (carousel['_previousSelectedIndex'] ?? 0) + toPrepend.length;
+      },
+    );
 
-    vi.spyOn(carousel as any, '_loadNewerChunk').mockImplementation(async (chunkSize: any) => {
-      const newestItem = carousel['_items'][carousel['_items'].length - 1];
-      const newestTime = ViewItemClassifier.isMedia(newestItem)
-        ? newestItem.getStartTime()
-        : null;
-      if (!newestTime) return;
+    vi.spyOn(carousel as any, '_loadNewerChunk').mockImplementation(
+      async (chunkSize: any) => {
+        const newestItem = carousel['_items'][carousel['_items'].length - 1];
+        const newestTime = ViewItemClassifier.isMedia(newestItem)
+          ? newestItem.getStartTime()
+          : null;
+        if (!newestTime) {
+          return;
+        }
 
-      const newerQuery = {
-        getNodes: () => [{ start: new Date(newestTime.getTime() + 1) }],
-      };
-      const newerItems = await mockExecute(newerQuery);
-      const toAppend = newerItems.slice(0, chunkSize);
-      carousel['_items'] = [...carousel['_items'], ...toAppend];
-      if (carousel['_items'].length > chunkSize * 2) {
-        carousel['_items'] = carousel['_items'].slice(carousel['_items'].length - chunkSize * 2);
-      }
-    });
+        const newerQuery = {
+          getNodes: () => [{ start: new Date(newestTime.getTime() + 1) }],
+        };
+        const newerItems = await mockExecute(newerQuery);
+        const toAppend = newerItems.slice(0, chunkSize);
+        carousel['_items'] = [...carousel['_items'], ...toAppend];
+        if (carousel['_items'].length > chunkSize * 2) {
+          carousel['_items'] = carousel['_items'].slice(
+            carousel['_items'].length - chunkSize * 2,
+          );
+        }
+      },
+    );
 
     // 1. User scrolls to index 0 (older items)
     await carousel['_onCarouselSelect'](
@@ -283,16 +295,20 @@ describe('AdvancedCameraCardThumbnailCarousel continuous recordings filtering', 
     } as any;
 
     // Spy on UnifiedQueryRunner to return the event clip
-    const executeSpy = vi.spyOn(UnifiedQueryRunner.prototype, 'execute').mockResolvedValue([eventMedia]);
+    const executeSpy = vi
+      .spyOn(UnifiedQueryRunner.prototype, 'execute')
+      .mockResolvedValue([eventMedia]);
 
     // Override UnifiedQueryRunner in prototype or mock execution
     vi.spyOn(carousel as any, '_renderThumbnails').mockReturnValue([]);
-    
+
     // Call _loadInitialChunkSize
     await carousel['_loadInitialChunkSize'](new Date('2026-10-07T14:30:00Z'), 20);
 
     // Continuous recording must NOT be present in _items
-    expect(carousel['_items'].some((it) => ViewItemClassifier.isRecording(it))).toBe(false);
+    expect(carousel['_items'].some((it) => ViewItemClassifier.isRecording(it))).toBe(
+      false,
+    );
     executeSpy.mockRestore();
   });
 
@@ -322,8 +338,14 @@ describe('AdvancedCameraCardThumbnailCarousel continuous recordings filtering', 
     const result = carousel['_getNonRecordingQuery'](recordingQuery, 'camera.sala_01');
     expect(result).not.toBeNull();
     const nodes = result!.getNodes();
-    expect(nodes.some((n) => n.source === QuerySource.Camera && n.type === QueryType.Recording)).toBe(false);
-    expect(nodes.some((n) => n.source === QuerySource.Camera && n.type === QueryType.Event)).toBe(true);
+    expect(
+      nodes.some(
+        (n) => n.source === QuerySource.Camera && n.type === QueryType.Recording,
+      ),
+    ).toBe(false);
+    expect(
+      nodes.some((n) => n.source === QuerySource.Camera && n.type === QueryType.Event),
+    ).toBe(true);
   });
 
   it('should focus on closest event clip when reference time comes from continuous recording', async () => {
@@ -477,7 +499,9 @@ describe('Thumbnail Carousel Continuous Recordings Reproduction', () => {
 
     // View is in grid mode, but user clicks Sala 01 window
     // promoteCameraSelectionToMainSelection('camera.sala_01')
-    const viewQueryResults = queryResults.clone().promoteCameraSelectionToMainSelection('camera.sala_01');
+    const viewQueryResults = queryResults
+      .clone()
+      .promoteCameraSelectionToMainSelection('camera.sala_01');
 
     carousel['viewManagerEpoch'] = {
       manager: {
@@ -497,7 +521,9 @@ describe('Thumbnail Carousel Continuous Recordings Reproduction', () => {
       },
     } as any;
 
-    const executeSpy = vi.spyOn(UnifiedQueryRunner.prototype, 'execute').mockResolvedValue([]);
+    const executeSpy = vi
+      .spyOn(UnifiedQueryRunner.prototype, 'execute')
+      .mockResolvedValue([]);
 
     // Run _checkAndLoadInitialChunk
     carousel['_checkAndLoadInitialChunk']();
@@ -513,4 +539,3 @@ describe('Thumbnail Carousel Continuous Recordings Reproduction', () => {
     executeSpy.mockRestore();
   });
 });
-

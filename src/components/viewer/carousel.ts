@@ -34,6 +34,7 @@ import { stopEventFromActivatingCardWideActions } from '../../utils/action.js';
 import { contentsChanged, isValidAspectRatio } from '../../utils/basic.js';
 import type { CarouselSelected } from '../../utils/embla/carousel-controller.js';
 import { getTextDirection } from '../../utils/text-direction.js';
+import { Timer } from '../../utils/timer.js';
 import { ViewItemClassifier } from '../../view/item-classifier.js';
 import type { ViewMedia } from '../../view/item.js';
 
@@ -612,7 +613,7 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
   public async play(): Promise<void> {
     const controller = this._mediaLoadedInfoSinkController.get()?.mediaPlayerController;
     if (this._isSeeking) {
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise<void>((resolve) => new Timer().start(0.05, resolve));
     }
     try {
       await controller?.playback?.play();

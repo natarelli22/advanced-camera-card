@@ -182,9 +182,13 @@ export class AdvancedCameraCardViewerGrid extends LitElement {
   ): void {
     const current = this._suppressedSync.get(carousel) ?? {};
     const until = Date.now() + durationMs;
-    if (type === 'play') current.playUntil = until;
-    else if (type === 'pause') current.pauseUntil = until;
-    else if (type === 'seeked') current.seekedUntil = until;
+    if (type === 'play') {
+      current.playUntil = until;
+    } else if (type === 'pause') {
+      current.pauseUntil = until;
+    } else if (type === 'seeked') {
+      current.seekedUntil = until;
+    }
     this._suppressedSync.set(carousel, current);
   }
 

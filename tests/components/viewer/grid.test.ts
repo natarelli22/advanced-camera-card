@@ -295,8 +295,12 @@ describe('AdvancedCameraCardViewerGrid', () => {
 
     const queryResults = mock<QueryResults>();
     queryResults.getSelectedResult.mockImplementation((camID?: string) => {
-      if (camID === 'camera1') return recordingMedia;
-      if (camID === 'camera2') return eventMedia;
+      if (camID === 'camera1') {
+        return recordingMedia;
+      }
+      if (camID === 'camera2') {
+        return eventMedia;
+      }
       return null;
     });
 

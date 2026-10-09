@@ -6,12 +6,12 @@ import type { CameraManagerStore } from '../../src/camera-manager/store.js';
 import { QueryType } from '../../src/camera-manager/types.js';
 import { QuerySource } from '../../src/query-source.js';
 import {
-  isMediaCoveringWithTolerance,
   findBestMediaTimeIndexWithTolerance,
+  isMediaCoveringWithTolerance,
   syncGridResultsForTargetTime,
 } from '../../src/utils/grid-sync.js';
 import { ViewItemClassifier } from '../../src/view/item-classifier.js';
-import { ViewMediaType } from '../../src/view/item.js';
+import { ViewMediaType, type ViewMedia } from '../../src/view/item.js';
 import { QueryResults } from '../../src/view/query-results.js';
 import { TestViewMedia } from '../view/test-utils.js';
 
@@ -649,7 +649,10 @@ describe('syncGridResultsForTargetTime', () => {
   describe('isMediaCoveringWithTolerance', () => {
     it('should return false for non-media or media without start/end', () => {
       expect(
-        isMediaCoveringWithTolerance({} as any, new Date('2024-01-01T10:00:00Z')),
+        isMediaCoveringWithTolerance(
+          {} as unknown as ViewMedia,
+          new Date('2024-01-01T10:00:00Z'),
+        ),
       ).toBe(false);
 
       const mediaNoDates = new TestViewMedia({
@@ -690,7 +693,7 @@ describe('syncGridResultsForTargetTime', () => {
 
   describe('findBestMediaTimeIndexWithTolerance', () => {
     it('should skip non-media and media without dates', () => {
-      const nonMedia = {} as any;
+      const nonMedia = {} as unknown as ViewMedia;
       const mediaNoDates = new TestViewMedia({ id: 'nodates', cameraID: 'cam1' });
       expect(
         findBestMediaTimeIndexWithTolerance(
