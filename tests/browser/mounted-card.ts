@@ -2,6 +2,7 @@ import { expect, onTestFinished, vi } from 'vitest';
 
 import type { AdvancedCameraCard } from '../../src/card';
 import type { RawAdvancedCameraCardConfig } from '../../src/config/types';
+import { clearThumbnailCache } from '../../src/utils/thumbnail';
 import {
   clickElement,
   deepQuery,
@@ -660,6 +661,7 @@ export class MountedCardFactory {
     hass: FakeHASS,
     options?: MountOptions,
   ): Promise<MountedCard> {
+    clearThumbnailCache();
     return await MountedCard.create(
       async () => {
         // `src/patches` subclasses Home Assistant's three player elements as

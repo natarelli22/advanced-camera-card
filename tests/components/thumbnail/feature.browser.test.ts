@@ -1,7 +1,8 @@
-import { assert, describe, expect, it } from 'vitest';
+import { assert, beforeEach, describe, expect, it } from 'vitest';
 
 import type { FrigateReview } from '../../../src/camera-manager/frigate/types';
 import type { CameraMediaReviewedFilter } from '../../../src/config/schema/cameras';
+import { clearThumbnailCache } from '../../../src/utils/thumbnail';
 import { clickElement, deepQuery, hoverElement } from '../../browser/dom';
 import {
   createTestFrigateEvent,
@@ -75,6 +76,10 @@ const getFavoriteControls = (card: MountedCard): HTMLElement[] =>
   });
 
 describe('AdvancedCameraCardThumbnailFeature', () => {
+  beforeEach(() => {
+    clearThumbnailCache();
+  });
+
   it('should dim the picture of a reviewed item', async () => {
     const opacity = async (hasBeenReviewed: boolean): Promise<number> => {
       const card = await mountCardWithReview('all', {

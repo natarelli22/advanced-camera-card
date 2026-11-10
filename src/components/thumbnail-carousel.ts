@@ -359,6 +359,12 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       refTime >= this._currentChunk.start &&
       refTime <= this._currentChunk.end
     ) {
+      if (view.queryResults && this._items.length > 0) {
+        const resultsMap = new Map(
+          (view.queryResults.getResults() ?? []).map((it) => [it.getID(), it]),
+        );
+        this._items = this._items.map((it) => resultsMap.get(it.getID()) ?? it);
+      }
       this._thumbnails = this._renderThumbnails();
       return;
     }
@@ -1262,6 +1268,13 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
   private _renderThumbnails(): unknown {
     const view = this.viewManagerEpoch?.manager.getView();
     const upFolderItem = getUpFolderItem(this._getFolderNavOptions());
+
+    if (view?.queryResults && this._items.length > 0) {
+      const resultsMap = new Map(
+        (view.queryResults.getResults() ?? []).map((it) => [it.getID(), it]),
+      );
+      this._items = this._items.map((it) => resultsMap.get(it.getID()) ?? it);
+    }
 
     const isFolderView = !!view?.query?.hasFolderQueries();
     const cameraForQuery = view?.camera ?? undefined;

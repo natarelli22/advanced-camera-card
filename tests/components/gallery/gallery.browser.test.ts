@@ -1,7 +1,8 @@
-import { assert, describe, expect, it } from 'vitest';
+import { assert, beforeEach, describe, expect, it } from 'vitest';
 
 import type { FrigateEvent } from '../../../src/camera-manager/frigate/types';
 import type { PartialAdvancedCameraCardConfig } from '../../../src/config/types';
+import { clearThumbnailCache } from '../../../src/utils/thumbnail';
 import {
   createFrontDoorFolderMedia,
   FRONT_DOOR_FOLDER_CONTENT_ID,
@@ -42,6 +43,10 @@ const mountCard = async (
   (await mountCardWithFrigate(events, { view: { default: 'clips' }, ...config })).card;
 
 describe('AdvancedCameraCardGallery', () => {
+  beforeEach(() => {
+    clearThumbnailCache();
+  });
+
   it('should show a thumbnail for every event the camera detected', async () => {
     const card = await mountCard([
       createTestFrigateEvent('older', EVENT_TIME_OLDER),
