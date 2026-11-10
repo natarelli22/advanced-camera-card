@@ -9,7 +9,7 @@ import { MediaNotificationController } from '../../../src/components-lib/notific
 import type { NotificationControl } from '../../../src/config/schema/actions/types';
 import { downloadMedia, navigateToTimeline } from '../../../src/utils/media-actions';
 import { ViewFolder, ViewMediaType } from '../../../src/view/item';
-import { createCardAPI, createFolder } from '../../test-utils';
+import { createCardAPI, createFolder, createHASS } from '../../test-utils';
 import { TestViewMedia } from '../../view/test-utils';
 
 vi.mock('../../../src/utils/media-actions', async (importOriginal) => ({
@@ -81,6 +81,18 @@ describe('MediaNotificationController', () => {
 
       const notification = controller.getNotification();
       expect(notification.body).toBeUndefined();
+    });
+
+    it('should recalculate when context provides different hass', () => {
+      const item = new TestViewMedia({
+        title: 'Test Title',
+        what: ['person'],
+      });
+      const controller = new MediaNotificationController(item);
+      controller.calculate();
+      const hass = createHASS();
+      const notification = controller.getNotification({ hass });
+      expect(notification.heading?.text).toBe('Person');
     });
 
     it('should get notification with controls', async () => {

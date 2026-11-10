@@ -72,8 +72,6 @@ export const thumbnailsControlDefaults = {
   mode: 'right' as const,
   position: 'center' as const,
 };
-export const thumbnailControlsDefaults = thumbnailsControlDefaults;
-export const thumbnailControlsBaseDefaults = thumbnailsControlBaseDefaults;
 
 export const thumbnailsControlSchema = thumbnailsControlBaseSchema.extend({
   mode: z

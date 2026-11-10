@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  thumbnailControlsBaseDefaults,
+  thumbnailsControlBaseDefaults,
   thumbnailsControlBaseSchema,
   thumbnailsControlSchema,
 } from '../../../../../src/config/schema/common/controls/thumbnails';
@@ -10,7 +10,7 @@ describe('thumbnailsControlBaseSchema', () => {
   it('should parse with default chunk_hours', () => {
     const parsed = thumbnailsControlBaseSchema.parse({});
     expect(parsed.chunk_hours).toBe(24);
-    expect(parsed.chunk_hours).toBe(thumbnailControlsBaseDefaults.chunk_hours);
+    expect(parsed.chunk_hours).toBe(thumbnailsControlBaseDefaults.chunk_hours);
   });
 
   it('should accept number chunk_hours', () => {
