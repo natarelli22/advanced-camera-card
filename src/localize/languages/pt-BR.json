@@ -1,7 +1,10 @@
 {
   "common": {
     "in_progress": "Em andamento",
-    "no_media": "Nenhuma mídia para exibir"
+    "no_media": "Nenhuma mídia para exibir",
+    "notification": "Notificação",
+    "today": "Hoje",
+    "yesterday": "Ontem"
   },
   "config": {
     "cameras": {
@@ -123,6 +126,14 @@
             "none": "Sem miniaturas",
             "right": "Miniaturas em uma gaveta à direita"
           },
+          "style": "Estilo",
+          "styles": {
+            "auto": "Automático",
+            "hover": "Miniatura com detalhes ao passar o mouse",
+            "plain": "Miniatura sem detalhes",
+            "overlay": "Miniatura com sobreposição de detalhes",
+            "panel": "Miniatura com painel de detalhes"
+          },
           "position": "Posição do botão da gaveta",
           "positions": {
             "bottom": "Inferior",
@@ -130,7 +141,6 @@
             "selected": "Câmera selecionada",
             "top": "Superior"
           },
-          "show_details": "Mostrar detalhes com miniaturas",
           "show_download_control": "Mostrar controle de download nas miniaturas",
           "show_favorite_control": "Mostrar controle de favorito nas miniaturas",
           "show_timeline_control": "Mostrar controle da linha do tempo nas miniaturas",
@@ -277,6 +287,7 @@
         "media_chunk_size": "Tamanho do bloco de mídia"
       },
       "style": {
+        "backdrop_filter": "Efeitos de desfoque",
         "border_radius": "Curvas",
         "box_shadow": "Sombras",
         "editor_label": "Opções de estilo"
@@ -412,6 +423,8 @@
     "camera": "Câmera",
     "download": "Baixar mídia",
     "duration": "Duração",
+    "in_progress": "REC",
+    "more_details": "+{count} detalhes",
     "no_thumbnail": "Nenhuma miniatura disponível",
     "retain_indefinitely": "Evento será retido por tempo indeterminado",
     "seek": "Procurar",

@@ -12,6 +12,7 @@ import { UnifiedQuery } from '../../src/view/unified-query';
 import { UnifiedQueryRunner } from '../../src/view/unified-query-runner';
 import { TestViewMedia } from '../view/test-utils';
 
+// @vitest-environment jsdom
 describe('AdvancedCameraCardThumbnailCarousel sliding window buffer', () => {
   it('should maintain sliding window buffer size between chunkSize and 2*chunkSize', async () => {
     const carousel = new AdvancedCameraCardThumbnailCarousel();
@@ -19,7 +20,7 @@ describe('AdvancedCameraCardThumbnailCarousel sliding window buffer', () => {
       mode: 'right',
       position: 'center',
       size: 100,
-      show_details: true,
+      style: 'auto',
       show_favorite_control: true,
       show_timeline_control: false,
       show_download_control: false,

@@ -1190,8 +1190,7 @@ export class TPLinkCameraManagerEngine extends BrowseMediaCameraManagerEngine {
                   earlyExit: (m) => m.length >= limit,
                   matcher: (m: RichBrowseMedia<BrowseMediaMetadata>) =>
                     !m.can_expand && isMediaWithinDates(m, query.start, query.end),
-                  sorter: (m: RichBrowseMedia<BrowseMediaMetadata>[]) =>
-                    mediaSorter(m),
+                  sorter: (m: RichBrowseMedia<BrowseMediaMetadata>[]) => mediaSorter(m),
                 },
               ];
             },

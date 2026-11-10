@@ -20,4 +20,3 @@ export const sortOldestFirst = (
 ): RichBrowseMedia<BrowseMediaMetadata>[] => {
   return orderBy(media, (media) => media._metadata?.startDate, 'asc');
 };
-

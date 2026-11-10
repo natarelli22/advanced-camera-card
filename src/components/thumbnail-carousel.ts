@@ -11,6 +11,7 @@ import { classMap } from 'lit/directives/class-map.js';
 import { createRef, ref, type Ref } from 'lit/directives/ref.js';
 import { repeat } from 'lit/directives/repeat.js';
 
+import { actionHandler } from '../action-handler-directive.js';
 import { CameraQueryClassifier, type CameraManager } from '../camera-manager/manager.js';
 import type { DateRange } from '../camera-manager/range.js';
 import { convertRangeToCacheFriendlyTimes } from '../camera-manager/utils/range-to-cache-friendly.js';
@@ -23,17 +24,22 @@ import { sortItems } from '../card-controller/view/sort.js';
 import type { ViewManagerEpoch, ViewModifier } from '../card-controller/view/types.js';
 import {
   getUpFolderItem,
-  navigateToFolder,
+  navigateDownIntoFolder,
   navigateToMedia,
   navigateUp,
   type FolderNavigationParamaters,
 } from '../components-lib/navigation.js';
+import {
+  resolveThumbnailStyle,
+  type ResolvedThumbnailStyle,
+} from '../components-lib/thumbnail/resolve-style.js';
 import type { ConditionStateManagerReadonlyInterface } from '../condition-trigger/conditions/types.js';
 import type { ThumbnailsControlConfig } from '../config/schema/common/controls/thumbnails.js';
 import type { CardWideConfig } from '../config/schema/types.js';
 import type { HomeAssistant } from '../ha/types.js';
 import { QuerySource } from '../query-source.js';
 import thumbnailCarouselStyle from '../scss/thumbnail-carousel.scss?inline';
+import type { Interaction } from '../types.js';
 import { stopEventFromActivatingCardWideActions } from '../utils/action.js';
 import { errorToConsole } from '../utils/basic.js';
 import type {
@@ -42,6 +48,7 @@ import type {
 } from '../utils/embla/carousel-controller.js';
 import { fireAdvancedCameraCardEvent } from '../utils/fire-advanced-camera-card-event.js';
 import { syncGridResultsForTargetTime } from '../utils/grid-sync.js';
+import { showMediaInfoNotification } from '../utils/media-actions.js';
 import { Timer } from '../utils/timer.js';
 import { ViewItemClassifier } from '../view/item-classifier.js';
 import type { ViewItem, ViewMedia } from '../view/item.js';
@@ -50,7 +57,7 @@ import { UnifiedQueryBuilder } from '../view/unified-query-builder.js';
 import { UnifiedQueryRunner } from '../view/unified-query-runner.js';
 import { UnifiedQueryTransformer } from '../view/unified-query-transformer.js';
 import { UnifiedQuery } from '../view/unified-query.js';
-import { getReviewedQueryFilterFromQuery } from '../view/utils/query-filter.js';
+import { getBooleanQueryFilter } from '../view/utils/query-filter.js';
 import type { AdvancedCameraCardCarousel } from './carousel.js';
 
 import './carousel.js';
@@ -144,10 +151,11 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
   }
 
   private _getFolderNavOptions(): FolderNavigationParamaters | undefined {
-    return this._builder && this.viewManagerEpoch
+    return this.viewManagerEpoch && this.foldersManager && this._builder
       ? {
-          builder: this._builder,
           viewManagerEpoch: this.viewManagerEpoch,
+          foldersManager: this.foldersManager,
+          builder: this._builder,
         }
       : undefined;
   }
@@ -544,7 +552,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
 
       let targetIndex = this._getSelectedSlide(items);
       if (targetIndex === null && items.length > 0 && refTime) {
-        const hasUpFolder = !!getUpFolderItem(view.query);
+        const hasUpFolder = !!getUpFolderItem(this._getFolderNavOptions());
         let closestIndex = 0;
         let minDiff = Infinity;
         for (let i = 0; i < items.length; i++) {
@@ -1026,9 +1034,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
         return;
       }
 
-      const hasUpFolder = !!getUpFolderItem(
-        this.viewManagerEpoch?.manager.getView()?.query,
-      );
+      const hasUpFolder = !!getUpFolderItem(this._getFolderNavOptions());
       const offset = hasUpFolder ? 1 : 0;
       const itemIndex = slideIndex - offset;
 
@@ -1067,9 +1073,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       return;
     }
 
-    const hasUpFolder = !!getUpFolderItem(
-      this.viewManagerEpoch?.manager.getView()?.query,
-    );
+    const hasUpFolder = !!getUpFolderItem(this._getFolderNavOptions());
     const offset = hasUpFolder ? 1 : 0;
     const totalItems = this._items.length + offset;
 
@@ -1111,7 +1115,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       if (selectedIndex === null) {
         return null;
       }
-      const hasUpFolder = !!getUpFolderItem(view?.query);
+      const hasUpFolder = !!getUpFolderItem(this._getFolderNavOptions());
       return hasUpFolder ? selectedIndex + 1 : selectedIndex;
     }
 
@@ -1127,16 +1131,14 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     if (index === -1) {
       return null;
     }
-    const hasUpFolder = !!getUpFolderItem(view?.query);
+    const hasUpFolder = !!getUpFolderItem(this._getFolderNavOptions());
     return hasUpFolder ? index + 1 : index;
   }
 
   private async _handleMediaClick(item: ViewMedia): Promise<void> {
     const clickedIndex = this._items.findIndex((it) => it.getID() === item.getID());
     if (clickedIndex !== -1) {
-      const hasUpFolder = !!getUpFolderItem(
-        this.viewManagerEpoch?.manager.getView()?.query,
-      );
+      const hasUpFolder = !!getUpFolderItem(this._getFolderNavOptions());
       this._previousSelectedIndex = clickedIndex + (hasUpFolder ? 1 : 0);
     }
 
@@ -1207,6 +1209,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     clickCallback: (item: ViewItem, ev: Event) => void,
     seekTarget?: Date,
     filterReviewed?: boolean,
+    filterFavorite?: boolean,
   ): TemplateResult {
     const classes = {
       embla__slide: true,
@@ -1214,10 +1217,12 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
     };
 
     return html` <advanced-camera-card-thumbnail
+      clickable
       class="${classMap(classes)}"
       .cameraManager=${this.cameraManager}
       .hass=${this.hass}
       .filterReviewed=${filterReviewed}
+      .filterFavorite=${filterFavorite}
       .item=${item}
       .viewManagerEpoch=${this.viewManagerEpoch}
       .viewItemManager=${this.viewItemManager}
@@ -1226,20 +1231,37 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       item.includesTime(seekTarget)
         ? seekTarget
         : undefined}
-      ?details=${!!this.config?.show_details}
+      .thumbnailStyle=${this._getResolvedThumbnailStyle() ?? undefined}
+      .size=${this.config?.size}
       ?show_favorite_control=${this.config?.show_favorite_control}
       ?show_timeline_control=${this.config?.show_timeline_control}
       ?show_download_control=${this.config?.show_download_control}
       ?show_review_control=${this.config?.show_review_control}
       ?show_info_control=${this.config?.show_info_control}
-      @click=${(ev: Event) => clickCallback(item, ev)}
+      .actionHandler=${actionHandler({ hasHold: true })}
+      @action=${(ev: CustomEvent<Interaction>) => {
+        stopEventFromActivatingCardWideActions(ev);
+
+        if (ev.detail.action === 'tap') {
+          clickCallback(item, ev);
+        } else if (ev.detail.action === 'hold') {
+          showMediaInfoNotification(this, item, {
+            hass: this.hass,
+            cameraManager: this.cameraManager,
+            viewItemManager: this.viewItemManager,
+            viewManagerEpoch: this.viewManagerEpoch,
+            filterReviewed,
+            filterFavorite,
+          });
+        }
+      }}
     >
     </advanced-camera-card-thumbnail>`;
   }
 
   private _renderThumbnails(): unknown {
     const view = this.viewManagerEpoch?.manager.getView();
-    const upFolderItem = getUpFolderItem(view?.query);
+    const upFolderItem = getUpFolderItem(this._getFolderNavOptions());
 
     const isFolderView = !!view?.query?.hasFolderQueries();
     const cameraForQuery = view?.camera ?? undefined;
@@ -1282,7 +1304,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
             if (ViewItemClassifier.isMedia(item)) {
               void this._handleMediaClick(item);
             } else if (ViewItemClassifier.isFolder(item)) {
-              navigateToFolder(item, this._getFolderNavOptions());
+              navigateDownIntoFolder(item, this._getFolderNavOptions());
             }
           };
           return this._renderThumbnail(
@@ -1290,7 +1312,8 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
             selectedIndex === index + offset,
             clickHandler,
             view?.context?.mediaViewer?.seek,
-            getReviewedQueryFilterFromQuery(view?.query, item),
+            getBooleanQueryFilter('reviewed', view?.query, item) ?? undefined,
+            getBooleanQueryFilter('favorite', view?.query, item) ?? undefined,
           );
         },
       )}
@@ -1311,7 +1334,7 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       return this._targetSlideIndex;
     }
     const view = this.viewManagerEpoch?.manager.getView();
-    const hasUpFolder = !!getUpFolderItem(view?.query);
+    const hasUpFolder = !!getUpFolderItem(this._getFolderNavOptions());
     if (this.config?.chunk_size && this._previousSelectedIndex !== null) {
       const totalSlides = this._items.length + (hasUpFolder ? 1 : 0);
       if (totalSlides > 0) {
@@ -1333,6 +1356,18 @@ export class AdvancedCameraCardThumbnailCarousel extends LitElement {
       return 0;
     }
     return null;
+  }
+
+  private _getResolvedThumbnailStyle(): ResolvedThumbnailStyle | null {
+    if (!this.config) {
+      return null;
+    }
+    return resolveThumbnailStyle(this.config, {
+      placement:
+        this._getDirection() === 'vertical'
+          ? 'surround-vertical'
+          : 'surround-horizontal',
+    });
   }
 
   protected render(): TemplateResult | void {

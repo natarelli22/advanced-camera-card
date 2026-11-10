@@ -130,4 +130,3 @@ describe('sortOldestFirst', () => {
     expect(sortOldestFirst(media)).toEqual(expected);
   });
 });
-

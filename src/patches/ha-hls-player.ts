@@ -34,6 +34,7 @@ import {
   MEDIA_LOAD_CONTROLS_HIDE_SECONDS,
 } from '../utils/controls.js';
 import { fireAdvancedCameraCardEvent } from '../utils/fire-advanced-camera-card-event.js';
+import { withHLSStartPosition, type HlsConstructor } from '../utils/hls.js';
 import {
   createMediaLoadedInfo,
   dispatchMediaPauseEvent,
@@ -53,6 +54,12 @@ void customElements.whenDefined('ha-hls-player').then(() => {
     // to use query rather than the ref directive to find the player.
     @query('#video')
     protected _video?: HTMLVideoElement;
+
+    // Where playback starts, in seconds from the start of the stream. Without
+    // it hls.js loads the start of the stream, only for the carousel to seek
+    // away once it has loaded.
+    @property({ attribute: false })
+    public startPosition?: number;
 
     @property({ attribute: false })
     public targetID?: string;
@@ -162,6 +169,20 @@ void customElements.whenDefined('ha-hls-player').then(() => {
       if (this.autoPlay && (changedProps.has('autoPlay') || changedProps.has('url'))) {
         void this._mediaPlayerController.playback.play();
       }
+    }
+
+    // Native HLS (Safari) and ExoPlayer do not use hls.js, so they still start
+    // at the beginning and are seeked by the carousel.
+    protected _renderHLSPolyfill(
+      videoEl: HTMLVideoElement,
+      Hls: HlsConstructor,
+      url: string,
+    ): Promise<void> {
+      return super._renderHLSPolyfill(
+        videoEl,
+        withHLSStartPosition(Hls, this.startPosition),
+        url,
+      );
     }
 
     private _loadedDataHandler(ev: Event): void {

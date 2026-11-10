@@ -48,7 +48,6 @@ export class AdvancedCameraCardCarousel extends LitElement {
   private _refRoot: Ref<HTMLElement> = createRef();
   private _carousel: CarouselController | null = null;
 
-
   connectedCallback(): void {
     super.connectedCallback();
 

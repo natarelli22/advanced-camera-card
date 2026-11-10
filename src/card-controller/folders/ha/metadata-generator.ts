@@ -13,6 +13,7 @@ import type {
   RichBrowseMedia,
 } from '../../../ha/browse-media/types';
 import { isValidDate } from '../../../utils/basic';
+import { polyfillObjectHasOwn } from '../../../utils/object-has-own';
 import { regexpExtract } from '../../../utils/regexp-extract';
 import { REGEXP_GROUP_VALUE_KEY } from './types';
 
@@ -30,6 +31,7 @@ export class MetadataGenerator {
     // Dynamically import the any-date-parser only if we have a parser that
     // requires it, in order to save on bundle size.
     if (parsers?.some((parser) => isDateParser(parser) && !parser.format)) {
+      polyfillObjectHasOwn();
       this._anyDateParser = (await import('any-date-parser')).default;
     }
   }

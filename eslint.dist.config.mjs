@@ -35,6 +35,9 @@ export default [
         // Safari on a Mac has no touch screen and so never dispatches a touch
         // event. The card tests for the constructor before naming it.
         'TouchEvent',
+
+        // Polyfilled via `polyfillObjectHasOwn()` for Chrome < 93 (Chromecast).
+        'Object.hasOwn',
       ],
     },
 

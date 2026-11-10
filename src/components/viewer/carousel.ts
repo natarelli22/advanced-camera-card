@@ -37,6 +37,7 @@ import { getTextDirection } from '../../utils/text-direction.js';
 import { Timer } from '../../utils/timer.js';
 import { ViewItemClassifier } from '../../view/item-classifier.js';
 import type { ViewMedia } from '../../view/item.js';
+import { getMediaSeekTarget } from '../../view/media-seek-target.js';
 
 import '../carousel';
 import '../next-prev-control.js';
@@ -542,8 +543,7 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
       return;
     }
 
-    const requestedSeek = view?.context?.mediaViewer?.seek ?? null;
-    const seek = requestedSeek ?? selectedMedia.getPlaybackStartTime();
+    const seek = getMediaSeekTarget(view ?? null, selectedMedia);
 
     if (!seek) {
       if (shouldAutoPlay || mediaPlayerController.playback?.isPaused()) {
@@ -552,14 +552,12 @@ export class AdvancedCameraCardViewerCarousel extends LitElement {
       return;
     }
 
-    // The media supplies its own playback start time (via
-    // `getPlaybackStartTime()`). Only a seek time set on the view can be
-    // considered falling outside the media.
+    const requestedSeek = view?.context?.mediaViewer?.seek ?? null;
     const seekTimeInMedia = !requestedSeek || selectedMedia.includesTime(requestedSeek);
     this.toggleAttribute('unseekable', !seekTimeInMedia);
 
     const targetSeek = seekTimeInMedia
-      ? seek
+      ? seek.time
       : selectedMedia.getPlaybackStartTime() ?? selectedMedia.getStartTime();
 
     if (targetSeek) {
